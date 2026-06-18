@@ -4,6 +4,7 @@
 
 #include "hardware/BatteryMonitor.h"
 #include "hardware/DisplayBus.h"
+#include "hardware/FaceDisplay.h"
 #include "hardware/LedPixel.h"
 #include "hardware/MotorDriver.h"
 #include "hardware/RadarSensor.h"
@@ -27,13 +28,14 @@ class App {
 
   BatteryMonitor battery_;
   DisplayBus displayBus_;
+  FaceDisplay faceDisplay_;
   LedPixel led_;
   MotorDriver motors_;
   RadarSensor radar_;
   VoiceUart voice_;
   ScenarioLibrary scenarioLibrary_;
   ScenarioEngine scenarioEngine_{scenarioLibrary_};
-  ScenarioExecutor scenarioExecutor_;
+  ScenarioExecutor scenarioExecutor_{faceDisplay_};
   ScenarioConfigStore scenarioConfigStore_;
   ScenarioConfigApi scenarioConfigApi_{scenarioConfigStore_};
   WebConfigServer webConfigServer_{scenarioConfigApi_};

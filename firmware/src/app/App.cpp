@@ -15,6 +15,7 @@ void App::begin() {
 
   battery_.begin();
   displayBus_.begin();
+  faceDisplay_.begin();
   led_.begin();
   motors_.begin();
   radar_.begin();
