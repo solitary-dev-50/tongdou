@@ -35,7 +35,7 @@ class App {
   VoiceUart voice_;
   ScenarioLibrary scenarioLibrary_;
   ScenarioEngine scenarioEngine_{scenarioLibrary_};
-  ScenarioExecutor scenarioExecutor_{faceDisplay_};
+  ScenarioExecutor scenarioExecutor_{faceDisplay_, led_};
   ScenarioConfigStore scenarioConfigStore_;
   ScenarioConfigApi scenarioConfigApi_{scenarioConfigStore_};
   WebConfigServer webConfigServer_{scenarioConfigApi_};

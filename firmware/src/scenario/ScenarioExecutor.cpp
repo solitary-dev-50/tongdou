@@ -4,7 +4,8 @@
 
 namespace tongdou {
 
-ScenarioExecutor::ScenarioExecutor(FaceDisplay& faceDisplay) : faceDisplay_(faceDisplay) {}
+ScenarioExecutor::ScenarioExecutor(FaceDisplay& faceDisplay, LedPixel& led)
+    : faceDisplay_(faceDisplay), led_(led) {}
 
 void ScenarioExecutor::begin() {
   activePlan_ = {};
@@ -27,8 +28,23 @@ void ScenarioExecutor::execute(const ScenarioPlan& plan) {
   Serial.print(" duration=");
   Serial.println(plan.durationMs);
 
+  playLight(plan.light);
+  playFace(plan.face);
+}
+
+void ScenarioExecutor::playLight(LightAction action) {
+  const LightSequence sequence = lightPack_.sequence(action);
+  for (size_t i = 0; i < sequence.count; ++i) {
+    led_.show(sequence.frames[i].color);
+    if (sequence.frames[i].durationMs > 0) {
+      delay(sequence.frames[i].durationMs);
+    }
+  }
+}
+
+void ScenarioExecutor::playFace(FaceAction action) {
   size_t frameCount = 0;
-  const FaceFrame* frames = facePack_.frames(plan.face, frameCount);
+  const FaceFrame* frames = facePack_.frames(action, frameCount);
   for (size_t i = 0; i < frameCount; ++i) {
     faceDisplay_.show(frames[i].expression);
     if (frames[i].durationMs > 0) {
