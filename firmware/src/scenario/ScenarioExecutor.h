@@ -17,14 +17,25 @@ class ScenarioExecutor {
   void update();
 
  private:
-  void playLight(LightAction action);
-  void playFace(FaceAction action);
+  void startLight(LightAction action, unsigned long nowMs);
+  void startFace(FaceAction action, unsigned long nowMs);
+  void updateLight(unsigned long nowMs);
+  void updateFace(unsigned long nowMs);
 
   FaceDisplay& faceDisplay_;
   LedPixel& led_;
   FacePack facePack_;
   LightPack lightPack_;
   ScenarioPlan activePlan_;
+  const FaceFrame* faceFrames_ = nullptr;
+  size_t faceFrameCount_ = 0;
+  size_t faceFrameIndex_ = 0;
+  unsigned long nextFaceFrameMs_ = 0;
+  bool faceRunning_ = false;
+  LightSequence lightSequence_;
+  size_t lightFrameIndex_ = 0;
+  unsigned long nextLightFrameMs_ = 0;
+  bool lightRunning_ = false;
 };
 
 }  // namespace tongdou

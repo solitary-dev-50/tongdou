@@ -9,6 +9,15 @@ ScenarioExecutor::ScenarioExecutor(FaceDisplay& faceDisplay, LedPixel& led)
 
 void ScenarioExecutor::begin() {
   activePlan_ = {};
+  faceFrames_ = nullptr;
+  faceFrameCount_ = 0;
+  faceFrameIndex_ = 0;
+  nextFaceFrameMs_ = 0;
+  faceRunning_ = false;
+  lightSequence_ = {};
+  lightFrameIndex_ = 0;
+  nextLightFrameMs_ = 0;
+  lightRunning_ = false;
 }
 
 void ScenarioExecutor::execute(const ScenarioPlan& plan) {
@@ -28,31 +37,60 @@ void ScenarioExecutor::execute(const ScenarioPlan& plan) {
   Serial.print(" duration=");
   Serial.println(plan.durationMs);
 
-  playLight(plan.light);
-  playFace(plan.face);
+  const unsigned long now = millis();
+  startLight(plan.light, now);
+  startFace(plan.face, now);
 }
 
-void ScenarioExecutor::playLight(LightAction action) {
-  const LightSequence sequence = lightPack_.sequence(action);
-  for (size_t i = 0; i < sequence.count; ++i) {
-    led_.show(sequence.frames[i].color);
-    if (sequence.frames[i].durationMs > 0) {
-      delay(sequence.frames[i].durationMs);
+void ScenarioExecutor::startLight(LightAction action, unsigned long nowMs) {
+  lightSequence_ = lightPack_.sequence(action);
+  lightFrameIndex_ = 0;
+  nextLightFrameMs_ = nowMs;
+  lightRunning_ = lightSequence_.count > 0;
+  updateLight(nowMs);
+}
+
+void ScenarioExecutor::startFace(FaceAction action, unsigned long nowMs) {
+  faceFrameCount_ = 0;
+  faceFrames_ = facePack_.frames(action, faceFrameCount_);
+  faceFrameIndex_ = 0;
+  nextFaceFrameMs_ = nowMs;
+  faceRunning_ = faceFrames_ != nullptr && faceFrameCount_ > 0;
+  updateFace(nowMs);
+}
+
+void ScenarioExecutor::updateLight(unsigned long nowMs) {
+  while (lightRunning_ &&
+         static_cast<long>(nowMs - nextLightFrameMs_) >= 0) {
+    const LightFrame& frame = lightSequence_.frames[lightFrameIndex_];
+    led_.show(frame.color);
+    ++lightFrameIndex_;
+    if (lightFrameIndex_ >= lightSequence_.count) {
+      lightRunning_ = false;
+      return;
     }
+    nextLightFrameMs_ = nowMs + frame.durationMs;
   }
 }
 
-void ScenarioExecutor::playFace(FaceAction action) {
-  size_t frameCount = 0;
-  const FaceFrame* frames = facePack_.frames(action, frameCount);
-  for (size_t i = 0; i < frameCount; ++i) {
-    faceDisplay_.show(frames[i].expression);
-    if (frames[i].durationMs > 0) {
-      delay(frames[i].durationMs);
+void ScenarioExecutor::updateFace(unsigned long nowMs) {
+  while (faceRunning_ &&
+         static_cast<long>(nowMs - nextFaceFrameMs_) >= 0) {
+    const FaceFrame& frame = faceFrames_[faceFrameIndex_];
+    faceDisplay_.show(frame.expression);
+    ++faceFrameIndex_;
+    if (faceFrameIndex_ >= faceFrameCount_) {
+      faceRunning_ = false;
+      return;
     }
+    nextFaceFrameMs_ = nowMs + frame.durationMs;
   }
 }
 
-void ScenarioExecutor::update() {}
+void ScenarioExecutor::update() {
+  const unsigned long now = millis();
+  updateLight(now);
+  updateFace(now);
+}
 
 }  // namespace tongdou
