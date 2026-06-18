@@ -55,6 +55,9 @@ constexpr VoiceLine kVoices[] = {
     VoiceLine::BreakReminder,
     VoiceLine::OvertimeNudge,
     VoiceLine::OvertimeCowardReply,
+    VoiceLine::ReminderDueNudge,
+    VoiceLine::LowBatteryWhine,
+    VoiceLine::ChargingRelief,
 };
 
 template <typename T, size_t N>

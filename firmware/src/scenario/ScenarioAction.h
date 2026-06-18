@@ -46,6 +46,9 @@ enum class VoiceLine : uint8_t {
   BreakReminder,
   OvertimeNudge,
   OvertimeCowardReply,
+  ReminderDueNudge,
+  LowBatteryWhine,
+  ChargingRelief,
 };
 
 }  // namespace tongdou

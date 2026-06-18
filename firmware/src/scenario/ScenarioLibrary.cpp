@@ -21,6 +21,14 @@ constexpr ScenarioRule kRules[] = {
          VoiceLine::SnoozeSoft, 1000},
     },
     {
+        ScenarioEventType::ReminderDue,
+        false,
+        true,
+        PersonalityStyle::Gentle,
+        {true, FaceAction::Serious, LightAction::SoftWhite,
+         MotionAction::NudgeForward, VoiceLine::ReminderDueNudge, 1200},
+    },
+    {
         ScenarioEventType::ReminderConfirmed,
         false,
         true,
@@ -43,6 +51,22 @@ constexpr ScenarioRule kRules[] = {
         PersonalityStyle::Gentle,
         {true, FaceAction::Serious, LightAction::WeakBreath, MotionAction::None,
          VoiceLine::BreakReminder, 1200},
+    },
+    {
+        ScenarioEventType::LowBattery,
+        true,
+        true,
+        PersonalityStyle::Gentle,
+        {true, FaceAction::Wronged, LightAction::RedShortBlink,
+         MotionAction::ShrinkBack, VoiceLine::LowBatteryWhine, 1000},
+    },
+    {
+        ScenarioEventType::ChargingStarted,
+        true,
+        true,
+        PersonalityStyle::Gentle,
+        {true, FaceAction::Smile, LightAction::WarmWake, MotionAction::TinyShake,
+         VoiceLine::ChargingRelief, 1000},
     },
     {
         ScenarioEventType::OvertimeReminderDue,

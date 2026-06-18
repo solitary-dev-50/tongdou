@@ -70,6 +70,9 @@ class VoiceLine(IntEnum):
     BREAK_REMINDER = 6
     OVERTIME_NUDGE = 7
     OVERTIME_COWARD_REPLY = 8
+    REMINDER_DUE_NUDGE = 9
+    LOW_BATTERY_WHINE = 10
+    CHARGING_RELIEF = 11
 
 
 @dataclass(frozen=True)
@@ -131,6 +134,20 @@ SCENARIO_RULES = (
         ),
     ),
     ScenarioRule(
+        ScenarioEventType.REMINDER_DUE,
+        False,
+        True,
+        PersonalityStyle.GENTLE,
+        ScenarioPlan(
+            True,
+            FaceAction.SERIOUS,
+            LightAction.SOFT_WHITE,
+            MotionAction.NUDGE_FORWARD,
+            VoiceLine.REMINDER_DUE_NUDGE,
+            1200,
+        ),
+    ),
+    ScenarioRule(
         ScenarioEventType.REMINDER_CONFIRMED,
         False,
         True,
@@ -170,6 +187,34 @@ SCENARIO_RULES = (
             MotionAction.NONE,
             VoiceLine.BREAK_REMINDER,
             1200,
+        ),
+    ),
+    ScenarioRule(
+        ScenarioEventType.LOW_BATTERY,
+        True,
+        True,
+        PersonalityStyle.GENTLE,
+        ScenarioPlan(
+            True,
+            FaceAction.WRONGED,
+            LightAction.RED_SHORT_BLINK,
+            MotionAction.SHRINK_BACK,
+            VoiceLine.LOW_BATTERY_WHINE,
+            1000,
+        ),
+    ),
+    ScenarioRule(
+        ScenarioEventType.CHARGING_STARTED,
+        True,
+        True,
+        PersonalityStyle.GENTLE,
+        ScenarioPlan(
+            True,
+            FaceAction.SMILE,
+            LightAction.WARM_WAKE,
+            MotionAction.TINY_SHAKE,
+            VoiceLine.CHARGING_RELIEF,
+            1000,
         ),
     ),
     ScenarioRule(
