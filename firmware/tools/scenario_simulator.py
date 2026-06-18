@@ -3,8 +3,11 @@
 
 from __future__ import annotations
 
+import argparse
+import json
 from dataclasses import dataclass
 from enum import IntEnum
+from pathlib import Path
 from typing import Iterable
 
 
@@ -251,6 +254,15 @@ SCENARIO_RULES = (
 )
 
 
+PACK_INFO = {
+    "formatVersion": 1,
+    "id": "tongdou.default.v1",
+    "name": "Default Tong Dou",
+    "description": "First built-in pack for warm, cheeky desk companion behavior.",
+    "defaultPersonality": "balanced",
+}
+
+
 FACE_FRAMES = {
     FaceAction.NONE: (),
     FaceAction.WAKE_UP: (("Sleep", 180), ("HalfOpen", 180), ("Awake", 500)),
@@ -456,8 +468,45 @@ def run_case(label: str, context: ScenarioContext, events: Iterable[ScenarioEven
     print()
 
 
-def main() -> None:
-    events = (
+def rule_to_dict(rule: ScenarioRule) -> dict[str, object]:
+    plan = rule.plan
+    return {
+        "enabled": plan.valid,
+        "event": enum_name(rule.event_type),
+        "allowInQuietMode": rule.allow_in_quiet_mode,
+        "allowWhenLowBattery": rule.allow_when_low_battery,
+        "minimumPersonality": enum_name(rule.minimum_personality),
+        "plan": {
+            "face": enum_name(plan.face),
+            "light": enum_name(plan.light),
+            "motion": enum_name(plan.motion),
+            "voice": enum_name(plan.voice),
+            "durationMs": plan.duration_ms,
+        },
+    }
+
+
+def scenario_pack_to_dict() -> dict[str, object]:
+    return {
+        "pack": PACK_INFO,
+        "rules": [rule_to_dict(rule) for rule in SCENARIO_RULES],
+    }
+
+
+def export_pack(path: str) -> None:
+    content = json.dumps(scenario_pack_to_dict(), ensure_ascii=False, indent=2)
+    if path == "-":
+        print(content)
+        return
+
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(content + "\n", encoding="utf-8")
+    print(f"exported scenario pack: {target}")
+
+
+def default_events() -> tuple[ScenarioEventType, ...]:
+    return (
         ScenarioEventType.BOOT_COMPLETED,
         ScenarioEventType.REMINDER_SNOOZED,
         ScenarioEventType.REMINDER_CONFIRMED,
@@ -469,6 +518,10 @@ def main() -> None:
         ScenarioEventType.CHARGING_STARTED,
         ScenarioEventType.VOICE_RECOGNITION_FAILED,
     )
+
+
+def run_all_cases() -> None:
+    events = default_events()
     run_case(
         "normal",
         ScenarioContext(user_present=True, personality=PersonalityStyle.BALANCED),
@@ -497,6 +550,22 @@ def main() -> None:
         ScenarioContext(user_present=True, personality=PersonalityStyle.GENTLE),
         events,
     )
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Run or export Tong Dou scenarios.")
+    parser.add_argument(
+        "--export-pack",
+        metavar="PATH",
+        help="Export the built-in scenario pack as JSON. Use '-' for stdout.",
+    )
+    args = parser.parse_args()
+
+    if args.export_pack:
+        export_pack(args.export_pack)
+        return
+
+    run_all_cases()
 
 
 if __name__ == "__main__":

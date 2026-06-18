@@ -1,0 +1,151 @@
+{
+  "pack": {
+    "formatVersion": 1,
+    "id": "tongdou.default.v1",
+    "name": "Default Tong Dou",
+    "description": "First built-in pack for warm, cheeky desk companion behavior.",
+    "defaultPersonality": "balanced"
+  },
+  "rules": [
+    {
+      "enabled": true,
+      "event": "boot-completed",
+      "allowInQuietMode": false,
+      "allowWhenLowBattery": true,
+      "minimumPersonality": "gentle",
+      "plan": {
+        "face": "wake-up",
+        "light": "warm-wake",
+        "motion": "tiny-shake",
+        "voice": "wake-greeting",
+        "durationMs": 1200
+      }
+    },
+    {
+      "enabled": true,
+      "event": "reminder-snoozed",
+      "allowInQuietMode": false,
+      "allowWhenLowBattery": true,
+      "minimumPersonality": "gentle",
+      "plan": {
+        "face": "roll-eyes",
+        "light": "soft-white",
+        "motion": "none",
+        "voice": "snooze-soft",
+        "durationMs": 1000
+      }
+    },
+    {
+      "enabled": true,
+      "event": "reminder-due",
+      "allowInQuietMode": false,
+      "allowWhenLowBattery": true,
+      "minimumPersonality": "gentle",
+      "plan": {
+        "face": "serious",
+        "light": "soft-white",
+        "motion": "nudge-forward",
+        "voice": "reminder-due-nudge",
+        "durationMs": 1200
+      }
+    },
+    {
+      "enabled": true,
+      "event": "reminder-confirmed",
+      "allowInQuietMode": false,
+      "allowWhenLowBattery": true,
+      "minimumPersonality": "gentle",
+      "plan": {
+        "face": "smile",
+        "light": "soft-white",
+        "motion": "nod",
+        "voice": "confirm-reward",
+        "durationMs": 1000
+      }
+    },
+    {
+      "enabled": true,
+      "event": "quiet-mode-requested",
+      "allowInQuietMode": true,
+      "allowWhenLowBattery": true,
+      "minimumPersonality": "gentle",
+      "plan": {
+        "face": "wronged",
+        "light": "off",
+        "motion": "stop",
+        "voice": "quiet-reply",
+        "durationMs": 800
+      }
+    },
+    {
+      "enabled": true,
+      "event": "user-idle-too-long",
+      "allowInQuietMode": false,
+      "allowWhenLowBattery": true,
+      "minimumPersonality": "gentle",
+      "plan": {
+        "face": "serious",
+        "light": "weak-breath",
+        "motion": "none",
+        "voice": "break-reminder",
+        "durationMs": 1200
+      }
+    },
+    {
+      "enabled": true,
+      "event": "low-battery",
+      "allowInQuietMode": true,
+      "allowWhenLowBattery": true,
+      "minimumPersonality": "gentle",
+      "plan": {
+        "face": "wronged",
+        "light": "red-short-blink",
+        "motion": "shrink-back",
+        "voice": "low-battery-whine",
+        "durationMs": 1000
+      }
+    },
+    {
+      "enabled": true,
+      "event": "charging-started",
+      "allowInQuietMode": true,
+      "allowWhenLowBattery": true,
+      "minimumPersonality": "gentle",
+      "plan": {
+        "face": "smile",
+        "light": "warm-wake",
+        "motion": "tiny-shake",
+        "voice": "charging-relief",
+        "durationMs": 1000
+      }
+    },
+    {
+      "enabled": true,
+      "event": "voice-recognition-failed",
+      "allowInQuietMode": true,
+      "allowWhenLowBattery": true,
+      "minimumPersonality": "gentle",
+      "plan": {
+        "face": "confused",
+        "light": "red-short-blink",
+        "motion": "shrink-back",
+        "voice": "recognition-coffee-choke",
+        "durationMs": 1200
+      }
+    },
+    {
+      "enabled": true,
+      "event": "overtime-reminder-due",
+      "allowInQuietMode": false,
+      "allowWhenLowBattery": true,
+      "minimumPersonality": "balanced",
+      "plan": {
+        "face": "squint",
+        "light": "dim-warm",
+        "motion": "lean-forward",
+        "voice": "overtime-nudge",
+        "durationMs": 1800
+      }
+    }
+  ]
+}

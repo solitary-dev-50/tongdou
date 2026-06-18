@@ -86,14 +86,26 @@ constexpr ScenarioRule kRules[] = {
     },
 };
 
+constexpr ScenarioPack kDefaultPack = {
+    {kScenarioPackFormatVersion, "tongdou.default.v1", "Default Tong Dou",
+     "First built-in pack for warm, cheeky desk companion behavior.",
+     PersonalityStyle::Balanced},
+    kRules,
+    sizeof(kRules) / sizeof(kRules[0]),
+};
+
 }  // namespace
 
+const ScenarioPack& ScenarioLibrary::pack() const {
+  return kDefaultPack;
+}
+
 const ScenarioRule* ScenarioLibrary::rules() const {
-  return kRules;
+  return kDefaultPack.rules;
 }
 
 size_t ScenarioLibrary::size() const {
-  return sizeof(kRules) / sizeof(kRules[0]);
+  return kDefaultPack.ruleCount;
 }
 
 }  // namespace tongdou
