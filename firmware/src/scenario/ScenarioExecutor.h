@@ -7,6 +7,7 @@
 #include "light/LightPack.h"
 #include "motion/MotionPack.h"
 #include "scenario/ScenarioPlan.h"
+#include "voice/VoiceLinePack.h"
 
 namespace tongdou {
 
@@ -22,6 +23,7 @@ class ScenarioExecutor {
   void startLight(LightAction action, unsigned long nowMs);
   void startFace(FaceAction action, unsigned long nowMs);
   void startMotion(MotionAction action, unsigned long nowMs);
+  void startVoice(VoiceLine line);
   void updateLight(unsigned long nowMs);
   void updateFace(unsigned long nowMs);
   void updateMotion(unsigned long nowMs);
@@ -32,6 +34,7 @@ class ScenarioExecutor {
   FacePack facePack_;
   LightPack lightPack_;
   MotionPack motionPack_;
+  VoiceLinePack voiceLinePack_;
   ScenarioPlan activePlan_;
   const FaceFrame* faceFrames_ = nullptr;
   size_t faceFrameCount_ = 0;

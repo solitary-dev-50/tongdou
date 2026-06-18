@@ -304,6 +304,34 @@ MOTION_FRAMES = {
 }
 
 
+VOICE_CLIPS = {
+    VoiceLine.NONE: (0, ""),
+    VoiceLine.WAKE_GREETING: (
+        101,
+        "嗨，朋友，你的桌面上是不是缺少一个这样的小混蛋……和你一样的牛马搭子？",
+    ),
+    VoiceLine.SNOOZE_SOFT: (102, "行吧，逃得过初一，逃不过十五。"),
+    VoiceLine.SNOOZE_TEASE: (103, "你先拖着，我先记着。"),
+    VoiceLine.CONFIRM_REWARD: (104, "可以，可以，今天算你支棱起来了。"),
+    VoiceLine.QUIET_REPLY: (105, "行行行，我闭嘴，你凶什么凶。"),
+    VoiceLine.BREAK_REMINDER: (106, "起来动一下吧，再坐下去我都替你的腰着急。"),
+    VoiceLine.OVERTIME_NUDGE: (
+        107,
+        "这都几点了，还不下班？再晚回家，你老婆不罚你跪才怪……",
+    ),
+    VoiceLine.OVERTIME_COWARD_REPLY: (
+        108,
+        "不敢不敢，我就是怕你跪久了膝盖疼……明天还得你驮着我加班呢。",
+    ),
+    VoiceLine.REMINDER_DUE_NUDGE: (109, "到点了，别装没听见，我都替你记着呢。"),
+    VoiceLine.LOW_BATTERY_WHINE: (
+        110,
+        "我快没电了，你再不救我，我就只能安详下线了。",
+    ),
+    VoiceLine.CHARGING_RELIEF: (111, "行，算你还有点良心。"),
+}
+
+
 def select_plan(event_type: ScenarioEventType, context: ScenarioContext) -> ScenarioPlan:
     for rule in SCENARIO_RULES:
         if rule.event_type != event_type:
@@ -378,6 +406,14 @@ def print_motion_frames(action: MotionAction) -> None:
         print(f"    - left={wheels[0]} right={wheels[1]} {duration_ms}ms")
 
 
+def print_voice_clip(line: VoiceLine) -> None:
+    clip_id, text = VOICE_CLIPS[line]
+    if clip_id == 0:
+        print("  voice_clip: none")
+        return
+    print(f"  voice_clip: id={clip_id} text={text}")
+
+
 def run_case(label: str, context: ScenarioContext, events: Iterable[ScenarioEventType]) -> None:
     print(f"== case: {label} ==")
     print_context(context)
@@ -389,6 +425,7 @@ def run_case(label: str, context: ScenarioContext, events: Iterable[ScenarioEven
             print_face_frames(plan.face)
             print_light_frames(plan.light)
             print_motion_frames(plan.motion)
+            print_voice_clip(plan.voice)
     print()
 
 

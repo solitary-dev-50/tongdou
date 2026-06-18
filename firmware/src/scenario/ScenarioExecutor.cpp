@@ -46,6 +46,7 @@ void ScenarioExecutor::execute(const ScenarioPlan& plan) {
   startLight(plan.light, now);
   startFace(plan.face, now);
   startMotion(plan.motion, now);
+  startVoice(plan.voice);
 }
 
 void ScenarioExecutor::startLight(LightAction action, unsigned long nowMs) {
@@ -71,6 +72,18 @@ void ScenarioExecutor::startMotion(MotionAction action, unsigned long nowMs) {
   nextMotionFrameMs_ = nowMs;
   motionRunning_ = motionSequence_.count > 0;
   updateMotion(nowMs);
+}
+
+void ScenarioExecutor::startVoice(VoiceLine line) {
+  const VoiceClip clip = voiceLinePack_.clip(line);
+  if (clip.clipId == 0) {
+    return;
+  }
+
+  Serial.print("voice clip=");
+  Serial.print(clip.clipId);
+  Serial.print(" text=");
+  Serial.println(clip.text);
 }
 
 void ScenarioExecutor::updateLight(unsigned long nowMs) {
