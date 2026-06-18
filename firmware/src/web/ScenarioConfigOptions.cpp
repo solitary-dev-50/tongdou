@@ -21,12 +21,14 @@ constexpr ScenarioEventType kEvents[] = {
     ScenarioEventType::LowBattery,
     ScenarioEventType::ChargingStarted,
     ScenarioEventType::OvertimeReminderDue,
+    ScenarioEventType::VoiceRecognitionFailed,
 };
 
 constexpr FaceAction kFaces[] = {
     FaceAction::None,     FaceAction::WakeUp,  FaceAction::Smile,
     FaceAction::Serious,  FaceAction::RollEyes, FaceAction::Sleepy,
     FaceAction::Wronged,  FaceAction::Squint,  FaceAction::Innocent,
+    FaceAction::Confused,
 };
 
 constexpr LightAction kLights[] = {
@@ -58,6 +60,7 @@ constexpr VoiceLine kVoices[] = {
     VoiceLine::ReminderDueNudge,
     VoiceLine::LowBatteryWhine,
     VoiceLine::ChargingRelief,
+    VoiceLine::RecognitionCoffeeChoke,
 };
 
 template <typename T, size_t N>

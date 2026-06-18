@@ -26,6 +26,8 @@ VoiceClip VoiceLinePack::clip(VoiceLine line) const {
       return {110, "我快没电了，你再不救我，我就只能安详下线了。"};
     case VoiceLine::ChargingRelief:
       return {111, "行，算你还有点良心。"};
+    case VoiceLine::RecognitionCoffeeChoke:
+      return {112, "咳……刚才被咖啡呛了一下。你再说一遍，我这次肯定认真听。"};
     case VoiceLine::None:
     default:
       return {};

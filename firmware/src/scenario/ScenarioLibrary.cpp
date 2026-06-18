@@ -69,6 +69,14 @@ constexpr ScenarioRule kRules[] = {
          VoiceLine::ChargingRelief, 1000},
     },
     {
+        ScenarioEventType::VoiceRecognitionFailed,
+        true,
+        true,
+        PersonalityStyle::Gentle,
+        {true, FaceAction::Confused, LightAction::RedShortBlink,
+         MotionAction::ShrinkBack, VoiceLine::RecognitionCoffeeChoke, 1200},
+    },
+    {
         ScenarioEventType::OvertimeReminderDue,
         false,
         true,

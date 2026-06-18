@@ -52,6 +52,13 @@ constexpr FaceFrame kInnocent[] = {
     {FaceExpression::Innocent, 820},
 };
 
+constexpr FaceFrame kConfused[] = {
+    {FaceExpression::Awake, 120},
+    {FaceExpression::Confused, 360},
+    {FaceExpression::Wronged, 260},
+    {FaceExpression::Innocent, 420},
+};
+
 template <size_t N>
 const FaceFrame* expose(const FaceFrame (&items)[N], size_t& count) {
   count = N;
@@ -78,6 +85,8 @@ const FaceFrame* FacePack::frames(FaceAction action, size_t& count) const {
       return expose(kSquint, count);
     case FaceAction::Innocent:
       return expose(kInnocent, count);
+    case FaceAction::Confused:
+      return expose(kConfused, count);
     case FaceAction::None:
     default:
       return expose(kNone, count);

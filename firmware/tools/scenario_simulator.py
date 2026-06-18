@@ -26,6 +26,7 @@ class ScenarioEventType(IntEnum):
     LOW_BATTERY = 8
     CHARGING_STARTED = 9
     OVERTIME_REMINDER_DUE = 10
+    VOICE_RECOGNITION_FAILED = 11
 
 
 class FaceAction(IntEnum):
@@ -38,6 +39,7 @@ class FaceAction(IntEnum):
     WRONGED = 6
     SQUINT = 7
     INNOCENT = 8
+    CONFUSED = 9
 
 
 class LightAction(IntEnum):
@@ -73,6 +75,7 @@ class VoiceLine(IntEnum):
     REMINDER_DUE_NUDGE = 9
     LOW_BATTERY_WHINE = 10
     CHARGING_RELIEF = 11
+    RECOGNITION_COFFEE_CHOKE = 12
 
 
 @dataclass(frozen=True)
@@ -218,6 +221,20 @@ SCENARIO_RULES = (
         ),
     ),
     ScenarioRule(
+        ScenarioEventType.VOICE_RECOGNITION_FAILED,
+        True,
+        True,
+        PersonalityStyle.GENTLE,
+        ScenarioPlan(
+            True,
+            FaceAction.CONFUSED,
+            LightAction.RED_SHORT_BLINK,
+            MotionAction.SHRINK_BACK,
+            VoiceLine.RECOGNITION_COFFEE_CHOKE,
+            1200,
+        ),
+    ),
+    ScenarioRule(
         ScenarioEventType.OVERTIME_REMINDER_DUE,
         False,
         True,
@@ -248,6 +265,12 @@ FACE_FRAMES = {
     FaceAction.WRONGED: (("Wronged", 700),),
     FaceAction.SQUINT: (("Squint", 300), ("Innocent", 500)),
     FaceAction.INNOCENT: (("Innocent", 600),),
+    FaceAction.CONFUSED: (
+        ("Awake", 120),
+        ("Confused", 360),
+        ("Wronged", 260),
+        ("Innocent", 420),
+    ),
 }
 
 
@@ -329,6 +352,10 @@ VOICE_CLIPS = {
         "我快没电了，你再不救我，我就只能安详下线了。",
     ),
     VoiceLine.CHARGING_RELIEF: (111, "行，算你还有点良心。"),
+    VoiceLine.RECOGNITION_COFFEE_CHOKE: (
+        112,
+        "咳……刚才被咖啡呛了一下。你再说一遍，我这次肯定认真听。",
+    ),
 }
 
 
@@ -440,6 +467,7 @@ def main() -> None:
         ScenarioEventType.REMINDER_DUE,
         ScenarioEventType.LOW_BATTERY,
         ScenarioEventType.CHARGING_STARTED,
+        ScenarioEventType.VOICE_RECOGNITION_FAILED,
     )
     run_case(
         "normal",

@@ -14,6 +14,7 @@ enum class FaceAction : uint8_t {
   Wronged,
   Squint,
   Innocent,
+  Confused,
 };
 
 enum class LightAction : uint8_t {
@@ -49,6 +50,7 @@ enum class VoiceLine : uint8_t {
   ReminderDueNudge,
   LowBatteryWhine,
   ChargingRelief,
+  RecognitionCoffeeChoke,
 };
 
 }  // namespace tongdou
