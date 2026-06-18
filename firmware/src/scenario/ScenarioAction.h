@@ -12,6 +12,8 @@ enum class FaceAction : uint8_t {
   RollEyes,
   Sleepy,
   Wronged,
+  Squint,
+  Innocent,
 };
 
 enum class LightAction : uint8_t {
@@ -21,6 +23,7 @@ enum class LightAction : uint8_t {
   WarmWake,
   RedShortBlink,
   WeakBreath,
+  DimWarm,
 };
 
 enum class MotionAction : uint8_t {
@@ -29,6 +32,8 @@ enum class MotionAction : uint8_t {
   Nod,
   TinyShake,
   NudgeForward,
+  LeanForward,
+  ShrinkBack,
 };
 
 enum class VoiceLine : uint8_t {
@@ -39,6 +44,8 @@ enum class VoiceLine : uint8_t {
   ConfirmReward,
   QuietReply,
   BreakReminder,
+  OvertimeNudge,
+  OvertimeCowardReply,
 };
 
 }  // namespace tongdou

@@ -17,3 +17,8 @@ section {
   border: 1px solid #d8dde6;
   background: #ffffff;
 }
+
+li {
+  margin: 6px 0;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}

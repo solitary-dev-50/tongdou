@@ -28,4 +28,8 @@ struct ScenarioConfig {
   UserScenarioRule rules[kMaxUserScenarioRules];
 };
 
+struct ScenarioConfigPatch {
+  ScenarioConfig config;
+};
+
 }  // namespace tongdou

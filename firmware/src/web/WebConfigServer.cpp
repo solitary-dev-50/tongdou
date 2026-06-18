@@ -13,4 +13,8 @@ void WebConfigServer::update() {
   scenarioApi_.update();
 }
 
+ScenarioConfigApi& WebConfigServer::scenarioApi() {
+  return scenarioApi_;
+}
+
 }  // namespace tongdou

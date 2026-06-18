@@ -44,6 +44,14 @@ constexpr ScenarioRule kRules[] = {
         {true, FaceAction::Serious, LightAction::WeakBreath, MotionAction::None,
          VoiceLine::BreakReminder, 1200},
     },
+    {
+        ScenarioEventType::OvertimeReminderDue,
+        false,
+        true,
+        PersonalityStyle::Balanced,
+        {true, FaceAction::Squint, LightAction::DimWarm, MotionAction::LeanForward,
+         VoiceLine::OvertimeNudge, 1800},
+    },
 };
 
 }  // namespace

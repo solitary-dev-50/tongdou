@@ -15,6 +15,7 @@ enum class ScenarioEventType : uint8_t {
   QuietModeRequested,
   LowBattery,
   ChargingStarted,
+  OvertimeReminderDue,
 };
 
 struct ScenarioEvent {

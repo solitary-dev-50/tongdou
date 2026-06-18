@@ -1,6 +1,7 @@
 #pragma once
 
 #include "web/ScenarioConfigApi.h"
+#include "web/WebApiContract.h"
 
 namespace tongdou {
 
@@ -10,6 +11,7 @@ class WebConfigServer {
 
   void begin();
   void update();
+  ScenarioConfigApi& scenarioApi();
 
  private:
   ScenarioConfigApi& scenarioApi_;
