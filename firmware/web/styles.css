@@ -1,0 +1,19 @@
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: #f6f7f9;
+  color: #1f2937;
+}
+
+main {
+  max-width: 720px;
+  margin: 32px auto;
+  padding: 0 20px;
+}
+
+section {
+  margin-top: 20px;
+  padding: 16px;
+  border: 1px solid #d8dde6;
+  background: #ffffff;
+}

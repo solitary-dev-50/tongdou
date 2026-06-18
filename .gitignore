@@ -15,9 +15,11 @@ outputs/voice-platform/铜豆语音平台命令词配置表.xlsx
 语音指令集.xlsx
 AGENTS.md
 README.md
+!firmware/web/README.md
 docs/固件架构草案.md
 docs/经验记录.md
 docs/铜豆剧情包.md
+docs/系统架构.md
 docs/系统启动时序.md
 docs/硬件说明.md
 docs/语音平台命令词配置表.md

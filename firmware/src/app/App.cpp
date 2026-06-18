@@ -19,11 +19,21 @@ void App::begin() {
   motors_.begin();
   radar_.begin();
   voice_.begin();
+  scenarioExecutor_.begin();
+  scenarioConfigStore_.begin();
+  webConfigServer_.begin();
+
+  ScenarioContext context;
+  const ScenarioPlan bootPlan =
+      scenarioEngine_.select({ScenarioEventType::BootCompleted, 0}, context);
+  scenarioExecutor_.execute(bootPlan);
 
   Serial.println("hardware skeleton initialized");
 }
 
 void App::update() {
+  webConfigServer_.update();
+  scenarioExecutor_.update();
   logHeartbeat();
 }
 
