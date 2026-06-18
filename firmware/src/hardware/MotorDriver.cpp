@@ -14,11 +14,49 @@ void MotorDriver::begin() {
   stop();
 }
 
+void MotorDriver::drive(WheelDrive left, WheelDrive right) {
+  driveLeft(left);
+  driveRight(right);
+}
+
 void MotorDriver::stop() {
-  digitalWrite(pins::MOTOR_AIN1, LOW);
-  digitalWrite(pins::MOTOR_AIN2, LOW);
-  digitalWrite(pins::MOTOR_BIN1, LOW);
-  digitalWrite(pins::MOTOR_BIN2, LOW);
+  drive(WheelDrive::Stop, WheelDrive::Stop);
+}
+
+void MotorDriver::driveLeft(WheelDrive drive) {
+  switch (drive) {
+    case WheelDrive::Forward:
+      digitalWrite(pins::MOTOR_AIN1, HIGH);
+      digitalWrite(pins::MOTOR_AIN2, LOW);
+      break;
+    case WheelDrive::Reverse:
+      digitalWrite(pins::MOTOR_AIN1, LOW);
+      digitalWrite(pins::MOTOR_AIN2, HIGH);
+      break;
+    case WheelDrive::Stop:
+    default:
+      digitalWrite(pins::MOTOR_AIN1, LOW);
+      digitalWrite(pins::MOTOR_AIN2, LOW);
+      break;
+  }
+}
+
+void MotorDriver::driveRight(WheelDrive drive) {
+  switch (drive) {
+    case WheelDrive::Forward:
+      digitalWrite(pins::MOTOR_BIN1, HIGH);
+      digitalWrite(pins::MOTOR_BIN2, LOW);
+      break;
+    case WheelDrive::Reverse:
+      digitalWrite(pins::MOTOR_BIN1, LOW);
+      digitalWrite(pins::MOTOR_BIN2, HIGH);
+      break;
+    case WheelDrive::Stop:
+    default:
+      digitalWrite(pins::MOTOR_BIN1, LOW);
+      digitalWrite(pins::MOTOR_BIN2, LOW);
+      break;
+  }
 }
 
 }  // namespace tongdou

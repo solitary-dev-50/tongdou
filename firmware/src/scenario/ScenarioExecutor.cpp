@@ -4,8 +4,9 @@
 
 namespace tongdou {
 
-ScenarioExecutor::ScenarioExecutor(FaceDisplay& faceDisplay, LedPixel& led)
-    : faceDisplay_(faceDisplay), led_(led) {}
+ScenarioExecutor::ScenarioExecutor(FaceDisplay& faceDisplay, LedPixel& led,
+                                   MotorDriver& motors)
+    : faceDisplay_(faceDisplay), led_(led), motors_(motors) {}
 
 void ScenarioExecutor::begin() {
   activePlan_ = {};
@@ -18,6 +19,10 @@ void ScenarioExecutor::begin() {
   lightFrameIndex_ = 0;
   nextLightFrameMs_ = 0;
   lightRunning_ = false;
+  motionSequence_ = {};
+  motionFrameIndex_ = 0;
+  nextMotionFrameMs_ = 0;
+  motionRunning_ = false;
 }
 
 void ScenarioExecutor::execute(const ScenarioPlan& plan) {
@@ -40,6 +45,7 @@ void ScenarioExecutor::execute(const ScenarioPlan& plan) {
   const unsigned long now = millis();
   startLight(plan.light, now);
   startFace(plan.face, now);
+  startMotion(plan.motion, now);
 }
 
 void ScenarioExecutor::startLight(LightAction action, unsigned long nowMs) {
@@ -57,6 +63,14 @@ void ScenarioExecutor::startFace(FaceAction action, unsigned long nowMs) {
   nextFaceFrameMs_ = nowMs;
   faceRunning_ = faceFrames_ != nullptr && faceFrameCount_ > 0;
   updateFace(nowMs);
+}
+
+void ScenarioExecutor::startMotion(MotionAction action, unsigned long nowMs) {
+  motionSequence_ = motionPack_.sequence(action);
+  motionFrameIndex_ = 0;
+  nextMotionFrameMs_ = nowMs;
+  motionRunning_ = motionSequence_.count > 0;
+  updateMotion(nowMs);
 }
 
 void ScenarioExecutor::updateLight(unsigned long nowMs) {
@@ -87,10 +101,26 @@ void ScenarioExecutor::updateFace(unsigned long nowMs) {
   }
 }
 
+void ScenarioExecutor::updateMotion(unsigned long nowMs) {
+  while (motionRunning_ &&
+         static_cast<long>(nowMs - nextMotionFrameMs_) >= 0) {
+    const MotionFrame& frame = motionSequence_.frames[motionFrameIndex_];
+    motors_.drive(frame.left, frame.right);
+    ++motionFrameIndex_;
+    if (motionFrameIndex_ >= motionSequence_.count) {
+      motionRunning_ = false;
+      motors_.stop();
+      return;
+    }
+    nextMotionFrameMs_ = nowMs + frame.durationMs;
+  }
+}
+
 void ScenarioExecutor::update() {
   const unsigned long now = millis();
   updateLight(now);
   updateFace(now);
+  updateMotion(now);
 }
 
 }  // namespace tongdou

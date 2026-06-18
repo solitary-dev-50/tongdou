@@ -276,6 +276,34 @@ LIGHT_FRAMES = {
 }
 
 
+MOTION_FRAMES = {
+    MotionAction.NONE: (),
+    MotionAction.STOP: ((("stop", "stop"), 0),),
+    MotionAction.NOD: (
+        (("forward", "forward"), 80),
+        (("reverse", "reverse"), 80),
+        (("stop", "stop"), 0),
+    ),
+    MotionAction.TINY_SHAKE: (
+        (("forward", "reverse"), 70),
+        (("reverse", "forward"), 70),
+        (("stop", "stop"), 0),
+    ),
+    MotionAction.NUDGE_FORWARD: (
+        (("forward", "forward"), 100),
+        (("stop", "stop"), 0),
+    ),
+    MotionAction.LEAN_FORWARD: (
+        (("forward", "forward"), 140),
+        (("stop", "stop"), 0),
+    ),
+    MotionAction.SHRINK_BACK: (
+        (("reverse", "reverse"), 120),
+        (("stop", "stop"), 0),
+    ),
+}
+
+
 def select_plan(event_type: ScenarioEventType, context: ScenarioContext) -> ScenarioPlan:
     for rule in SCENARIO_RULES:
         if rule.event_type != event_type:
@@ -340,6 +368,16 @@ def print_light_frames(action: LightAction) -> None:
         print(f"    - rgb{color} {duration_ms}ms")
 
 
+def print_motion_frames(action: MotionAction) -> None:
+    frames = MOTION_FRAMES[action]
+    if not frames:
+        print("  motion_frames: none")
+        return
+    print("  motion_frames:")
+    for wheels, duration_ms in frames:
+        print(f"    - left={wheels[0]} right={wheels[1]} {duration_ms}ms")
+
+
 def run_case(label: str, context: ScenarioContext, events: Iterable[ScenarioEventType]) -> None:
     print(f"== case: {label} ==")
     print_context(context)
@@ -350,6 +388,7 @@ def run_case(label: str, context: ScenarioContext, events: Iterable[ScenarioEven
         if plan.valid:
             print_face_frames(plan.face)
             print_light_frames(plan.light)
+            print_motion_frames(plan.motion)
     print()
 
 
