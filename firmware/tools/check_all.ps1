@@ -34,6 +34,10 @@ Invoke-Step "Verify voice model" {
     & $Python "firmware/tools/verify_voice_model.py"
 }
 
+Invoke-Step "Verify voice prompts" {
+    & $Python "firmware/tools/verify_voice_prompts.py"
+}
+
 Invoke-Step "Run scenario simulator" {
     & $Python "firmware/tools/scenario_simulator.py"
 }

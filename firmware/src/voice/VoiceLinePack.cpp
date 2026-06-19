@@ -7,13 +7,13 @@ VoiceClip VoiceLinePack::clip(VoiceLine line) const {
     case VoiceLine::WakeGreeting:
       return {101, "嗨，朋友，你的桌面上是不是缺少一个这样的小混蛋……和你一样的牛马搭子？"};
     case VoiceLine::SnoozeSoft:
-      return {102, "行吧，逃得过初一，逃不过十五。"};
+      return {102, "行吧，十分钟后再抓你。"};
     case VoiceLine::SnoozeTease:
       return {103, "你先拖着，我先记着。"};
     case VoiceLine::ConfirmReward:
-      return {104, "可以，可以，今天算你支棱起来了。"};
+      return {104, "收到。"};
     case VoiceLine::QuietReply:
-      return {105, "行行行，我闭嘴，你凶什么凶。"};
+      return {105, "行行行，我闭嘴。"};
     case VoiceLine::BreakReminder:
       return {106, "起来动一下吧，再坐下去我都替你的腰着急。"};
     case VoiceLine::OvertimeNudge:

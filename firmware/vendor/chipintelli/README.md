@@ -1,10 +1,14 @@
-# ChipIntelli voice model assets
+# ChipIntelli voice assets
 
-This directory keeps voice model assets exported from the ChipIntelli AI platform.
+This directory keeps voice assets exported from the ChipIntelli AI platform.
 
-Current package:
+Current ASR package:
 
 - `tongdou_ci13162p_20260619`
+
+Current TTS package:
+
+- `tongdou_tts_20260619`
 
 Source:
 
@@ -19,6 +23,14 @@ Package contents:
 - `GfstWake/[1]lm_chinese_CI13162P_V01050.dat`
 - `CmdWordStructure/[60000]{cmd_info}.xlsx`
 - `CmdWordStructure/[60000]{cmd_info_old}.xlsx`
+
+TTS package contents:
+
+- `src/*.wav`
+- `mp3/*.mp3`
+- `opus/*.opus`
+- `speex/*.speex`
+- `template_chinese_prompts_*.xlsx`
 
 Current command ID mapping:
 
@@ -41,6 +53,14 @@ python firmware/tools/verify_voice_model.py
 ```
 
 The verifier reads `CmdWordStructure/[60000]{cmd_info}.xlsx` and checks that command IDs still match the firmware mapping.
+
+Verify TTS prompt assets after every platform re-export:
+
+```powershell
+python firmware/tools/verify_voice_prompts.py
+```
+
+The verifier checks prompt IDs, prompt names, prompt text, generated audio files, and firmware voice-line text.
 
 Run all offline checks before committing firmware changes:
 

@@ -357,10 +357,10 @@ VOICE_CLIPS = {
         101,
         "嗨，朋友，你的桌面上是不是缺少一个这样的小混蛋……和你一样的牛马搭子？",
     ),
-    VoiceLine.SNOOZE_SOFT: (102, "行吧，逃得过初一，逃不过十五。"),
+    VoiceLine.SNOOZE_SOFT: (102, "行吧，十分钟后再抓你。"),
     VoiceLine.SNOOZE_TEASE: (103, "你先拖着，我先记着。"),
-    VoiceLine.CONFIRM_REWARD: (104, "可以，可以，今天算你支棱起来了。"),
-    VoiceLine.QUIET_REPLY: (105, "行行行，我闭嘴，你凶什么凶。"),
+    VoiceLine.CONFIRM_REWARD: (104, "收到。"),
+    VoiceLine.QUIET_REPLY: (105, "行行行，我闭嘴。"),
     VoiceLine.BREAK_REMINDER: (106, "起来动一下吧，再坐下去我都替你的腰着急。"),
     VoiceLine.OVERTIME_NUDGE: (
         107,
