@@ -23,6 +23,8 @@ void App::begin() {
   scenarioExecutor_.begin();
   wifiConfigStore_.begin();
   timeService_.begin();
+  reminderStore_.begin();
+  reminderManager_.begin();
   scenarioConfigStore_.begin();
   webConfigServer_.begin();
 
@@ -36,6 +38,7 @@ void App::begin() {
 void App::update() {
   webConfigServer_.update();
   handleVoiceEvents();
+  handleReminderEvents();
   scenarioExecutor_.update();
   logHeartbeat();
 }
@@ -43,6 +46,16 @@ void App::update() {
 void App::handleVoiceEvents() {
   ScenarioEvent event;
   if (!voice_.readEvent(event)) {
+    return;
+  }
+
+  const ScenarioPlan plan = scenarioEngine_.select(event, scenarioContext_);
+  scenarioExecutor_.execute(plan);
+}
+
+void App::handleReminderEvents() {
+  ScenarioEvent event;
+  if (!reminderManager_.update(event)) {
     return;
   }
 

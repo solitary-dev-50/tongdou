@@ -18,5 +18,8 @@ constexpr WebApiRoute kScenarioReset{kMethodPost, "/api/scenario/reset"};
 constexpr WebApiRoute kScenarioExport{kMethodGet, "/api/scenario/export"};
 constexpr WebApiRoute kScenarioImport{kMethodPost, "/api/scenario/import"};
 constexpr WebApiRoute kScenarioOptions{kMethodGet, "/api/scenario/options"};
+constexpr WebApiRoute kReminderList{kMethodGet, "/api/reminders"};
+constexpr WebApiRoute kReminderCreate{kMethodPost, "/api/reminders"};
+constexpr WebApiRoute kReminderDelete{kMethodPost, "/api/reminders/delete"};
 
 }  // namespace tongdou::web_api

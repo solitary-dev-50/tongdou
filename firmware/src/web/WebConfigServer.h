@@ -3,6 +3,7 @@
 #include <DNSServer.h>
 #include <WebServer.h>
 
+#include "reminder/ReminderStore.h"
 #include "system/TimeService.h"
 #include "system/WifiConfigStore.h"
 #include "web/ScenarioConfigApi.h"
@@ -13,7 +14,7 @@ namespace tongdou {
 class WebConfigServer {
  public:
   WebConfigServer(ScenarioConfigApi& scenarioApi, WifiConfigStore& wifiStore,
-                  TimeService& timeService);
+                  TimeService& timeService, ReminderStore& reminderStore);
 
   void begin();
   void update();
@@ -36,13 +37,18 @@ class WebConfigServer {
   void handleWifiScan();
   void handleTimeSync();
   void handleTimeStatus();
+  void handleReminderList();
+  void handleReminderCreate();
+  void handleReminderDelete();
   void handleNotFound();
   void sendText(int code, const char* type, const String& body);
   String statusJson() const;
+  String remindersJson() const;
 
   ScenarioConfigApi& scenarioApi_;
   WifiConfigStore& wifiStore_;
   TimeService& timeService_;
+  ReminderStore& reminderStore_;
   WebServer server_{80};
   DNSServer dnsServer_;
   NetworkState state_ = NetworkState::Idle;

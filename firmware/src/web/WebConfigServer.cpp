@@ -32,8 +32,11 @@ String jsonEscape(const String& value) {
 }  // namespace
 
 WebConfigServer::WebConfigServer(ScenarioConfigApi& scenarioApi, WifiConfigStore& wifiStore,
-                                 TimeService& timeService)
-    : scenarioApi_(scenarioApi), wifiStore_(wifiStore), timeService_(timeService) {}
+                                 TimeService& timeService, ReminderStore& reminderStore)
+    : scenarioApi_(scenarioApi),
+      wifiStore_(wifiStore),
+      timeService_(timeService),
+      reminderStore_(reminderStore) {}
 
 void WebConfigServer::begin() {
   scenarioApi_.begin();
@@ -124,6 +127,9 @@ void WebConfigServer::setupRoutes() {
   server_.on("/api/setup/wifi", HTTP_POST, [this]() { handleWifiSave(); });
   server_.on("/api/time/sync", HTTP_POST, [this]() { handleTimeSync(); });
   server_.on("/api/time/status", HTTP_GET, [this]() { handleTimeStatus(); });
+  server_.on("/api/reminders", HTTP_GET, [this]() { handleReminderList(); });
+  server_.on("/api/reminders", HTTP_POST, [this]() { handleReminderCreate(); });
+  server_.on("/api/reminders/delete", HTTP_POST, [this]() { handleReminderDelete(); });
   server_.onNotFound([this]() { handleNotFound(); });
 }
 
@@ -203,6 +209,51 @@ void WebConfigServer::handleTimeStatus() {
   sendText(200, "application/json", statusJson());
 }
 
+void WebConfigServer::handleReminderList() {
+  sendText(200, "application/json", remindersJson());
+}
+
+void WebConfigServer::handleReminderCreate() {
+  const uint32_t dueAt = static_cast<uint32_t>(server_.arg("dueAt").toInt());
+  String text = server_.arg("text");
+  text.trim();
+
+  if (dueAt == 0 || text.length() == 0) {
+    sendText(400, "text/plain; charset=utf-8", "missing dueAt or text");
+    return;
+  }
+
+  if (timeService_.ready() && dueAt <= static_cast<uint32_t>(timeService_.now())) {
+    sendText(400, "text/plain; charset=utf-8", "dueAt is in the past");
+    return;
+  }
+
+  ReminderRecord created;
+  if (!reminderStore_.add(dueAt, text, &created)) {
+    sendText(507, "text/plain; charset=utf-8", "reminder storage is full");
+    return;
+  }
+
+  String body;
+  body.reserve(160);
+  body += "{\"ok\":true,\"id\":";
+  body += created.id;
+  body += ",\"dueAt\":";
+  body += created.dueAt;
+  body += "}";
+  sendText(200, "application/json", body);
+}
+
+void WebConfigServer::handleReminderDelete() {
+  const uint32_t id = static_cast<uint32_t>(server_.arg("id").toInt());
+  if (id == 0 || !reminderStore_.remove(id)) {
+    sendText(404, "text/plain; charset=utf-8", "reminder not found");
+    return;
+  }
+
+  sendText(200, "application/json", "{\"ok\":true}");
+}
+
 void WebConfigServer::handleNotFound() {
   if (state_ == NetworkState::Portal) {
     server_.sendHeader("Location", String("http://") + kPortalIp.toString() + "/", true);
@@ -230,6 +281,34 @@ String WebConfigServer::statusJson() const {
   body += ",\"now\":\"";
   body += timeService_.ready() ? timeService_.isoNow() : "";
   body += "\"}";
+  return body;
+}
+
+String WebConfigServer::remindersJson() const {
+  String body = "[";
+  const ReminderRecord* records = reminderStore_.records();
+  bool first = true;
+  for (uint8_t i = 0; i < reminderStore_.capacity(); ++i) {
+    const ReminderRecord& record = records[i];
+    if (!record.active) {
+      continue;
+    }
+
+    if (!first) {
+      body += ",";
+    }
+    first = false;
+    body += "{\"id\":";
+    body += record.id;
+    body += ",\"dueAt\":";
+    body += record.dueAt;
+    body += ",\"completed\":";
+    body += record.completed ? "true" : "false";
+    body += ",\"text\":\"";
+    body += jsonEscape(String(record.text));
+    body += "\"}";
+  }
+  body += "]";
   return body;
 }
 
