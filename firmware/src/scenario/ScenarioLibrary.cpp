@@ -25,7 +25,7 @@ constexpr ScenarioRule kRules[] = {
         false,
         true,
         PersonalityStyle::Gentle,
-        {true, FaceAction::Serious, LightAction::SoftWhite,
+        {true, FaceAction::Fierce, LightAction::SoftWhite,
          MotionAction::NudgeForward, VoiceLine::ReminderDueNudge, 1200},
     },
     {
@@ -33,7 +33,7 @@ constexpr ScenarioRule kRules[] = {
         false,
         true,
         PersonalityStyle::Gentle,
-        {true, FaceAction::Smile, LightAction::SoftWhite, MotionAction::Nod,
+        {true, FaceAction::Proud, LightAction::SoftWhite, MotionAction::Nod,
          VoiceLine::ConfirmReward, 1000},
     },
     {
@@ -65,7 +65,7 @@ constexpr ScenarioRule kRules[] = {
         true,
         true,
         PersonalityStyle::Gentle,
-        {true, FaceAction::Smile, LightAction::WarmWake, MotionAction::TinyShake,
+        {true, FaceAction::Shy, LightAction::WarmWake, MotionAction::TinyShake,
          VoiceLine::ChargingRelief, 1000},
     },
     {
@@ -73,7 +73,7 @@ constexpr ScenarioRule kRules[] = {
         true,
         true,
         PersonalityStyle::Gentle,
-        {true, FaceAction::Confused, LightAction::RedShortBlink,
+        {true, FaceAction::Nervous, LightAction::RedShortBlink,
          MotionAction::ShrinkBack, VoiceLine::RecognitionCoffeeChoke, 1200},
     },
     {

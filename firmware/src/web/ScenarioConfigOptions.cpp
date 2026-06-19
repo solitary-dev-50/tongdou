@@ -25,10 +25,13 @@ constexpr ScenarioEventType kEvents[] = {
 };
 
 constexpr FaceAction kFaces[] = {
-    FaceAction::None,     FaceAction::WakeUp,  FaceAction::Smile,
-    FaceAction::Serious,  FaceAction::RollEyes, FaceAction::Sleepy,
-    FaceAction::Wronged,  FaceAction::Squint,  FaceAction::Innocent,
-    FaceAction::Confused,
+    FaceAction::None,      FaceAction::Sleep,    FaceAction::WakeUp,
+    FaceAction::Awake,     FaceAction::Blink,    FaceAction::Smile,
+    FaceAction::Serious,   FaceAction::RollEyes, FaceAction::Sleepy,
+    FaceAction::Wronged,   FaceAction::Squint,   FaceAction::Innocent,
+    FaceAction::Confused,  FaceAction::Angry,    FaceAction::Surprised,
+    FaceAction::Shy,       FaceAction::Fierce,   FaceAction::Proud,
+    FaceAction::Nervous,
 };
 
 constexpr LightAction kLights[] = {

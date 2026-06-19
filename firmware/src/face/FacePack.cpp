@@ -11,8 +11,25 @@ constexpr FaceFrame kWakeUp[] = {
     {FaceExpression::Sleep, 180},
     {FaceExpression::HalfOpen, 220},
     {FaceExpression::Awake, 300},
+    {FaceExpression::Blink, 70},
     {FaceExpression::HalfOpen, 120},
     {FaceExpression::Awake, 380},
+};
+
+constexpr FaceFrame kSleep[] = {
+    {FaceExpression::Sleep, 800},
+};
+
+constexpr FaceFrame kAwake[] = {
+    {FaceExpression::Awake, 800},
+};
+
+constexpr FaceFrame kBlink[] = {
+    {FaceExpression::Awake, 120},
+    {FaceExpression::HalfOpen, 80},
+    {FaceExpression::Blink, 70},
+    {FaceExpression::HalfOpen, 80},
+    {FaceExpression::Awake, 240},
 };
 
 constexpr FaceFrame kSmile[] = {
@@ -59,6 +76,39 @@ constexpr FaceFrame kConfused[] = {
     {FaceExpression::Innocent, 420},
 };
 
+constexpr FaceFrame kAngry[] = {
+    {FaceExpression::Awake, 100},
+    {FaceExpression::Angry, 760},
+};
+
+constexpr FaceFrame kSurprised[] = {
+    {FaceExpression::Awake, 80},
+    {FaceExpression::Surprised, 520},
+    {FaceExpression::Blink, 80},
+    {FaceExpression::Awake, 240},
+};
+
+constexpr FaceFrame kShy[] = {
+    {FaceExpression::Awake, 120},
+    {FaceExpression::Shy, 760},
+};
+
+constexpr FaceFrame kFierce[] = {
+    {FaceExpression::Squint, 100},
+    {FaceExpression::Fierce, 820},
+};
+
+constexpr FaceFrame kProud[] = {
+    {FaceExpression::Awake, 120},
+    {FaceExpression::Proud, 760},
+};
+
+constexpr FaceFrame kNervous[] = {
+    {FaceExpression::Squint, 120},
+    {FaceExpression::Nervous, 420},
+    {FaceExpression::Wronged, 360},
+};
+
 template <size_t N>
 const FaceFrame* expose(const FaceFrame (&items)[N], size_t& count) {
   count = N;
@@ -69,8 +119,14 @@ const FaceFrame* expose(const FaceFrame (&items)[N], size_t& count) {
 
 const FaceFrame* FacePack::frames(FaceAction action, size_t& count) const {
   switch (action) {
+    case FaceAction::Sleep:
+      return expose(kSleep, count);
     case FaceAction::WakeUp:
       return expose(kWakeUp, count);
+    case FaceAction::Awake:
+      return expose(kAwake, count);
+    case FaceAction::Blink:
+      return expose(kBlink, count);
     case FaceAction::Smile:
       return expose(kSmile, count);
     case FaceAction::Serious:
@@ -87,6 +143,18 @@ const FaceFrame* FacePack::frames(FaceAction action, size_t& count) const {
       return expose(kInnocent, count);
     case FaceAction::Confused:
       return expose(kConfused, count);
+    case FaceAction::Angry:
+      return expose(kAngry, count);
+    case FaceAction::Surprised:
+      return expose(kSurprised, count);
+    case FaceAction::Shy:
+      return expose(kShy, count);
+    case FaceAction::Fierce:
+      return expose(kFierce, count);
+    case FaceAction::Proud:
+      return expose(kProud, count);
+    case FaceAction::Nervous:
+      return expose(kNervous, count);
     case FaceAction::None:
     default:
       return expose(kNone, count);

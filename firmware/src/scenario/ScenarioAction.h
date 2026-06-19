@@ -6,7 +6,10 @@ namespace tongdou {
 
 enum class FaceAction : uint8_t {
   None,
+  Sleep,
   WakeUp,
+  Awake,
+  Blink,
   Smile,
   Serious,
   RollEyes,
@@ -15,6 +18,12 @@ enum class FaceAction : uint8_t {
   Squint,
   Innocent,
   Confused,
+  Angry,
+  Surprised,
+  Shy,
+  Fierce,
+  Proud,
+  Nervous,
 };
 
 enum class LightAction : uint8_t {

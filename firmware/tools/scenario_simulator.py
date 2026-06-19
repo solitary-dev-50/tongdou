@@ -34,15 +34,24 @@ class ScenarioEventType(IntEnum):
 
 class FaceAction(IntEnum):
     NONE = 0
-    WAKE_UP = 1
-    SMILE = 2
-    SERIOUS = 3
-    ROLL_EYES = 4
-    SLEEPY = 5
-    WRONGED = 6
-    SQUINT = 7
-    INNOCENT = 8
-    CONFUSED = 9
+    SLEEP = 1
+    WAKE_UP = 2
+    AWAKE = 3
+    BLINK = 4
+    SMILE = 5
+    SERIOUS = 6
+    ROLL_EYES = 7
+    SLEEPY = 8
+    WRONGED = 9
+    SQUINT = 10
+    INNOCENT = 11
+    CONFUSED = 12
+    ANGRY = 13
+    SURPRISED = 14
+    SHY = 15
+    FIERCE = 16
+    PROUD = 17
+    NERVOUS = 18
 
 
 class LightAction(IntEnum):
@@ -169,7 +178,7 @@ SCENARIO_RULES = (
         PersonalityStyle.GENTLE,
         ScenarioPlan(
             True,
-            FaceAction.SERIOUS,
+            FaceAction.FIERCE,
             LightAction.SOFT_WHITE,
             MotionAction.NUDGE_FORWARD,
             VoiceLine.REMINDER_DUE_NUDGE,
@@ -183,7 +192,7 @@ SCENARIO_RULES = (
         PersonalityStyle.GENTLE,
         ScenarioPlan(
             True,
-            FaceAction.SMILE,
+            FaceAction.PROUD,
             LightAction.SOFT_WHITE,
             MotionAction.NOD,
             VoiceLine.CONFIRM_REWARD,
@@ -239,7 +248,7 @@ SCENARIO_RULES = (
         PersonalityStyle.GENTLE,
         ScenarioPlan(
             True,
-            FaceAction.SMILE,
+            FaceAction.SHY,
             LightAction.WARM_WAKE,
             MotionAction.TINY_SHAKE,
             VoiceLine.CHARGING_RELIEF,
@@ -253,7 +262,7 @@ SCENARIO_RULES = (
         PersonalityStyle.GENTLE,
         ScenarioPlan(
             True,
-            FaceAction.CONFUSED,
+            FaceAction.NERVOUS,
             LightAction.RED_SHORT_BLINK,
             MotionAction.SHRINK_BACK,
             VoiceLine.RECOGNITION_COFFEE_CHOKE,
@@ -288,7 +297,23 @@ PACK_INFO = {
 
 FACE_FRAMES = {
     FaceAction.NONE: (),
-    FaceAction.WAKE_UP: (("Sleep", 180), ("HalfOpen", 180), ("Awake", 500)),
+    FaceAction.SLEEP: (("Sleep", 800),),
+    FaceAction.WAKE_UP: (
+        ("Sleep", 180),
+        ("HalfOpen", 220),
+        ("Awake", 300),
+        ("Blink", 70),
+        ("HalfOpen", 120),
+        ("Awake", 380),
+    ),
+    FaceAction.AWAKE: (("Awake", 800),),
+    FaceAction.BLINK: (
+        ("Awake", 120),
+        ("HalfOpen", 80),
+        ("Blink", 70),
+        ("HalfOpen", 80),
+        ("Awake", 240),
+    ),
     FaceAction.SMILE: (("Smile", 600),),
     FaceAction.SERIOUS: (("Serious", 700),),
     FaceAction.ROLL_EYES: (
@@ -298,13 +323,28 @@ FACE_FRAMES = {
     ),
     FaceAction.SLEEPY: (("HalfOpen", 420), ("Sleep", 420)),
     FaceAction.WRONGED: (("Wronged", 700),),
-    FaceAction.SQUINT: (("Squint", 300), ("Innocent", 500)),
+    FaceAction.SQUINT: (("Awake", 160), ("Squint", 1200)),
     FaceAction.INNOCENT: (("Innocent", 600),),
     FaceAction.CONFUSED: (
         ("Awake", 120),
         ("Confused", 360),
         ("Wronged", 260),
         ("Innocent", 420),
+    ),
+    FaceAction.ANGRY: (("Awake", 100), ("Angry", 760)),
+    FaceAction.SURPRISED: (
+        ("Awake", 80),
+        ("Surprised", 520),
+        ("Blink", 80),
+        ("Awake", 240),
+    ),
+    FaceAction.SHY: (("Awake", 120), ("Shy", 760)),
+    FaceAction.FIERCE: (("Squint", 100), ("Fierce", 820)),
+    FaceAction.PROUD: (("Awake", 120), ("Proud", 760)),
+    FaceAction.NERVOUS: (
+        ("Squint", 120),
+        ("Nervous", 420),
+        ("Wronged", 360),
     ),
 }
 

@@ -104,6 +104,30 @@ void FaceDisplay::fillRect(int16_t x, int16_t y, int16_t w, int16_t h, bool on) 
   }
 }
 
+void FaceDisplay::fillRoundRect(int16_t x, int16_t y, int16_t w, int16_t h, int16_t r,
+                                bool on) {
+  if (r <= 0 || h <= r * 2 || w <= r * 2) {
+    fillRect(x, y, w, h, on);
+    return;
+  }
+
+  fillRect(x + r, y, w - r * 2, h, on);
+  fillRect(x, y + r, w, h - r * 2, on);
+
+  for (int16_t yy = 0; yy < r; ++yy) {
+    for (int16_t xx = 0; xx < r; ++xx) {
+      const int16_t dx = static_cast<int16_t>(r - 1 - xx);
+      const int16_t dy = static_cast<int16_t>(r - 1 - yy);
+      if (dx * dx + dy * dy <= r * r) {
+        pixel(x + xx, y + yy, on);
+        pixel(x + w - 1 - xx, y + yy, on);
+        pixel(x + xx, y + h - 1 - yy, on);
+        pixel(x + w - 1 - xx, y + h - 1 - yy, on);
+      }
+    }
+  }
+}
+
 void FaceDisplay::rect(int16_t x, int16_t y, int16_t w, int16_t h, bool on) {
   line(x, y, x + w - 1, y, on);
   line(x, y + h - 1, x + w - 1, y + h - 1, on);
@@ -137,8 +161,9 @@ void FaceDisplay::line(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bool on) 
 
 void FaceDisplay::drawEyePair(int16_t leftX, int16_t rightX, int16_t y, int16_t w,
                               int16_t h) {
-  fillRect(leftX, y, w, h);
-  fillRect(rightX, y, w, h);
+  const int16_t radius = h > 8 ? 4 : 2;
+  fillRoundRect(leftX, y, w, h, radius);
+  fillRoundRect(rightX, y, w, h, radius);
 }
 
 void FaceDisplay::drawExpression(FaceExpression expression) {
@@ -155,9 +180,11 @@ void FaceDisplay::drawExpression(FaceExpression expression) {
     case FaceExpression::Awake:
       drawEyePair(34, 76, 24, 18, 18);
       break;
+    case FaceExpression::Blink:
+      drawEyePair(34, 76, 32, 18, 3);
+      break;
     case FaceExpression::Smile:
-      fillRect(34, 24, 18, 14);
-      fillRect(76, 24, 18, 14);
+      drawEyePair(34, 76, 24, 18, 14);
       line(38, 44, 48, 49);
       line(80, 49, 90, 44);
       break;
@@ -202,6 +229,48 @@ void FaceDisplay::drawExpression(FaceExpression expression) {
       line(75, 24, 97, 42);
       line(75, 42, 97, 24);
       fillRect(39, 31, 7, 7);
+      break;
+    case FaceExpression::Angry:
+      line(30, 22, 56, 30);
+      line(72, 30, 98, 22);
+      fillRoundRect(34, 31, 20, 10, 3);
+      fillRoundRect(74, 31, 20, 10, 3);
+      break;
+    case FaceExpression::Surprised:
+      rect(32, 20, 24, 28);
+      rect(72, 20, 24, 28);
+      fillRect(41, 31, 6, 8);
+      fillRect(81, 31, 6, 8);
+      line(58, 52, 70, 52);
+      break;
+    case FaceExpression::Shy:
+      drawEyePair(36, 78, 28, 14, 10);
+      line(25, 45, 31, 42);
+      line(97, 42, 103, 45);
+      pixel(29, 47);
+      pixel(99, 47);
+      break;
+    case FaceExpression::Fierce:
+      line(28, 22, 58, 34);
+      line(70, 34, 100, 22);
+      fillRoundRect(34, 34, 22, 8, 2);
+      fillRoundRect(72, 34, 22, 8, 2);
+      break;
+    case FaceExpression::Proud:
+      line(31, 31, 55, 27);
+      line(73, 27, 97, 31);
+      fillRoundRect(36, 33, 16, 8, 2);
+      fillRoundRect(78, 33, 16, 8, 2);
+      line(54, 48, 64, 52);
+      line(64, 52, 74, 48);
+      break;
+    case FaceExpression::Nervous:
+      rect(32, 24, 22, 18);
+      rect(74, 26, 20, 16);
+      fillRect(43, 31, 6, 6);
+      fillRect(77, 32, 6, 6);
+      line(99, 22, 104, 27);
+      line(104, 27, 101, 33);
       break;
   }
 }

@@ -22,6 +22,8 @@ class FaceDisplay {
   void clear();
   void pixel(int16_t x, int16_t y, bool on = true);
   void fillRect(int16_t x, int16_t y, int16_t w, int16_t h, bool on = true);
+  void fillRoundRect(int16_t x, int16_t y, int16_t w, int16_t h, int16_t r,
+                     bool on = true);
   void rect(int16_t x, int16_t y, int16_t w, int16_t h, bool on = true);
   void line(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bool on = true);
   void drawEyePair(int16_t leftX, int16_t rightX, int16_t y, int16_t w, int16_t h);

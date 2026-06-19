@@ -9,6 +9,7 @@ enum class FaceExpression : uint8_t {
   Sleep,
   HalfOpen,
   Awake,
+  Blink,
   Smile,
   Serious,
   RollEyesLeft,
@@ -17,6 +18,12 @@ enum class FaceExpression : uint8_t {
   Squint,
   Innocent,
   Confused,
+  Angry,
+  Surprised,
+  Shy,
+  Fierce,
+  Proud,
+  Nervous,
 };
 
 struct FaceFrame {
