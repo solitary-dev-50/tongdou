@@ -12,6 +12,8 @@
 #include "scenario/ScenarioEngine.h"
 #include "scenario/ScenarioExecutor.h"
 #include "scenario/ScenarioLibrary.h"
+#include "system/TimeService.h"
+#include "system/WifiConfigStore.h"
 #include "web/ScenarioConfigApi.h"
 #include "web/ScenarioConfigStore.h"
 #include "web/WebConfigServer.h"
@@ -34,13 +36,15 @@ class App {
   MotorDriver motors_;
   RadarSensor radar_;
   VoiceUart voice_;
+  WifiConfigStore wifiConfigStore_;
+  TimeService timeService_;
   ScenarioLibrary scenarioLibrary_;
   ScenarioEngine scenarioEngine_{scenarioLibrary_};
   ScenarioExecutor scenarioExecutor_{faceDisplay_, led_, motors_, voice_};
   ScenarioContext scenarioContext_;
   ScenarioConfigStore scenarioConfigStore_;
   ScenarioConfigApi scenarioConfigApi_{scenarioConfigStore_};
-  WebConfigServer webConfigServer_{scenarioConfigApi_};
+  WebConfigServer webConfigServer_{scenarioConfigApi_, wifiConfigStore_, timeService_};
   unsigned long lastHeartbeatMs_ = 0;
 };
 

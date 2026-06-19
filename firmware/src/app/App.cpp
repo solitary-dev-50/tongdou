@@ -21,6 +21,8 @@ void App::begin() {
   radar_.begin();
   voice_.begin();
   scenarioExecutor_.begin();
+  wifiConfigStore_.begin();
+  timeService_.begin();
   scenarioConfigStore_.begin();
   webConfigServer_.begin();
 
@@ -64,7 +66,9 @@ void App::logHeartbeat() {
   Serial.print(" stby=");
   Serial.print(battery.standby ? "1" : "0");
   Serial.print(" vbat_adc=");
-  Serial.println(battery.rawAdc);
+  Serial.print(battery.rawAdc);
+  Serial.print(" time=");
+  Serial.println(timeService_.ready() ? timeService_.isoNow() : "not-ready");
 }
 
 }  // namespace tongdou

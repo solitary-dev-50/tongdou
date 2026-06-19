@@ -1,5 +1,10 @@
 #pragma once
 
+#include <DNSServer.h>
+#include <WebServer.h>
+
+#include "system/TimeService.h"
+#include "system/WifiConfigStore.h"
 #include "web/ScenarioConfigApi.h"
 #include "web/WebApiContract.h"
 
@@ -7,14 +12,46 @@ namespace tongdou {
 
 class WebConfigServer {
  public:
-  explicit WebConfigServer(ScenarioConfigApi& scenarioApi);
+  WebConfigServer(ScenarioConfigApi& scenarioApi, WifiConfigStore& wifiStore,
+                  TimeService& timeService);
 
   void begin();
   void update();
   ScenarioConfigApi& scenarioApi();
 
  private:
+  enum class NetworkState : uint8_t {
+    Idle,
+    Connecting,
+    Connected,
+    Portal,
+  };
+
+  void startPortal();
+  void startStation(const WifiCredentials& credentials);
+  void ensureHttpServer();
+  void setupRoutes();
+  void handleRoot();
+  void handleWifiSave();
+  void handleWifiScan();
+  void handleTimeSync();
+  void handleTimeStatus();
+  void handleNotFound();
+  void sendText(int code, const char* type, const String& body);
+  String statusJson() const;
+
   ScenarioConfigApi& scenarioApi_;
+  WifiConfigStore& wifiStore_;
+  TimeService& timeService_;
+  WebServer server_{80};
+  DNSServer dnsServer_;
+  NetworkState state_ = NetworkState::Idle;
+  bool serverStarted_ = false;
+  bool dnsStarted_ = false;
+  bool pendingStationConnect_ = false;
+  WifiCredentials pendingCredentials_;
+  unsigned long connectStartedMs_ = 0;
+  unsigned long stationConnectAfterMs_ = 0;
 };
 
 }  // namespace tongdou
