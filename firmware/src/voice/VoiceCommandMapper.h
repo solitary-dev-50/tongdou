@@ -7,7 +7,7 @@ namespace tongdou {
 
 class VoiceCommandMapper {
  public:
-  ScenarioEvent map(const VoiceCommandFrame& frame) const;
+  bool map(const VoiceCommandFrame& frame, ScenarioEvent& event) const;
 };
 
 }  // namespace tongdou

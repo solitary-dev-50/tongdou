@@ -2,23 +2,29 @@
 
 namespace tongdou {
 
-ScenarioEvent VoiceCommandMapper::map(const VoiceCommandFrame& frame) const {
+bool VoiceCommandMapper::map(const VoiceCommandFrame& frame, ScenarioEvent& event) const {
   switch (static_cast<VoiceCommandCode>(frame.command)) {
     case VoiceCommandCode::WakeGreeting:
-      return {ScenarioEventType::BootCompleted, 0};
-    case VoiceCommandCode::ReminderDue:
-      return {ScenarioEventType::ReminderDue, 0};
-    case VoiceCommandCode::ReminderSnoozed:
-      return {ScenarioEventType::ReminderSnoozed, 0};
-    case VoiceCommandCode::ReminderConfirmed:
-      return {ScenarioEventType::ReminderConfirmed, 0};
+      event = {ScenarioEventType::BootCompleted, 0};
+      return true;
     case VoiceCommandCode::QuietModeRequested:
-      return {ScenarioEventType::QuietModeRequested, 0};
-    case VoiceCommandCode::RecognitionFailed:
-      return {ScenarioEventType::VoiceRecognitionFailed, 0};
+      event = {ScenarioEventType::QuietModeRequested, 0};
+      return true;
+    case VoiceCommandCode::ReminderSnoozed:
+      event = {ScenarioEventType::ReminderSnoozed, 0};
+      return true;
+    case VoiceCommandCode::ReminderConfirmed:
+      event = {ScenarioEventType::ReminderConfirmed, 0};
+      return true;
+    case VoiceCommandCode::ReminderDue:
+      event = {ScenarioEventType::ReminderDue, 0};
+      return true;
+    case VoiceCommandCode::GuardWord:
+      return false;
   }
 
-  return {ScenarioEventType::VoiceRecognitionFailed, 0};
+  event = {ScenarioEventType::VoiceRecognitionFailed, 0};
+  return true;
 }
 
 }  // namespace tongdou

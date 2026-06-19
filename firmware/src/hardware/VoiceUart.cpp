@@ -22,8 +22,9 @@ bool VoiceUart::readEvent(ScenarioEvent& event) {
       continue;
     }
 
-    event = mapper_.map(frame);
-    return true;
+    if (mapper_.map(frame, event)) {
+      return true;
+    }
   }
 
   return false;

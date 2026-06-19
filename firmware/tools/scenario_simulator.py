@@ -86,11 +86,11 @@ VOICE_COMMAND_HEADER = 0xAA
 
 class VoiceCommandCode(IntEnum):
     WAKE_GREETING = 0x01
-    REMINDER_DUE = 0x02
+    QUIET_MODE_REQUESTED = 0x02
     REMINDER_SNOOZED = 0x03
     REMINDER_CONFIRMED = 0x04
-    QUIET_MODE_REQUESTED = 0x05
-    RECOGNITION_FAILED = 0x06
+    REMINDER_DUE = 0x05
+    GUARD_WORD = 0x06
 
 
 @dataclass(frozen=True)
@@ -397,7 +397,7 @@ def select_plan(event_type: ScenarioEventType, context: ScenarioContext) -> Scen
     return ScenarioPlan()
 
 
-def map_voice_command(command: int) -> ScenarioEventType:
+def map_voice_command(command: int) -> ScenarioEventType | None:
     try:
         code = VoiceCommandCode(command)
     except ValueError:
@@ -405,16 +405,16 @@ def map_voice_command(command: int) -> ScenarioEventType:
 
     if code == VoiceCommandCode.WAKE_GREETING:
         return ScenarioEventType.BOOT_COMPLETED
+    if code == VoiceCommandCode.QUIET_MODE_REQUESTED:
+        return ScenarioEventType.QUIET_MODE_REQUESTED
     if code == VoiceCommandCode.REMINDER_DUE:
         return ScenarioEventType.REMINDER_DUE
     if code == VoiceCommandCode.REMINDER_SNOOZED:
         return ScenarioEventType.REMINDER_SNOOZED
     if code == VoiceCommandCode.REMINDER_CONFIRMED:
         return ScenarioEventType.REMINDER_CONFIRMED
-    if code == VoiceCommandCode.QUIET_MODE_REQUESTED:
-        return ScenarioEventType.QUIET_MODE_REQUESTED
-    if code == VoiceCommandCode.RECOGNITION_FAILED:
-        return ScenarioEventType.VOICE_RECOGNITION_FAILED
+    if code == VoiceCommandCode.GUARD_WORD:
+        return None
     return ScenarioEventType.VOICE_RECOGNITION_FAILED
 
 
@@ -427,7 +427,9 @@ def parse_voice_bytes(data: Iterable[int]) -> list[ScenarioEventType]:
             continue
 
         waiting_for_command = False
-        events.append(map_voice_command(byte))
+        event = map_voice_command(byte)
+        if event is not None:
+            events.append(event)
     return events
 
 
@@ -600,10 +602,11 @@ def run_all_cases() -> None:
 
 def run_voice_protocol_cases() -> None:
     cases = (
-        ("single reminder", [0xAA, 0x02]),
-        ("noise before quiet", [0x00, 0x13, 0xAA, 0x05]),
+        ("single reminder", [0xAA, 0x05]),
+        ("noise before quiet", [0x00, 0x13, 0xAA, 0x02]),
         ("unknown command", [0xAA, 0x99]),
         ("two frames", [0xAA, 0x03, 0xAA, 0x04]),
+        ("guard word ignored", [0xAA, 0x06]),
         ("dangling header", [0xAA]),
     )
 
