@@ -41,3 +41,9 @@ python firmware/tools/verify_voice_model.py
 ```
 
 The verifier reads `CmdWordStructure/[60000]{cmd_info}.xlsx` and checks that command IDs still match the firmware mapping.
+
+Run all offline checks before committing firmware changes:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\firmware\tools\check_all.ps1
+```
