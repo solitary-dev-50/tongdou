@@ -81,6 +81,18 @@ class VoiceLine(IntEnum):
     RECOGNITION_COFFEE_CHOKE = 12
 
 
+VOICE_COMMAND_HEADER = 0xAA
+
+
+class VoiceCommandCode(IntEnum):
+    WAKE_GREETING = 0x01
+    REMINDER_DUE = 0x02
+    REMINDER_SNOOZED = 0x03
+    REMINDER_CONFIRMED = 0x04
+    QUIET_MODE_REQUESTED = 0x05
+    RECOGNITION_FAILED = 0x06
+
+
 @dataclass(frozen=True)
 class ScenarioContext:
     quiet_mode: bool = False
@@ -385,6 +397,40 @@ def select_plan(event_type: ScenarioEventType, context: ScenarioContext) -> Scen
     return ScenarioPlan()
 
 
+def map_voice_command(command: int) -> ScenarioEventType:
+    try:
+        code = VoiceCommandCode(command)
+    except ValueError:
+        return ScenarioEventType.VOICE_RECOGNITION_FAILED
+
+    if code == VoiceCommandCode.WAKE_GREETING:
+        return ScenarioEventType.BOOT_COMPLETED
+    if code == VoiceCommandCode.REMINDER_DUE:
+        return ScenarioEventType.REMINDER_DUE
+    if code == VoiceCommandCode.REMINDER_SNOOZED:
+        return ScenarioEventType.REMINDER_SNOOZED
+    if code == VoiceCommandCode.REMINDER_CONFIRMED:
+        return ScenarioEventType.REMINDER_CONFIRMED
+    if code == VoiceCommandCode.QUIET_MODE_REQUESTED:
+        return ScenarioEventType.QUIET_MODE_REQUESTED
+    if code == VoiceCommandCode.RECOGNITION_FAILED:
+        return ScenarioEventType.VOICE_RECOGNITION_FAILED
+    return ScenarioEventType.VOICE_RECOGNITION_FAILED
+
+
+def parse_voice_bytes(data: Iterable[int]) -> list[ScenarioEventType]:
+    waiting_for_command = False
+    events: list[ScenarioEventType] = []
+    for byte in data:
+        if not waiting_for_command:
+            waiting_for_command = byte == VOICE_COMMAND_HEADER
+            continue
+
+        waiting_for_command = False
+        events.append(map_voice_command(byte))
+    return events
+
+
 def enum_name(value: IntEnum) -> str:
     return value.name.lower().replace("_", "-")
 
@@ -552,6 +598,24 @@ def run_all_cases() -> None:
     )
 
 
+def run_voice_protocol_cases() -> None:
+    cases = (
+        ("single reminder", [0xAA, 0x02]),
+        ("noise before quiet", [0x00, 0x13, 0xAA, 0x05]),
+        ("unknown command", [0xAA, 0x99]),
+        ("two frames", [0xAA, 0x03, 0xAA, 0x04]),
+        ("dangling header", [0xAA]),
+    )
+
+    print("== voice protocol ==")
+    for label, data in cases:
+        rendered = " ".join(f"{byte:02X}" for byte in data)
+        events = parse_voice_bytes(data)
+        event_names = [enum_name(event) for event in events]
+        print(f"[{label}] bytes={rendered} events={event_names}")
+    print()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run or export Tong Dou scenarios.")
     parser.add_argument(
@@ -566,6 +630,7 @@ def main() -> None:
         return
 
     run_all_cases()
+    run_voice_protocol_cases()
 
 
 if __name__ == "__main__":

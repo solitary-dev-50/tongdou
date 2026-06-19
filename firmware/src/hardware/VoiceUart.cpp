@@ -14,4 +14,19 @@ void VoiceUart::begin() {
       static_cast<int>(pins::VOICE_UART_TX));
 }
 
+bool VoiceUart::readEvent(ScenarioEvent& event) {
+  while (Serial1.available() > 0) {
+    const uint8_t byte = static_cast<uint8_t>(Serial1.read());
+    VoiceCommandFrame frame;
+    if (!parser_.feed(byte, frame)) {
+      continue;
+    }
+
+    event = mapper_.map(frame);
+    return true;
+  }
+
+  return false;
+}
+
 }  // namespace tongdou

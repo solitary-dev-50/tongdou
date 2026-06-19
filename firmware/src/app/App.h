@@ -24,6 +24,7 @@ class App {
   void update();
 
  private:
+  void handleVoiceEvents();
   void logHeartbeat();
 
   BatteryMonitor battery_;
@@ -36,6 +37,7 @@ class App {
   ScenarioLibrary scenarioLibrary_;
   ScenarioEngine scenarioEngine_{scenarioLibrary_};
   ScenarioExecutor scenarioExecutor_{faceDisplay_, led_, motors_};
+  ScenarioContext scenarioContext_;
   ScenarioConfigStore scenarioConfigStore_;
   ScenarioConfigApi scenarioConfigApi_{scenarioConfigStore_};
   WebConfigServer webConfigServer_{scenarioConfigApi_};
