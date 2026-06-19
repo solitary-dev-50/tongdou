@@ -9,6 +9,7 @@
 #include "hardware/MotorDriver.h"
 #include "hardware/RadarSensor.h"
 #include "hardware/VoiceUart.h"
+#include "mcp/McpServer.h"
 #include "reminder/ReminderManager.h"
 #include "reminder/ReminderStore.h"
 #include "scenario/ScenarioEngine.h"
@@ -43,13 +44,15 @@ class App {
   TimeService timeService_;
   ReminderStore reminderStore_;
   ReminderManager reminderManager_{timeService_, reminderStore_};
+  McpServer mcpServer_{timeService_, reminderStore_};
   ScenarioLibrary scenarioLibrary_;
   ScenarioEngine scenarioEngine_{scenarioLibrary_};
   ScenarioExecutor scenarioExecutor_{faceDisplay_, led_, motors_, voice_};
   ScenarioContext scenarioContext_;
   ScenarioConfigStore scenarioConfigStore_;
   ScenarioConfigApi scenarioConfigApi_{scenarioConfigStore_};
-  WebConfigServer webConfigServer_{scenarioConfigApi_, wifiConfigStore_, timeService_, reminderStore_};
+  WebConfigServer webConfigServer_{scenarioConfigApi_, wifiConfigStore_, timeService_,
+                                   reminderStore_, mcpServer_};
   unsigned long lastHeartbeatMs_ = 0;
 };
 

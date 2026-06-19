@@ -32,11 +32,13 @@ String jsonEscape(const String& value) {
 }  // namespace
 
 WebConfigServer::WebConfigServer(ScenarioConfigApi& scenarioApi, WifiConfigStore& wifiStore,
-                                 TimeService& timeService, ReminderStore& reminderStore)
+                                 TimeService& timeService, ReminderStore& reminderStore,
+                                 McpServer& mcpServer)
     : scenarioApi_(scenarioApi),
       wifiStore_(wifiStore),
       timeService_(timeService),
-      reminderStore_(reminderStore) {}
+      reminderStore_(reminderStore),
+      mcpServer_(mcpServer) {}
 
 void WebConfigServer::begin() {
   scenarioApi_.begin();
@@ -130,6 +132,7 @@ void WebConfigServer::setupRoutes() {
   server_.on("/api/reminders", HTTP_GET, [this]() { handleReminderList(); });
   server_.on("/api/reminders", HTTP_POST, [this]() { handleReminderCreate(); });
   server_.on("/api/reminders/delete", HTTP_POST, [this]() { handleReminderDelete(); });
+  server_.on("/api/mcp", HTTP_POST, [this]() { handleMcp(); });
   server_.onNotFound([this]() { handleNotFound(); });
 }
 
@@ -252,6 +255,17 @@ void WebConfigServer::handleReminderDelete() {
   }
 
   sendText(200, "application/json", "{\"ok\":true}");
+}
+
+void WebConfigServer::handleMcp() {
+  const String payload = server_.arg("plain");
+  if (payload.length() == 0) {
+    sendText(400, "application/json",
+             "{\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"message\":\"empty payload\"}}");
+    return;
+  }
+
+  sendText(200, "application/json", mcpServer_.handlePayloadText(payload));
 }
 
 void WebConfigServer::handleNotFound() {

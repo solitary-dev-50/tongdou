@@ -25,6 +25,7 @@ void App::begin() {
   timeService_.begin();
   reminderStore_.begin();
   reminderManager_.begin();
+  mcpServer_.begin();
   scenarioConfigStore_.begin();
   webConfigServer_.begin();
 
