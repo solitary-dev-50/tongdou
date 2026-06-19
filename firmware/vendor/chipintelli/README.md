@@ -33,3 +33,11 @@ Current command ID mapping:
 
 The ESP32 firmware currently treats the second byte after `0xAA` as this platform `commandID`.
 If hardware testing shows that CI13162P sends a different UART frame, update only the voice parser layer first.
+
+Verify this package after every platform re-export:
+
+```powershell
+python firmware/tools/verify_voice_model.py
+```
+
+The verifier reads `CmdWordStructure/[60000]{cmd_info}.xlsx` and checks that command IDs still match the firmware mapping.
