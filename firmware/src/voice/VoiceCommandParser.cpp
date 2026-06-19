@@ -3,18 +3,11 @@
 namespace tongdou {
 
 bool VoiceCommandParser::feed(uint8_t byte, VoiceCommandFrame& frame) {
-  if (!waitingForCommand_) {
-    waitingForCommand_ = byte == kVoiceCommandHeader;
-    return false;
-  }
-
-  frame.command = byte;
-  waitingForCommand_ = false;
-  return true;
+  return protocol_.feed(byte, frame);
 }
 
 void VoiceCommandParser::reset() {
-  waitingForCommand_ = false;
+  protocol_.reset();
 }
 
 }  // namespace tongdou

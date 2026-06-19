@@ -3,7 +3,7 @@
 namespace tongdou {
 
 bool VoiceCommandMapper::map(const VoiceCommandFrame& frame, ScenarioEvent& event) const {
-  switch (static_cast<VoiceCommandCode>(frame.command)) {
+  switch (static_cast<VoiceCommandCode>(static_cast<uint8_t>(frame.command))) {
     case VoiceCommandCode::WakeGreeting:
       event = {ScenarioEventType::BootCompleted, 0};
       return true;

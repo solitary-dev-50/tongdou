@@ -5,6 +5,18 @@
 namespace tongdou {
 
 constexpr uint8_t kVoiceCommandHeader = 0xAA;
+constexpr uint8_t kCiProtocolHeadLow = 0xA5;
+constexpr uint8_t kCiProtocolHeadHigh = 0xFC;
+constexpr uint8_t kCiProtocolTail = 0xFB;
+constexpr uint8_t kCiProtocolTypeCommandUp = 0xA0;
+constexpr uint8_t kCiProtocolTypeCommandDown = 0xA1;
+constexpr uint8_t kCiProtocolCommandAsrResult = 0x91;
+constexpr uint8_t kCiProtocolCommandPlayVoice = 0x92;
+constexpr uint8_t kCiProtocolPlayStart = 0x80;
+constexpr uint8_t kCiProtocolPlayByVoiceId = 0x90;
+constexpr uint8_t kCiAsrResultLength = 7;
+constexpr uint8_t kCiPlayVoiceLength = 6;
+constexpr uint8_t kCiMaxDataLength = 20;
 
 enum class VoiceCommandCode : uint8_t {
   WakeGreeting = 0x01,
@@ -16,7 +28,14 @@ enum class VoiceCommandCode : uint8_t {
 };
 
 struct VoiceCommandFrame {
-  uint8_t command = 0;
+  uint32_t command = 0;
+};
+
+struct VoicePlaybackFrame {
+  static constexpr uint8_t kMaxLength = 16;
+
+  uint8_t bytes[kMaxLength] = {};
+  uint8_t length = 0;
 };
 
 }  // namespace tongdou

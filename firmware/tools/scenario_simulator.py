@@ -82,6 +82,17 @@ class VoiceLine(IntEnum):
 
 
 VOICE_COMMAND_HEADER = 0xAA
+CI_HEAD_LOW = 0xA5
+CI_HEAD_HIGH = 0xFC
+CI_TAIL = 0xFB
+CI_TYPE_COMMAND_UP = 0xA0
+CI_TYPE_COMMAND_DOWN = 0xA1
+CI_COMMAND_ASR_RESULT = 0x91
+CI_COMMAND_PLAY_VOICE = 0x92
+CI_PLAY_START = 0x80
+CI_PLAY_BY_VOICE_ID = 0x90
+CI_ASR_RESULT_LENGTH = 7
+CI_PLAY_VOICE_LENGTH = 6
 
 
 class VoiceCommandCode(IntEnum):
@@ -419,18 +430,105 @@ def map_voice_command(command: int) -> ScenarioEventType | None:
 
 
 def parse_voice_bytes(data: Iterable[int]) -> list[ScenarioEventType]:
+    buffer: list[int] = []
     waiting_for_command = False
     events: list[ScenarioEventType] = []
     for byte in data:
-        if not waiting_for_command:
-            waiting_for_command = byte == VOICE_COMMAND_HEADER
+        if waiting_for_command:
+            waiting_for_command = False
+            event = map_voice_command(byte)
+            if event is not None:
+                events.append(event)
             continue
 
-        waiting_for_command = False
-        event = map_voice_command(byte)
-        if event is not None:
-            events.append(event)
+        if not buffer:
+            if byte == VOICE_COMMAND_HEADER:
+                waiting_for_command = True
+            elif byte == CI_HEAD_LOW:
+                buffer.append(byte)
+            continue
+
+        buffer.append(byte)
+        parsed_event, complete = try_parse_ci_frame(buffer)
+        if not complete:
+            continue
+
+        buffer.clear()
+        if parsed_event is not None:
+            events.append(parsed_event)
     return events
+
+
+def try_parse_ci_frame(buffer: list[int]) -> tuple[ScenarioEventType | None, bool]:
+    if len(buffer) == 2 and buffer[1] != CI_HEAD_HIGH:
+        return None, True
+    if len(buffer) < 4:
+        return None, False
+
+    data_length = buffer[2] | (buffer[3] << 8)
+    total_length = 2 + 2 + 3 + data_length + 2 + 1
+    if len(buffer) < total_length:
+        return None, False
+    if len(buffer) > total_length or buffer[-1] != CI_TAIL:
+        return None, True
+
+    frame_type = buffer[4]
+    command = buffer[5]
+    data = buffer[7 : 7 + data_length]
+    checksum = buffer[-3] | (buffer[-2] << 8)
+    actual_checksum = sum(buffer[4 : 7 + data_length]) & 0xFFFF
+    if checksum != actual_checksum:
+        return None, True
+
+    if frame_type != CI_TYPE_COMMAND_UP or command != CI_COMMAND_ASR_RESULT:
+        return None, True
+    if data_length < 4:
+        return None, True
+
+    semantic_id = data[0] | (data[1] << 8) | (data[2] << 16) | (data[3] << 24)
+    return map_voice_command(semantic_id), True
+
+
+def make_ci_asr_result_frame(command: int, sequence: int = 1, score: int = 80) -> list[int]:
+    data = [
+        command & 0xFF,
+        (command >> 8) & 0xFF,
+        (command >> 16) & 0xFF,
+        (command >> 24) & 0xFF,
+        0x00,
+        0x00,
+        score & 0xFF,
+    ]
+    return make_ci_frame(CI_TYPE_COMMAND_UP, CI_COMMAND_ASR_RESULT, sequence, data)
+
+
+def make_ci_play_voice_frame(voice_id: int, sequence: int = 1) -> list[int]:
+    data = [
+        CI_PLAY_START,
+        CI_PLAY_BY_VOICE_ID,
+        voice_id & 0xFF,
+        (voice_id >> 8) & 0xFF,
+        (voice_id >> 16) & 0xFF,
+        (voice_id >> 24) & 0xFF,
+    ]
+    return make_ci_frame(CI_TYPE_COMMAND_DOWN, CI_COMMAND_PLAY_VOICE, sequence, data)
+
+
+def make_ci_frame(frame_type: int, command: int, sequence: int, data: list[int]) -> list[int]:
+    length = len(data)
+    frame = [
+        CI_HEAD_LOW,
+        CI_HEAD_HIGH,
+        length & 0xFF,
+        (length >> 8) & 0xFF,
+        frame_type,
+        command,
+        sequence & 0xFF,
+        *data,
+    ]
+    checksum = sum(frame[4:]) & 0xFFFF
+    frame.extend([checksum & 0xFF, (checksum >> 8) & 0xFF, CI_TAIL])
+    return frame
 
 
 def enum_name(value: IntEnum) -> str:
@@ -604,9 +702,11 @@ def run_voice_protocol_cases() -> None:
     cases = (
         ("single reminder", [0xAA, 0x05]),
         ("noise before quiet", [0x00, 0x13, 0xAA, 0x02]),
+        ("ci reminder", make_ci_asr_result_frame(0x05)),
         ("unknown command", [0xAA, 0x99]),
         ("two frames", [0xAA, 0x03, 0xAA, 0x04]),
         ("guard word ignored", [0xAA, 0x06]),
+        ("ci guard word ignored", make_ci_asr_result_frame(0x06)),
         ("dangling header", [0xAA]),
     )
 
@@ -616,6 +716,9 @@ def run_voice_protocol_cases() -> None:
         events = parse_voice_bytes(data)
         event_names = [enum_name(event) for event in events]
         print(f"[{label}] bytes={rendered} events={event_names}")
+    play_frame = make_ci_play_voice_frame(101)
+    rendered_play_frame = " ".join(f"{byte:02X}" for byte in play_frame)
+    print(f"[play voice 101] bytes={rendered_play_frame}")
     print()
 
 

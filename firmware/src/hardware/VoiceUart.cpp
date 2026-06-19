@@ -5,10 +5,15 @@
 #include "tongdou/Pins.h"
 
 namespace tongdou {
+namespace {
+
+constexpr uint32_t kCiProtocolBaudrate = 9600;
+
+}  // namespace
 
 void VoiceUart::begin() {
   Serial1.begin(
-      115200,
+      kCiProtocolBaudrate,
       SERIAL_8N1,
       static_cast<int>(pins::VOICE_UART_RX),
       static_cast<int>(pins::VOICE_UART_TX));
@@ -28,6 +33,23 @@ bool VoiceUart::readEvent(ScenarioEvent& event) {
   }
 
   return false;
+}
+
+void VoiceUart::playVoice(uint16_t voiceId) {
+  if (voiceId == 0) {
+    return;
+  }
+
+  const VoicePlaybackFrame frame = protocol_.makePlayVoiceFrame(voiceId, nextSequence());
+  Serial1.write(frame.bytes, frame.length);
+}
+
+uint8_t VoiceUart::nextSequence() {
+  ++sequence_;
+  if (sequence_ == 0) {
+    sequence_ = 1;
+  }
+  return sequence_;
 }
 
 }  // namespace tongdou

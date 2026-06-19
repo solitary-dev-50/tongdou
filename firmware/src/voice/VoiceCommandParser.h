@@ -2,7 +2,7 @@
 
 #include <stdint.h>
 
-#include "voice/VoiceCommand.h"
+#include "voice/CiVoiceProtocol.h"
 
 namespace tongdou {
 
@@ -12,7 +12,7 @@ class VoiceCommandParser {
   void reset();
 
  private:
-  bool waitingForCommand_ = false;
+  CiVoiceProtocol protocol_;
 };
 
 }  // namespace tongdou

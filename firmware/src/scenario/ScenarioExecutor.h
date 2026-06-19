@@ -4,6 +4,7 @@
 #include "hardware/FaceDisplay.h"
 #include "hardware/LedPixel.h"
 #include "hardware/MotorDriver.h"
+#include "hardware/VoiceUart.h"
 #include "light/LightPack.h"
 #include "motion/MotionPack.h"
 #include "scenario/ScenarioPlan.h"
@@ -13,7 +14,8 @@ namespace tongdou {
 
 class ScenarioExecutor {
  public:
-  ScenarioExecutor(FaceDisplay& faceDisplay, LedPixel& led, MotorDriver& motors);
+  ScenarioExecutor(FaceDisplay& faceDisplay, LedPixel& led, MotorDriver& motors,
+                   VoiceUart& voice);
 
   void begin();
   void execute(const ScenarioPlan& plan);
@@ -31,6 +33,7 @@ class ScenarioExecutor {
   FaceDisplay& faceDisplay_;
   LedPixel& led_;
   MotorDriver& motors_;
+  VoiceUart& voice_;
   FacePack facePack_;
   LightPack lightPack_;
   MotionPack motionPack_;
