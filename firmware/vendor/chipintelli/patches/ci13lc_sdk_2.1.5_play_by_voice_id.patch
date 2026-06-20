@@ -1,9 +1,0 @@
-*** Begin Patch
-*** Update File: components/msg_com/voice_module_uart_protocol.c
-@@
-                 else if (VMUP_MSG_DATA_PLAY_BY_VOICEID == play_setting)
-                 {
-+                    prompt_play_by_voice_id((uint16_t)id, play_voice_callback, true);
-+                    update_awake_time();
-                 }
-*** End Patch

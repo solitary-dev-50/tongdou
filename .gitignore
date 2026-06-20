@@ -1,40 +1,22 @@
-838e95f0-3b2a-42f6-b444-4ffaf2006f18.png
-可参考的项目
-outputs/voice-platform/铜豆语音平台命令词配置表-修正版.xlsx
-outputs/voice-platform/铜豆语音平台命令词配置表.xlsx
+# Local scratch files
+tmp/
+outputs/
+*.log
 
-铜豆PCB/SCH_Schematic1_1-P1_2026-06-17.png
-铜豆PCB/SCH_Schematic1_2-P2_供电部分_2026-06-17.png
-铜豆PCB/核心芯片规格书/C575404_步进电机驱动芯片_AT8833CT_规格书_WJ03981.pdf
-铜豆PCB/核心芯片规格书/CI13162P_AI语音芯片.pdf
-铜豆PCB/核心芯片规格书/ESP32-S3-MINI-1-N4R2.pdf
-功耗续命指南.txt
-铜豆系统提示词.txt
-铜豆指示灯说明.md
-铜豆桌面戏精提醒小助手设计草案.md
-语音指令集.xlsx
-AGENTS.md
-README.md
+# Large reference projects and imported vendor material
+可参考的项目/
+firmware/vendor/
+
+# Legacy PCB export folder. Current schematic PDFs live under docs/.
+铜豆PCB/
+
+# Local screenshots or clipboard drops
+*.png
+
+# Keep project entry docs trackable
+!README.md
+!AGENTS.md
+!docs/
+!docs/**/*.md
+!docs/**/*.pdf
 !firmware/web/README.md
-docs/表情包设计.md
-docs/表情系统.md
-docs/灯光系统.md
-docs/动作系统.md
-docs/固件架构草案.md
-docs/固件文件列表.md
-docs/经验记录.md
-docs/剧情包配置格式.md
-docs/人格宪法.md
-docs/人格一致性检查清单.md
-docs/声音风格指南.md
-docs/铜豆剧情包.md
-docs/网页配置API.md
-docs/系统架构.md
-docs/系统启动时序.md
-docs/硬件说明.md
-docs/语音平台命令词配置表.md
-docs/语音指令集.md
-docs/知识库索引.md
-docs/众筹与传播思路.md
-docs/JiShi资产复用评估.md
-docs/CI13LC_SDK_2.1.5/

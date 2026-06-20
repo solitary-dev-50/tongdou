@@ -5,8 +5,8 @@
 namespace tongdou {
 
 ScenarioExecutor::ScenarioExecutor(FaceDisplay& faceDisplay, LedPixel& led,
-                                   MotorDriver& motors, VoiceUart& voice)
-    : faceDisplay_(faceDisplay), led_(led), motors_(motors), voice_(voice) {}
+                                   MotorDriver& motors, AudioOutput& audio)
+    : faceDisplay_(faceDisplay), led_(led), motors_(motors), audio_(audio) {}
 
 void ScenarioExecutor::begin() {
   activePlan_ = {};
@@ -84,7 +84,7 @@ void ScenarioExecutor::startVoice(VoiceLine line) {
   Serial.print(clip.clipId);
   Serial.print(" text=");
   Serial.println(clip.text);
-  voice_.playVoice(clip.clipId);
+  audio_.playClip(clip.clipId, clip.text);
 }
 
 void ScenarioExecutor::updateLight(unsigned long nowMs) {

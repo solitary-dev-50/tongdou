@@ -19,7 +19,7 @@ void App::begin() {
   led_.begin();
   motors_.begin();
   radar_.begin();
-  voice_.begin();
+  audio_.begin();
   scenarioExecutor_.begin();
   wifiConfigStore_.begin();
   timeService_.begin();
@@ -38,20 +38,9 @@ void App::begin() {
 
 void App::update() {
   webConfigServer_.update();
-  handleVoiceEvents();
   handleReminderEvents();
   scenarioExecutor_.update();
   logHeartbeat();
-}
-
-void App::handleVoiceEvents() {
-  ScenarioEvent event;
-  if (!voice_.readEvent(event)) {
-    return;
-  }
-
-  const ScenarioPlan plan = scenarioEngine_.select(event, scenarioContext_);
-  scenarioExecutor_.execute(plan);
 }
 
 void App::handleReminderEvents() {

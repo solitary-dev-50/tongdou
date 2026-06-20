@@ -3,12 +3,12 @@
 #include <Arduino.h>
 
 #include "hardware/BatteryMonitor.h"
+#include "hardware/AudioOutput.h"
 #include "hardware/DisplayBus.h"
 #include "hardware/FaceDisplay.h"
 #include "hardware/LedPixel.h"
 #include "hardware/MotorDriver.h"
 #include "hardware/RadarSensor.h"
-#include "hardware/VoiceUart.h"
 #include "mcp/McpServer.h"
 #include "reminder/ReminderManager.h"
 #include "reminder/ReminderStore.h"
@@ -29,7 +29,6 @@ class App {
   void update();
 
  private:
-  void handleVoiceEvents();
   void handleReminderEvents();
   void logHeartbeat();
 
@@ -39,7 +38,7 @@ class App {
   LedPixel led_;
   MotorDriver motors_;
   RadarSensor radar_;
-  VoiceUart voice_;
+  AudioOutput audio_;
   WifiConfigStore wifiConfigStore_;
   TimeService timeService_;
   ReminderStore reminderStore_;
@@ -47,7 +46,7 @@ class App {
   McpServer mcpServer_{timeService_, reminderStore_};
   ScenarioLibrary scenarioLibrary_;
   ScenarioEngine scenarioEngine_{scenarioLibrary_};
-  ScenarioExecutor scenarioExecutor_{faceDisplay_, led_, motors_, voice_};
+  ScenarioExecutor scenarioExecutor_{faceDisplay_, led_, motors_, audio_};
   ScenarioContext scenarioContext_;
   ScenarioConfigStore scenarioConfigStore_;
   ScenarioConfigApi scenarioConfigApi_{scenarioConfigStore_};
