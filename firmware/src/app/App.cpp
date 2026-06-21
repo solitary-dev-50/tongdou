@@ -28,8 +28,8 @@ void App::begin() {
   reminderManager_.begin();
   mcpServer_.begin();
   scenarioConfigStore_.begin();
-  webConfigServer_.begin();
   hardwareSelfTest_.begin();
+  webConfigServer_.begin();
 
   const ScenarioPlan bootPlan =
       scenarioEngine_.select({ScenarioEventType::BootCompleted, 0}, scenarioContext_);

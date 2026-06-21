@@ -29,16 +29,33 @@ String jsonEscape(const String& value) {
   return escaped;
 }
 
+class StringPrint : public Print {
+ public:
+  size_t write(uint8_t value) override {
+    value_ += static_cast<char>(value);
+    return 1;
+  }
+
+  const String& value() const {
+    return value_;
+  }
+
+ private:
+  String value_;
+};
+
 }  // namespace
 
 WebConfigServer::WebConfigServer(ScenarioConfigApi& scenarioApi, WifiConfigStore& wifiStore,
                                  TimeService& timeService, ReminderStore& reminderStore,
-                                 McpServer& mcpServer)
+                                 McpServer& mcpServer,
+                                 HardwareSelfTestService& hardwareSelfTest)
     : scenarioApi_(scenarioApi),
       wifiStore_(wifiStore),
       timeService_(timeService),
       reminderStore_(reminderStore),
-      mcpServer_(mcpServer) {}
+      mcpServer_(mcpServer),
+      hardwareSelfTest_(hardwareSelfTest) {}
 
 void WebConfigServer::begin() {
   scenarioApi_.begin();
@@ -132,6 +149,7 @@ void WebConfigServer::setupRoutes() {
   server_.on("/api/reminders", HTTP_GET, [this]() { handleReminderList(); });
   server_.on("/api/reminders", HTTP_POST, [this]() { handleReminderCreate(); });
   server_.on("/api/reminders/delete", HTTP_POST, [this]() { handleReminderDelete(); });
+  server_.on("/api/diagnostic", HTTP_POST, [this]() { handleDiagnosticCommand(); });
   server_.on("/api/mcp", HTTP_POST, [this]() { handleMcp(); });
   server_.onNotFound([this]() { handleNotFound(); });
 }
@@ -140,26 +158,58 @@ void WebConfigServer::handleRoot() {
   const String ip = state_ == NetworkState::Connected ? WiFi.localIP().toString()
                                                        : WiFi.softAPIP().toString();
   String body;
-  body.reserve(2600);
+  body.reserve(7800);
   body += F("<!doctype html><html><head><meta charset='utf-8'>");
   body += F("<meta name='viewport' content='width=device-width,initial-scale=1'>");
-  body += F("<title>铜豆配网</title><style>");
-  body += F("body{font-family:Arial,'Microsoft YaHei',sans-serif;margin:24px;background:#111;color:#f4f1ea}");
-  body += F("main{max-width:560px;margin:auto}input,button{box-sizing:border-box;width:100%;padding:12px;margin:8px 0;border-radius:8px;border:0}");
-  body += F("button{background:#e7b45f;color:#111;font-weight:700}.card{background:#1d1d1d;padding:18px;border-radius:10px;margin:14px 0}");
+  body += F("<title>铜豆控制台</title><style>");
+  body += F("body{font-family:Arial,'Microsoft YaHei',sans-serif;margin:0;background:#121212;color:#f4f1ea}");
+  body += F("main{max-width:920px;margin:auto;padding:22px}h1{margin:0 0 6px}.sub{color:#aaa;margin:0 0 18px}");
+  body += F("input,button{box-sizing:border-box;width:100%;padding:12px;margin:6px 0;border-radius:8px;border:0}");
+  body += F("button{background:#e7b45f;color:#111;font-weight:700;cursor:pointer}button:disabled{background:#555;color:#aaa;cursor:not-allowed}");
+  body += F(".grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}.status{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}");
+  body += F(".card{background:#1d1d1d;padding:18px;border-radius:10px;margin:14px 0}.item{background:#0f0f0f;border:1px solid #2a2a2a;border-radius:8px;padding:12px}");
+  body += F(".label{color:#aaa;font-size:12px}.value{font-size:18px;margin-top:4px}pre{white-space:pre-wrap;background:#0b0b0b;padding:12px;border-radius:8px;min-height:100px}");
   body += F("small{color:#aaa}code{color:#e7b45f}</style></head><body><main>");
-  body += F("<h1>铜豆配网</h1><div class='card'><p>当前地址：<code>");
+  body += F("<h1>铜豆控制台</h1><p class='sub'>配网、校时和硬件诊断。</p>");
+  body += F("<div class='card'><h2>当前状态</h2><div class='status'>");
+  body += F("<div class='item'><div class='label'>地址</div><div class='value'><code>");
   body += ip;
-  body += F("</code></p><p>当前时间：<code>");
+  body += F("</code></div></div>");
+  body += F("<div class='item'><div class='label'>时间</div><div class='value'><code>");
   body += htmlEscape(timeService_.ready() ? timeService_.isoNow() : "未校时");
-  body += F("</code></p><small>第一版需要联网校时，提醒才知道真正日期。</small></div>");
+  body += F("</code></div></div>");
+  body += F("<div class='item'><div class='label'>联网</div><div class='value' id='wifi'>读取中</div></div>");
+  body += F("</div><small>第一版需要联网校时，提醒才知道真正日期。</small></div>");
   body += F("<div class='card'><h2>连接 WiFi</h2><form method='post' action='/api/setup/wifi'>");
   body += F("<input name='ssid' placeholder='WiFi 名称' required>");
   body += F("<input name='password' type='password' placeholder='WiFi 密码'>");
   body += F("<button type='submit'>保存并连接</button></form></div>");
   body += F("<div class='card'><h2>时间</h2><button onclick='syncTime()'>用手机/电脑时间同步</button>");
   body += F("<small id='msg'></small></div>");
-  body += F("<script>async function syncTime(){let e=Math.floor(Date.now()/1000);let r=await fetch('/api/time/sync',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'epoch='+e});document.getElementById('msg').textContent=await r.text();}</script>");
+  body += F("<div class='card'><h2>硬件诊断</h2><p><small>这些按钮会调用固件里的硬件自检服务。</small></p>");
+  body += F("<h3>状态读取</h3><div class='grid'>");
+  body += F("<button onclick=\"diag('selftest')\">完整自检</button>");
+  body += F("<button onclick=\"diag('battery')\">电池/充电</button>");
+  body += F("<button onclick=\"diag('radar')\">雷达</button>");
+  body += F("<button onclick=\"diag('mic')\">麦克风</button>");
+  body += F("</div><h3>输出测试</h3><div class='grid'>");
+  body += F("<button onclick=\"diag('speaker')\">喇叭测试音</button>");
+  body += F("<button onclick=\"diag('led red')\">红灯</button>");
+  body += F("<button onclick=\"diag('led green')\">绿灯</button>");
+  body += F("<button onclick=\"diag('led blue')\">蓝灯</button>");
+  body += F("<button onclick=\"diag('led off')\">关灯</button>");
+  body += F("<button onclick=\"diag('motor forward')\">电机正转</button>");
+  body += F("<button onclick=\"diag('motor reverse')\">电机反转</button>");
+  body += F("<button onclick=\"diag('motor stop')\">电机停止</button>");
+  body += F("</div><h3>剧情测试</h3><div class='grid'>");
+  body += F("<button disabled>剧情触发测试后续接入</button>");
+  body += F("</div><pre id='diag'>等待诊断命令。</pre></div>");
+  body += F("<script>");
+  body += F("async function loadStatus(){try{let r=await fetch('/api/status');let j=await r.json();document.getElementById('wifi').textContent=j.wifiConnected?'已连接':(j.portal?'配网模式':'连接中');}catch(e){document.getElementById('wifi').textContent='读取失败';}}");
+  body += F("async function syncTime(){let e=Math.floor(Date.now()/1000);let r=await fetch('/api/time/sync',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'epoch='+e});document.getElementById('msg').textContent=await r.text();}");
+  body += F("async function diag(c){let o=document.getElementById('diag');o.textContent='执行中：'+c;try{let r=await fetch('/api/diagnostic',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'command='+encodeURIComponent(c)});o.textContent=await r.text();}catch(e){o.textContent='诊断失败：'+e;}}");
+  body += F("loadStatus();");
+  body += F("</script>");
   body += F("</main></body></html>");
   sendText(200, "text/html; charset=utf-8", body);
 }
@@ -255,6 +305,23 @@ void WebConfigServer::handleReminderDelete() {
   }
 
   sendText(200, "application/json", "{\"ok\":true}");
+}
+
+void WebConfigServer::handleDiagnosticCommand() {
+  String command = server_.arg("command");
+  command.trim();
+  if (command.length() == 0) {
+    sendText(400, "text/plain; charset=utf-8", "missing command");
+    return;
+  }
+
+  StringPrint output;
+  if (!hardwareSelfTest_.handleCommand(command, output)) {
+    sendText(404, "text/plain; charset=utf-8", "unknown diagnostic command");
+    return;
+  }
+
+  sendText(200, "text/plain; charset=utf-8", output.value());
 }
 
 void WebConfigServer::handleMcp() {

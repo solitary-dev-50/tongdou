@@ -1,21 +1,84 @@
 body {
   margin: 0;
   font-family: system-ui, sans-serif;
-  background: #f6f7f9;
-  color: #1f2937;
+  background: #121212;
+  color: #f4f1ea;
 }
 
 main {
-  max-width: 720px;
-  margin: 32px auto;
-  padding: 0 20px;
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 24px 20px 40px;
+}
+
+h1 {
+  margin-bottom: 4px;
+}
+
+.sub {
+  margin-top: 0;
+  color: #a8a29e;
 }
 
 section {
   margin-top: 20px;
   padding: 16px;
-  border: 1px solid #d8dde6;
-  background: #ffffff;
+  border-radius: 10px;
+  background: #1d1d1d;
+}
+
+button,
+select {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 12px;
+  border: 0;
+  border-radius: 8px;
+}
+
+button {
+  background: #e7b45f;
+  color: #111111;
+  font-weight: 700;
+}
+
+button:disabled {
+  background: #555555;
+  color: #aaaaaa;
+}
+
+.status-grid,
+.button-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+.status-item {
+  padding: 12px;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  background: #0f0f0f;
+}
+
+.status-item span {
+  display: block;
+  color: #a8a29e;
+  font-size: 12px;
+}
+
+.status-item strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 18px;
+}
+
+pre {
+  min-height: 100px;
+  white-space: pre-wrap;
+  padding: 12px;
+  border-radius: 8px;
+  background: #0b0b0b;
 }
 
 li {

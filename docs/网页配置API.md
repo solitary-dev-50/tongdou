@@ -2,7 +2,7 @@
 
 这份文档定义铜豆网页配置页面和固件之间的接口。
 
-当前阶段这些接口是**合同**，不是已经完成的真实 HTTP 服务。
+当前阶段这些接口一部分已经是真实 HTTP 服务，一部分仍是后续合同。
 
 大白话说：
 
@@ -17,14 +17,14 @@
 - 固件中已有接口路径合同：`firmware/src/web/WebApiContract.h`
 - 固件中已有接口返回状态：`firmware/src/web/WebApiResult.h`
 - 固件中已有剧情配置 API 骨架：`firmware/src/web/ScenarioConfigApi.*`
-- 网页占位页面已展示接口清单：`firmware/web/*`
+- 固件首页已有配网、校时和硬件诊断控制台。
+- 静态网页原型已同步硬件诊断界面：`firmware/web/*`
 
 尚未完成：
 
-- 真实 HTTP 服务。
-- JSON 解析和序列化。
-- Flash 持久化。
-- 网页表单和 API 的真实联调。
+- 剧情配置页面的完整表单。
+- 剧情配置 JSON 的完整读写联调。
+- 剧情触发测试后端。
 
 ---
 
@@ -33,12 +33,14 @@
 | 方法 | 路径 | 用途 |
 | --- | --- | --- |
 | `GET` | `/api/health` | 查询设备是否在线 |
+| `GET` | `/api/status` | 查询联网和时间状态 |
 | `GET` | `/api/scenario/config` | 读取当前剧情配置 |
 | `PUT` | `/api/scenario/config` | 保存完整剧情配置 |
 | `POST` | `/api/scenario/reset` | 恢复默认剧情配置 |
 | `GET` | `/api/scenario/export` | 导出剧情包 |
 | `POST` | `/api/scenario/import` | 导入剧情包 |
 | `GET` | `/api/scenario/options` | 读取网页下拉选项 |
+| `POST` | `/api/diagnostic` | 执行硬件诊断命令 |
 
 ---
 
@@ -350,7 +352,44 @@
 
 ---
 
-## 12. 版本边界
+## 12. POST /api/diagnostic
+
+用途：
+
+> 给网页诊断控制台调用硬件自检服务。
+
+请求体：
+
+```text
+command=selftest
+```
+
+当前支持命令：
+
+- `selftest`
+- `battery`
+- `radar`
+- `mic`
+- `speaker`
+- `led red`
+- `led green`
+- `led blue`
+- `led off`
+- `motor forward`
+- `motor reverse`
+- `motor stop`
+
+返回：纯文本诊断结果。
+
+边界：
+
+- 网页层不直接操作硬件。
+- 命令必须交给 `HardwareSelfTestService` 执行。
+- 电机测试必须是短动作或可停止动作。
+
+---
+
+## 13. 版本边界
 
 第一版只保证：
 
@@ -370,7 +409,7 @@
 
 ---
 
-## 13. 维护规则
+## 14. 维护规则
 
 - 新增接口前，先改 `firmware/src/web/WebApiContract.h`。
 - 新增返回状态前，先改 `firmware/src/web/WebApiResult.h`。

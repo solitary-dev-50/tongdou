@@ -54,10 +54,10 @@ class App {
   ScenarioContext scenarioContext_;
   ScenarioConfigStore scenarioConfigStore_;
   ScenarioConfigApi scenarioConfigApi_{scenarioConfigStore_};
-  WebConfigServer webConfigServer_{scenarioConfigApi_, wifiConfigStore_, timeService_,
-                                   reminderStore_, mcpServer_};
   HardwareSelfTestService hardwareSelfTest_{battery_, audioInput_, audio_, led_, motors_,
                                            radar_};
+  WebConfigServer webConfigServer_{scenarioConfigApi_, wifiConfigStore_, timeService_,
+                                   reminderStore_, mcpServer_, hardwareSelfTest_};
   unsigned long lastHeartbeatMs_ = 0;
 };
 

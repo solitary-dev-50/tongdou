@@ -3,6 +3,7 @@
 #include <DNSServer.h>
 #include <WebServer.h>
 
+#include "diagnostic/HardwareSelfTestService.h"
 #include "mcp/McpServer.h"
 #include "reminder/ReminderStore.h"
 #include "system/TimeService.h"
@@ -15,7 +16,8 @@ namespace tongdou {
 class WebConfigServer {
  public:
   WebConfigServer(ScenarioConfigApi& scenarioApi, WifiConfigStore& wifiStore,
-                  TimeService& timeService, ReminderStore& reminderStore, McpServer& mcpServer);
+                  TimeService& timeService, ReminderStore& reminderStore, McpServer& mcpServer,
+                  HardwareSelfTestService& hardwareSelfTest);
 
   void begin();
   void update();
@@ -41,6 +43,7 @@ class WebConfigServer {
   void handleReminderList();
   void handleReminderCreate();
   void handleReminderDelete();
+  void handleDiagnosticCommand();
   void handleMcp();
   void handleNotFound();
   void sendText(int code, const char* type, const String& body);
@@ -52,6 +55,7 @@ class WebConfigServer {
   TimeService& timeService_;
   ReminderStore& reminderStore_;
   McpServer& mcpServer_;
+  HardwareSelfTestService& hardwareSelfTest_;
   WebServer server_{80};
   DNSServer dnsServer_;
   NetworkState state_ = NetworkState::Idle;

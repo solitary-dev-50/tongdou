@@ -3,27 +3,61 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>铜豆剧情设置</title>
+    <title>铜豆控制台</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <main>
-      <h1>铜豆剧情设置</h1>
+      <h1>铜豆控制台</h1>
+      <p class="sub">配网、校时、硬件诊断和后续剧情配置入口。</p>
+
       <section>
-        <h2>性格</h2>
+        <h2>当前状态</h2>
+        <div class="status-grid">
+          <div class="status-item">
+            <span>联网</span>
+            <strong id="wifi-status">读取中</strong>
+          </div>
+          <div class="status-item">
+            <span>时间</span>
+            <strong id="time-status">读取中</strong>
+          </div>
+        </div>
+        <button id="refresh-status">刷新状态</button>
+      </section>
+
+      <section>
+        <h2>硬件诊断</h2>
+        <h3>状态读取</h3>
+        <div class="button-grid">
+          <button data-command="selftest">完整自检</button>
+          <button data-command="battery">电池/充电</button>
+          <button data-command="radar">雷达</button>
+          <button data-command="mic">麦克风</button>
+        </div>
+        <h3>输出测试</h3>
+        <div class="button-grid">
+          <button data-command="speaker">喇叭测试音</button>
+          <button data-command="led red">红灯</button>
+          <button data-command="led green">绿灯</button>
+          <button data-command="led blue">蓝灯</button>
+          <button data-command="led off">关灯</button>
+          <button data-command="motor forward">电机正转</button>
+          <button data-command="motor reverse">电机反转</button>
+          <button data-command="motor stop">电机停止</button>
+        </div>
+        <h3>剧情测试</h3>
+        <button disabled>剧情触发测试后续接入</button>
+        <pre id="diagnostic-output">等待诊断命令。</pre>
+      </section>
+
+      <section>
+        <h2>剧情配置</h2>
         <select id="personality">
           <option value="gentle">温柔提醒</option>
           <option value="balanced" selected>嘴欠打工搭子</option>
           <option value="dramatic">彻底戏精模式</option>
         </select>
-      </section>
-      <section>
-        <h2>剧情包</h2>
-        <p>这里预留给后续剧情规则编辑器。</p>
-      </section>
-      <section>
-        <h2>接口</h2>
-        <ul id="api-list"></ul>
       </section>
     </main>
     <script src="./app.js"></script>
