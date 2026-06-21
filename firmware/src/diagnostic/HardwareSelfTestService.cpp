@@ -19,13 +19,15 @@ HardwareSelfTestService::HardwareSelfTestService(BatteryMonitor& battery,
                                                  AudioOutput& audioOutput,
                                                  LedPixel& led,
                                                  MotorDriver& motors,
-                                                 RadarSensor& radar)
+                                                 RadarSensor& radar,
+                                                 FaceDisplay& faceDisplay)
     : battery_(battery),
       audioInput_(audioInput),
       audioOutput_(audioOutput),
       led_(led),
       motors_(motors),
-      radar_(radar) {}
+      radar_(radar),
+      faceDisplay_(faceDisplay) {}
 
 void HardwareSelfTestService::begin() {
   motorStopAtMs_ = 0;
@@ -39,9 +41,21 @@ void HardwareSelfTestService::update() {
   stopMotorPulse();
 }
 
+HardwareDiagnosticStatus HardwareSelfTestService::status() const {
+  HardwareDiagnosticStatus result;
+  result.faceReady = faceDisplay_.ready();
+  result.ledReady = led_.ready();
+  result.audioInputReady = audioInput_.ready();
+  result.audioOutputReady = audioOutput_.ready();
+  result.degraded = !result.faceReady || !result.ledReady || !result.audioInputReady ||
+                    !result.audioOutputReady;
+  return result;
+}
+
 void HardwareSelfTestService::printHelp(Print& out) const {
   out.println(F("self-test commands:"));
   out.println(F("  selftest"));
+  out.println(F("  status"));
   out.println(F("  battery"));
   out.println(F("  radar"));
   out.println(F("  mic"));
@@ -64,6 +78,10 @@ bool HardwareSelfTestService::handleCommand(const String& command, Print& out) {
   }
   if (cmd == F("selftest")) {
     printReport(out);
+    return true;
+  }
+  if (cmd == F("status")) {
+    printStatus(out);
     return true;
   }
   if (cmd == F("battery")) {
@@ -118,10 +136,21 @@ bool HardwareSelfTestService::handleCommand(const String& command, Print& out) {
 
 void HardwareSelfTestService::printReport(Print& out) {
   out.println(F("self-test report begin"));
+  printStatus(out);
   printBattery(out);
   printRadar(out);
   printMic(out);
   out.println(F("self-test report end"));
+}
+
+void HardwareSelfTestService::printStatus(Print& out) const {
+  const HardwareDiagnosticStatus snapshot = status();
+  out.println(F("hardware:"));
+  printBool(out, F("  face="), snapshot.faceReady);
+  printBool(out, F("  led="), snapshot.ledReady);
+  printBool(out, F("  audio_input="), snapshot.audioInputReady);
+  printBool(out, F("  audio_output="), snapshot.audioOutputReady);
+  printBool(out, F("  degraded="), snapshot.degraded);
 }
 
 void HardwareSelfTestService::printBattery(Print& out) const {

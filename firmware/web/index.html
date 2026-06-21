@@ -22,6 +22,14 @@
             <span>时间</span>
             <strong id="time-status">读取中</strong>
           </div>
+          <div class="status-item">
+            <span>模式</span>
+            <strong id="mode-status">读取中</strong>
+          </div>
+          <div class="status-item">
+            <span>硬件</span>
+            <strong id="hardware-status">读取中</strong>
+          </div>
         </div>
         <button id="refresh-status">刷新状态</button>
       </section>
@@ -31,6 +39,7 @@
         <h3>状态读取</h3>
         <div class="button-grid">
           <button data-command="selftest">完整自检</button>
+          <button data-command="status">硬件状态</button>
           <button data-command="battery">电池/充电</button>
           <button data-command="radar">雷达</button>
           <button data-command="mic">麦克风</button>

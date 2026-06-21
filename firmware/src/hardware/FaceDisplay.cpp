@@ -53,6 +53,10 @@ void FaceDisplay::show(FaceExpression expression) {
   flush();
 }
 
+bool FaceDisplay::ready() const {
+  return available_;
+}
+
 void FaceDisplay::command(uint8_t value) {
   Wire.beginTransmission(kAddress);
   Wire.write(0x00);

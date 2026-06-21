@@ -36,7 +36,7 @@ class HardwareManager {
   AudioInput audioInput_;
   AudioOutput audioOutput_;
   HardwareSelfTestService selfTest_{battery_, audioInput_, audioOutput_, led_, motors_,
-                                    radar_};
+                                    radar_, faceDisplay_};
 };
 
 }  // namespace tongdou

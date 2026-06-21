@@ -11,6 +11,7 @@ class LedPixel {
   void begin();
   void show(const RgbColor& color);
   void off();
+  bool ready() const;
 
  private:
   bool ready_ = false;

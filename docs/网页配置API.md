@@ -114,6 +114,42 @@
 
 ---
 
+## 5.1 GET /api/status
+
+用途：
+
+> 查询联网、时间、启动模式和硬件状态。
+
+当前返回：
+
+```json
+{
+  "wifiConnected": true,
+  "portal": false,
+  "timeReady": true,
+  "now": "2026-06-22 10:00:00",
+  "systemMode": "normal",
+  "hardware": {
+    "face": true,
+    "led": true,
+    "audioInput": true,
+    "audioOutput": true,
+    "degraded": false
+  }
+}
+```
+
+`systemMode` 说明：
+
+| 状态 | 含义 |
+| --- | --- |
+| `normal` | 正常模式 |
+| `portal` | 配网模式 |
+| `connecting` | 正在联网 |
+| `degraded` | 硬件降级 |
+
+---
+
 ## 6. GET /api/scenario/config
 
 用途：
@@ -367,6 +403,7 @@ command=selftest
 当前支持命令：
 
 - `selftest`
+- `status`
 - `battery`
 - `radar`
 - `mic`

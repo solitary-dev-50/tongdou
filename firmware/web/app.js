@@ -3,6 +3,8 @@ const diagnosticOutput = document.querySelector("#diagnostic-output");
 const refreshStatus = document.querySelector("#refresh-status");
 const wifiStatus = document.querySelector("#wifi-status");
 const timeStatus = document.querySelector("#time-status");
+const modeStatus = document.querySelector("#mode-status");
+const hardwareStatus = document.querySelector("#hardware-status");
 
 async function loadStatus() {
   try {
@@ -14,10 +16,25 @@ async function loadStatus() {
         ? "配网模式"
         : "连接中";
     timeStatus.textContent = status.timeReady ? status.now : "未校时";
+    modeStatus.textContent = modeText(status.systemMode);
+    hardwareStatus.textContent = status.hardware?.degraded ? "降级" : "正常";
   } catch (error) {
     wifiStatus.textContent = "读取失败";
     timeStatus.textContent = "读取失败";
+    modeStatus.textContent = "读取失败";
+    hardwareStatus.textContent = "读取失败";
   }
+}
+
+function modeText(mode) {
+  return (
+    {
+      normal: "正常",
+      portal: "配网",
+      connecting: "联网中",
+      degraded: "降级",
+    }[mode] || mode
+  );
 }
 
 async function runDiagnostic(command) {

@@ -324,3 +324,5 @@ platformio run
 阶段 2 已新增硬件自检服务，阶段 3 已新增网页诊断控制台。
 
 现在继续推进启动编排：先引入 `SystemBootstrap` 和 `HardwareManager`，让 `main.cpp` 只负责启动器入口，并把硬件初始化顺序集中管理。
+
+已补充 `/api/status` 的 `systemMode` 和硬件降级状态，下一步再把更细的启动失败原因和降级策略拆出来。

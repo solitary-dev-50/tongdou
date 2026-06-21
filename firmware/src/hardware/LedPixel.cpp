@@ -79,4 +79,8 @@ void LedPixel::off() {
   show({0, 0, 0});
 }
 
+bool LedPixel::ready() const {
+  return ready_;
+}
+
 }  // namespace tongdou

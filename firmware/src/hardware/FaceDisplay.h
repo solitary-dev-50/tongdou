@@ -10,6 +10,7 @@ class FaceDisplay {
  public:
   void begin();
   void show(FaceExpression expression);
+  bool ready() const;
 
  private:
   static constexpr uint8_t kAddress = 0x3C;

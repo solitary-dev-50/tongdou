@@ -104,4 +104,8 @@ void AudioOutput::playClip(uint16_t clipId, const char* text) {
   Serial.println(text == nullptr ? "" : text);
 }
 
+bool AudioOutput::ready() const {
+  return ready_;
+}
+
 }  // namespace tongdou

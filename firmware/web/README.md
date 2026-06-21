@@ -31,3 +31,5 @@
 | `POST /api/diagnostic` | 执行硬件诊断命令 |
 
 这些路径对应固件里的 `web/WebApiContract.h`。
+
+`GET /api/status` 会返回 `systemMode` 和 `hardware`，用于显示启动模式和硬件降级状态。
