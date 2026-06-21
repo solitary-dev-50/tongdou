@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 
+#include "diagnostic/HardwareSelfTestService.h"
 #include "hardware/BatteryMonitor.h"
 #include "hardware/AudioInput.h"
 #include "hardware/AudioOutput.h"
@@ -31,6 +32,7 @@ class App {
 
  private:
   void handleReminderEvents();
+  void handleSerialDiagnostics();
   void logHeartbeat();
 
   BatteryMonitor battery_;
@@ -54,6 +56,8 @@ class App {
   ScenarioConfigApi scenarioConfigApi_{scenarioConfigStore_};
   WebConfigServer webConfigServer_{scenarioConfigApi_, wifiConfigStore_, timeService_,
                                    reminderStore_, mcpServer_};
+  HardwareSelfTestService hardwareSelfTest_{battery_, audioInput_, audio_, led_, motors_,
+                                           radar_};
   unsigned long lastHeartbeatMs_ = 0;
 };
 

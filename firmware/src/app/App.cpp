@@ -29,6 +29,7 @@ void App::begin() {
   mcpServer_.begin();
   scenarioConfigStore_.begin();
   webConfigServer_.begin();
+  hardwareSelfTest_.begin();
 
   const ScenarioPlan bootPlan =
       scenarioEngine_.select({ScenarioEventType::BootCompleted, 0}, scenarioContext_);
@@ -40,6 +41,8 @@ void App::begin() {
 void App::update() {
   webConfigServer_.update();
   audioInput_.update();
+  hardwareSelfTest_.update();
+  handleSerialDiagnostics();
   handleReminderEvents();
   scenarioExecutor_.update();
   logHeartbeat();
@@ -53,6 +56,19 @@ void App::handleReminderEvents() {
 
   const ScenarioPlan plan = scenarioEngine_.select(event, scenarioContext_);
   scenarioExecutor_.execute(plan);
+}
+
+void App::handleSerialDiagnostics() {
+  if (!Serial.available()) {
+    return;
+  }
+
+  const String command = Serial.readStringUntil('\n');
+  if (hardwareSelfTest_.handleCommand(command, Serial)) {
+    return;
+  }
+
+  Serial.println("unknown command, type help");
 }
 
 void App::logHeartbeat() {
