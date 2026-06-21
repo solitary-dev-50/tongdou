@@ -2,15 +2,7 @@
 
 #include <Arduino.h>
 
-#include "diagnostic/HardwareSelfTestService.h"
-#include "hardware/BatteryMonitor.h"
-#include "hardware/AudioInput.h"
-#include "hardware/AudioOutput.h"
-#include "hardware/DisplayBus.h"
-#include "hardware/FaceDisplay.h"
-#include "hardware/LedPixel.h"
-#include "hardware/MotorDriver.h"
-#include "hardware/RadarSensor.h"
+#include "hardware/HardwareManager.h"
 #include "mcp/McpServer.h"
 #include "reminder/ReminderManager.h"
 #include "reminder/ReminderStore.h"
@@ -35,14 +27,7 @@ class App {
   void handleSerialDiagnostics();
   void logHeartbeat();
 
-  BatteryMonitor battery_;
-  DisplayBus displayBus_;
-  FaceDisplay faceDisplay_;
-  LedPixel led_;
-  MotorDriver motors_;
-  RadarSensor radar_;
-  AudioInput audioInput_;
-  AudioOutput audio_;
+  HardwareManager hardware_;
   WifiConfigStore wifiConfigStore_;
   TimeService timeService_;
   ReminderStore reminderStore_;
@@ -50,14 +35,13 @@ class App {
   McpServer mcpServer_{timeService_, reminderStore_};
   ScenarioLibrary scenarioLibrary_;
   ScenarioEngine scenarioEngine_{scenarioLibrary_};
-  ScenarioExecutor scenarioExecutor_{faceDisplay_, led_, motors_, audio_};
+  ScenarioExecutor scenarioExecutor_{hardware_.faceDisplay(), hardware_.led(),
+                                    hardware_.motors(), hardware_.audioOutput()};
   ScenarioContext scenarioContext_;
   ScenarioConfigStore scenarioConfigStore_;
   ScenarioConfigApi scenarioConfigApi_{scenarioConfigStore_};
-  HardwareSelfTestService hardwareSelfTest_{battery_, audioInput_, audio_, led_, motors_,
-                                           radar_};
   WebConfigServer webConfigServer_{scenarioConfigApi_, wifiConfigStore_, timeService_,
-                                   reminderStore_, mcpServer_, hardwareSelfTest_};
+                                   reminderStore_, mcpServer_, hardware_.selfTest()};
   unsigned long lastHeartbeatMs_ = 0;
 };
 

@@ -1,13 +1,13 @@
 #include <Arduino.h>
 
-#include "app/App.h"
+#include "system/SystemBootstrap.h"
 
-tongdou::App app;
+tongdou::SystemBootstrap bootstrap;
 
 void setup() {
-  app.begin();
+  bootstrap.boot();
 }
 
 void loop() {
-  app.update();
+  bootstrap.run();
 }

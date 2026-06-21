@@ -13,14 +13,7 @@ void App::begin() {
   Serial.print(" firmware stage: ");
   Serial.println(kFirmwareStage);
 
-  battery_.begin();
-  displayBus_.begin();
-  faceDisplay_.begin();
-  led_.begin();
-  motors_.begin();
-  radar_.begin();
-  audioInput_.begin();
-  audio_.begin();
+  hardware_.begin();
   scenarioExecutor_.begin();
   wifiConfigStore_.begin();
   timeService_.begin();
@@ -28,7 +21,6 @@ void App::begin() {
   reminderManager_.begin();
   mcpServer_.begin();
   scenarioConfigStore_.begin();
-  hardwareSelfTest_.begin();
   webConfigServer_.begin();
 
   const ScenarioPlan bootPlan =
@@ -40,8 +32,7 @@ void App::begin() {
 
 void App::update() {
   webConfigServer_.update();
-  audioInput_.update();
-  hardwareSelfTest_.update();
+  hardware_.update();
   handleSerialDiagnostics();
   handleReminderEvents();
   scenarioExecutor_.update();
@@ -64,7 +55,7 @@ void App::handleSerialDiagnostics() {
   }
 
   const String command = Serial.readStringUntil('\n');
-  if (hardwareSelfTest_.handleCommand(command, Serial)) {
+  if (hardware_.selfTest().handleCommand(command, Serial)) {
     return;
   }
 
@@ -78,7 +69,7 @@ void App::logHeartbeat() {
   }
 
   lastHeartbeatMs_ = now;
-  const BatterySnapshot battery = battery_.read();
+  const BatterySnapshot battery = hardware_.battery().read();
 
   Serial.print("heartbeat usb=");
   Serial.print(battery.usbPresent ? "1" : "0");
