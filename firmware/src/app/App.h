@@ -3,6 +3,7 @@
 #include <Arduino.h>
 
 #include "hardware/BatteryMonitor.h"
+#include "hardware/AudioInput.h"
 #include "hardware/AudioOutput.h"
 #include "hardware/DisplayBus.h"
 #include "hardware/FaceDisplay.h"
@@ -38,6 +39,7 @@ class App {
   LedPixel led_;
   MotorDriver motors_;
   RadarSensor radar_;
+  AudioInput audioInput_;
   AudioOutput audio_;
   WifiConfigStore wifiConfigStore_;
   TimeService timeService_;

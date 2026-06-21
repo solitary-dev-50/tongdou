@@ -19,6 +19,7 @@ void App::begin() {
   led_.begin();
   motors_.begin();
   radar_.begin();
+  audioInput_.begin();
   audio_.begin();
   scenarioExecutor_.begin();
   wifiConfigStore_.begin();
@@ -38,6 +39,7 @@ void App::begin() {
 
 void App::update() {
   webConfigServer_.update();
+  audioInput_.update();
   handleReminderEvents();
   scenarioExecutor_.update();
   logHeartbeat();
