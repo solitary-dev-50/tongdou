@@ -135,6 +135,13 @@
     "audioInput": true,
     "audioOutput": true,
     "degraded": false
+  },
+  "capabilities": {
+    "reminders": true,
+    "web": true,
+    "visual": true,
+    "sound": true,
+    "voiceInput": true
   }
 }
 ```

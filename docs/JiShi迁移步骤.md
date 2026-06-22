@@ -325,4 +325,4 @@ platformio run
 
 现在继续推进启动编排：先引入 `SystemBootstrap` 和 `HardwareManager`，让 `main.cpp` 只负责启动器入口，并把硬件初始化顺序集中管理。
 
-已补充 `/api/status` 的 `systemMode` 和硬件降级状态，下一步再把更细的启动失败原因和降级策略拆出来。
+已补充 `/api/status` 的 `systemMode`、硬件降级状态和保留能力。第四阶段最小启动编排已经具备：启动入口、硬件集中初始化、模式展示和降级能力展示。

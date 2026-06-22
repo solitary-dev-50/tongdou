@@ -49,6 +49,9 @@ HardwareDiagnosticStatus HardwareSelfTestService::status() const {
   result.audioOutputReady = audioOutput_.ready();
   result.degraded = !result.faceReady || !result.ledReady || !result.audioInputReady ||
                     !result.audioOutputReady;
+  result.visualFeedbackAvailable = result.faceReady || result.ledReady;
+  result.soundAvailable = result.audioOutputReady;
+  result.voiceInputAvailable = result.audioInputReady;
   return result;
 }
 
@@ -151,6 +154,11 @@ void HardwareSelfTestService::printStatus(Print& out) const {
   printBool(out, F("  audio_input="), snapshot.audioInputReady);
   printBool(out, F("  audio_output="), snapshot.audioOutputReady);
   printBool(out, F("  degraded="), snapshot.degraded);
+  printBool(out, F("  reminders_available="), snapshot.remindersAvailable);
+  printBool(out, F("  web_available="), snapshot.webAvailable);
+  printBool(out, F("  visual_feedback_available="), snapshot.visualFeedbackAvailable);
+  printBool(out, F("  sound_available="), snapshot.soundAvailable);
+  printBool(out, F("  voice_input_available="), snapshot.voiceInputAvailable);
 }
 
 void HardwareSelfTestService::printBattery(Print& out) const {

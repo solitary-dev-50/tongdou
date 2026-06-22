@@ -18,6 +18,11 @@ struct HardwareDiagnosticStatus {
   bool audioInputReady = false;
   bool audioOutputReady = false;
   bool degraded = false;
+  bool remindersAvailable = true;
+  bool webAvailable = true;
+  bool visualFeedbackAvailable = false;
+  bool soundAvailable = false;
+  bool voiceInputAvailable = false;
 };
 
 class HardwareSelfTestService {

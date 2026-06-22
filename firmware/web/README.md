@@ -32,4 +32,4 @@
 
 这些路径对应固件里的 `web/WebApiContract.h`。
 
-`GET /api/status` 会返回 `systemMode` 和 `hardware`，用于显示启动模式和硬件降级状态。
+`GET /api/status` 会返回 `systemMode`、`hardware` 和 `capabilities`，用于显示启动模式、硬件降级状态和当前保留能力。

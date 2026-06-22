@@ -5,6 +5,7 @@ const wifiStatus = document.querySelector("#wifi-status");
 const timeStatus = document.querySelector("#time-status");
 const modeStatus = document.querySelector("#mode-status");
 const hardwareStatus = document.querySelector("#hardware-status");
+const capabilityStatus = document.querySelector("#capability-status");
 
 async function loadStatus() {
   try {
@@ -18,11 +19,13 @@ async function loadStatus() {
     timeStatus.textContent = status.timeReady ? status.now : "未校时";
     modeStatus.textContent = modeText(status.systemMode);
     hardwareStatus.textContent = status.hardware?.degraded ? "降级" : "正常";
+    capabilityStatus.textContent = capabilityText(status.capabilities);
   } catch (error) {
     wifiStatus.textContent = "读取失败";
     timeStatus.textContent = "读取失败";
     modeStatus.textContent = "读取失败";
     hardwareStatus.textContent = "读取失败";
+    capabilityStatus.textContent = "读取失败";
   }
 }
 
@@ -35,6 +38,16 @@ function modeText(mode) {
       degraded: "降级",
     }[mode] || mode
   );
+}
+
+function capabilityText(capabilities = {}) {
+  const items = [];
+  if (capabilities.reminders) items.push("提醒");
+  if (capabilities.web) items.push("网页");
+  if (capabilities.visual) items.push("视觉");
+  if (capabilities.sound) items.push("声音");
+  if (capabilities.voiceInput) items.push("语音输入");
+  return items.length > 0 ? items.join(" / ") : "无";
 }
 
 async function runDiagnostic(command) {

@@ -181,6 +181,7 @@ void WebConfigServer::handleRoot() {
   body += F("<div class='item'><div class='label'>联网</div><div class='value' id='wifi'>读取中</div></div>");
   body += F("<div class='item'><div class='label'>模式</div><div class='value' id='mode'>读取中</div></div>");
   body += F("<div class='item'><div class='label'>硬件</div><div class='value' id='hardware'>读取中</div></div>");
+  body += F("<div class='item'><div class='label'>保留能力</div><div class='value' id='capability'>读取中</div></div>");
   body += F("</div><small>第一版需要联网校时，提醒才知道真正日期。</small></div>");
   body += F("<div class='card'><h2>连接 WiFi</h2><form method='post' action='/api/setup/wifi'>");
   body += F("<input name='ssid' placeholder='WiFi 名称' required>");
@@ -209,7 +210,8 @@ void WebConfigServer::handleRoot() {
   body += F("</div><pre id='diag'>等待诊断命令。</pre></div>");
   body += F("<script>");
   body += F("function modeText(m){return {normal:'正常',portal:'配网',connecting:'联网中',degraded:'降级'}[m]||m;}");
-  body += F("async function loadStatus(){try{let r=await fetch('/api/status');let j=await r.json();document.getElementById('wifi').textContent=j.wifiConnected?'已连接':(j.portal?'配网模式':'连接中');document.getElementById('mode').textContent=modeText(j.systemMode);document.getElementById('hardware').textContent=j.hardware.degraded?'降级':'正常';}catch(e){document.getElementById('wifi').textContent='读取失败';document.getElementById('mode').textContent='读取失败';document.getElementById('hardware').textContent='读取失败';}}");
+  body += F("function capText(c){let a=[];if(c.reminders)a.push('提醒');if(c.web)a.push('网页');if(c.visual)a.push('视觉');if(c.sound)a.push('声音');if(c.voiceInput)a.push('语音输入');return a.join(' / ')||'无';}");
+  body += F("async function loadStatus(){try{let r=await fetch('/api/status');let j=await r.json();document.getElementById('wifi').textContent=j.wifiConnected?'已连接':(j.portal?'配网模式':'连接中');document.getElementById('mode').textContent=modeText(j.systemMode);document.getElementById('hardware').textContent=j.hardware.degraded?'降级':'正常';document.getElementById('capability').textContent=capText(j.capabilities);}catch(e){document.getElementById('wifi').textContent='读取失败';document.getElementById('mode').textContent='读取失败';document.getElementById('hardware').textContent='读取失败';document.getElementById('capability').textContent='读取失败';}}");
   body += F("async function syncTime(){let e=Math.floor(Date.now()/1000);let r=await fetch('/api/time/sync',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'epoch='+e});document.getElementById('msg').textContent=await r.text();}");
   body += F("async function diag(c){let o=document.getElementById('diag');o.textContent='执行中：'+c;try{let r=await fetch('/api/diagnostic',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'command='+encodeURIComponent(c)});o.textContent=await r.text();}catch(e){o.textContent='诊断失败：'+e;}}");
   body += F("loadStatus();");
@@ -357,7 +359,7 @@ void WebConfigServer::sendText(int code, const char* type, const String& body) {
 String WebConfigServer::statusJson() const {
   const HardwareDiagnosticStatus hardware = hardwareSelfTest_.status();
   String body;
-  body.reserve(420);
+  body.reserve(560);
   const char* systemMode = "normal";
   if (state_ == NetworkState::Portal) {
     systemMode = "portal";
@@ -387,6 +389,16 @@ String WebConfigServer::statusJson() const {
   body += hardware.audioOutputReady ? "true" : "false";
   body += ",\"degraded\":";
   body += hardware.degraded ? "true" : "false";
+  body += "},\"capabilities\":{\"reminders\":";
+  body += hardware.remindersAvailable ? "true" : "false";
+  body += ",\"web\":";
+  body += hardware.webAvailable ? "true" : "false";
+  body += ",\"visual\":";
+  body += hardware.visualFeedbackAvailable ? "true" : "false";
+  body += ",\"sound\":";
+  body += hardware.soundAvailable ? "true" : "false";
+  body += ",\"voiceInput\":";
+  body += hardware.voiceInputAvailable ? "true" : "false";
   body += "}}";
   return body;
 }
