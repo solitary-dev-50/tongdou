@@ -2,6 +2,8 @@
 
 #include <Arduino.h>
 
+#include "app/AppCommandService.h"
+#include "diagnostic/HardwareSelfTestService.h"
 #include "mcp/McpToolRegistry.h"
 #include "reminder/ReminderStore.h"
 #include "system/TimeService.h"
@@ -10,7 +12,9 @@ namespace tongdou {
 
 class McpServer {
  public:
-  McpServer(TimeService& timeService, ReminderStore& reminderStore);
+  McpServer(TimeService& timeService, ReminderStore& reminderStore,
+            HardwareSelfTestService& hardwareSelfTest,
+            AppCommandService& appCommandService);
 
   void begin();
   String handlePayloadText(const String& payloadText);
@@ -22,11 +26,18 @@ class McpServer {
   std::string replyError(const std::string& idJson, const std::string& message) const;
   std::string idJson(JsonObjectConst payload) const;
   std::string serializeVariant(JsonVariantConst value) const;
+  McpToolResult createReminder(const McpToolArguments& arguments);
+  McpToolResult deleteReminder(const McpToolArguments& arguments);
+  McpToolResult playScenario(const McpToolArguments& arguments);
+  McpToolResult setPersonality(const McpToolArguments& arguments);
+  std::string commandResultJson(const AppCommandResult& result) const;
   std::string remindersJson() const;
   std::string statusJson() const;
 
   TimeService& timeService_;
   ReminderStore& reminderStore_;
+  HardwareSelfTestService& hardwareSelfTest_;
+  AppCommandService& appCommandService_;
   McpToolRegistry registry_;
   bool initialized_ = false;
 };

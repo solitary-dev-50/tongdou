@@ -29,7 +29,10 @@
 | `POST /api/scenario/import` | 导入剧情包 |
 | `GET /api/scenario/options` | 读取可选表情、灯光、动作、台词和事件 |
 | `POST /api/diagnostic` | 执行硬件诊断命令 |
+| `POST /api/mcp` | 转发 MCP JSON-RPC 请求 |
 
 这些路径对应固件里的 `web/WebApiContract.h`。
 
 `GET /api/status` 会返回 `systemMode`、`hardware` 和 `capabilities`，用于显示启动模式、硬件降级状态和当前保留能力。
+
+`POST /api/mcp` 当前支持 `get_status`、`create_reminder`、`list_reminders`、`delete_reminder`、`play_scenario` 和 `set_personality`。网页或调试工具只负责发送 MCP 请求，具体剧情触发和人格切换交给固件里的应用命令服务。

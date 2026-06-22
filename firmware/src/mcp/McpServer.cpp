@@ -15,10 +15,23 @@ std::string serializeDoc(JsonDocument& doc) {
   return output;
 }
 
+std::string toolErrorJson(const char* code, const char* message) {
+  JsonDocument doc;
+  doc["ok"] = false;
+  doc["code"] = code;
+  doc["message"] = message;
+  return serializeDoc(doc);
+}
+
 }  // namespace
 
-McpServer::McpServer(TimeService& timeService, ReminderStore& reminderStore)
-    : timeService_(timeService), reminderStore_(reminderStore) {}
+McpServer::McpServer(TimeService& timeService, ReminderStore& reminderStore,
+                     HardwareSelfTestService& hardwareSelfTest,
+                     AppCommandService& appCommandService)
+    : timeService_(timeService),
+      reminderStore_(reminderStore),
+      hardwareSelfTest_(hardwareSelfTest),
+      appCommandService_(appCommandService) {}
 
 void McpServer::begin() {
   if (initialized_) {
@@ -42,49 +55,63 @@ String McpServer::handlePayloadText(const String& payloadText) {
 }
 
 void McpServer::addTools() {
-  registry_.addTool(
-      "tongdou.status.get", "Get Tong Dou status, including time and network state.", {},
-      [this](const McpToolArguments&) -> McpToolResult { return {statusJson(), false}; });
+  const auto status = [this](const McpToolArguments&) -> McpToolResult {
+    return {statusJson(), false};
+  };
+  const auto create = [this](const McpToolArguments& arguments) -> McpToolResult {
+    return createReminder(arguments);
+  };
+  const auto list = [this](const McpToolArguments&) -> McpToolResult {
+    return {remindersJson(), false};
+  };
+  const auto remove = [this](const McpToolArguments& arguments) -> McpToolResult {
+    return deleteReminder(arguments);
+  };
+  const auto play = [this](const McpToolArguments& arguments) -> McpToolResult {
+    return playScenario(arguments);
+  };
+  const auto personality = [this](const McpToolArguments& arguments) -> McpToolResult {
+    return setPersonality(arguments);
+  };
 
-  registry_.addTool(
-      "tongdou.reminder.create", "Create a reminder. dueAt is Unix time in seconds.",
-      {McpProperty::RequiredInteger("dueAt"), McpProperty::RequiredString("text")},
-      [this](const McpToolArguments& arguments) -> McpToolResult {
-        const uint32_t dueAt = static_cast<uint32_t>(arguments.getInt("dueAt", 0));
-        const String text(arguments.getString("text").c_str());
-        if (dueAt == 0 || text.length() == 0) {
-          return {"dueAt and text are required", true};
-        }
-        if (timeService_.ready() && dueAt <= static_cast<uint32_t>(timeService_.now())) {
-          return {"dueAt is in the past", true};
-        }
+  const std::vector<McpProperty> reminderCreateProperties = {
+      McpProperty::RequiredInteger("dueAt"), McpProperty::RequiredString("text")};
+  const std::vector<McpProperty> reminderDeleteProperties = {
+      McpProperty::RequiredInteger("id")};
+  const std::vector<McpProperty> scenarioPlayProperties = {
+      McpProperty::RequiredString("event")};
+  const std::vector<McpProperty> personalityProperties = {
+      McpProperty::RequiredString("personality")};
 
-        ReminderRecord created;
-        if (!reminderStore_.add(dueAt, text, &created)) {
-          return {"reminder storage is full", true};
-        }
+  registry_.addTool("get_status", "Get Tong Dou status.", {}, status);
+  registry_.addTool("tongdou.status.get",
+                    "Get Tong Dou status, including time, network, and hardware state.",
+                    {}, status);
 
-        JsonDocument doc;
-        doc["id"] = created.id;
-        doc["dueAt"] = created.dueAt;
-        doc["text"] = created.text;
-        return {serializeDoc(doc), false};
-      });
+  registry_.addTool("create_reminder",
+                    "Create a reminder. dueAt is Unix time in seconds.",
+                    reminderCreateProperties, create);
+  registry_.addTool("tongdou.reminder.create",
+                    "Create a reminder. dueAt is Unix time in seconds.",
+                    reminderCreateProperties, create);
 
-  registry_.addTool(
-      "tongdou.reminder.list", "List active reminders.", {},
-      [this](const McpToolArguments&) -> McpToolResult { return {remindersJson(), false}; });
+  registry_.addTool("list_reminders", "List active reminders.", {}, list);
+  registry_.addTool("tongdou.reminder.list", "List active reminders.", {}, list);
 
-  registry_.addTool(
-      "tongdou.reminder.delete", "Delete a reminder by id.",
-      {McpProperty::RequiredInteger("id")},
-      [this](const McpToolArguments& arguments) -> McpToolResult {
-        const uint32_t id = static_cast<uint32_t>(arguments.getInt("id", 0));
-        if (id == 0 || !reminderStore_.remove(id)) {
-          return {"reminder not found", true};
-        }
-        return {"{\"ok\":true}", false};
-      });
+  registry_.addTool("delete_reminder", "Delete a reminder by id.",
+                    reminderDeleteProperties, remove);
+  registry_.addTool("tongdou.reminder.delete", "Delete a reminder by id.",
+                    reminderDeleteProperties, remove);
+
+  registry_.addTool("play_scenario", "Trigger a Tong Dou scenario by event name.",
+                    scenarioPlayProperties, play);
+  registry_.addTool("tongdou.scenario.play", "Trigger a Tong Dou scenario by event name.",
+                    scenarioPlayProperties, play);
+
+  registry_.addTool("set_personality", "Set Tong Dou personality mode.",
+                    personalityProperties, personality);
+  registry_.addTool("tongdou.personality.set", "Set Tong Dou personality mode.",
+                    personalityProperties, personality);
 }
 
 std::string McpServer::handlePayload(JsonObjectConst payload) {
@@ -158,6 +185,62 @@ std::string McpServer::serializeVariant(JsonVariantConst value) const {
   return output;
 }
 
+McpToolResult McpServer::createReminder(const McpToolArguments& arguments) {
+  const uint32_t dueAt = static_cast<uint32_t>(arguments.getInt("dueAt", 0));
+  const String text(arguments.getString("text").c_str());
+  if (dueAt == 0 || text.length() == 0) {
+    return {toolErrorJson("invalid_request", "dueAt and text are required"), true};
+  }
+  if (timeService_.ready() && dueAt <= static_cast<uint32_t>(timeService_.now())) {
+    return {toolErrorJson("invalid_due_at", "dueAt is in the past"), true};
+  }
+
+  ReminderRecord created;
+  if (!reminderStore_.add(dueAt, text, &created)) {
+    return {toolErrorJson("storage_full", "reminder storage is full"), true};
+  }
+
+  JsonDocument doc;
+  doc["ok"] = true;
+  doc["id"] = created.id;
+  doc["dueAt"] = created.dueAt;
+  doc["text"] = created.text;
+  return {serializeDoc(doc), false};
+}
+
+McpToolResult McpServer::deleteReminder(const McpToolArguments& arguments) {
+  const uint32_t id = static_cast<uint32_t>(arguments.getInt("id", 0));
+  if (id == 0 || !reminderStore_.remove(id)) {
+    return {toolErrorJson("reminder_not_found", "reminder not found"), true};
+  }
+
+  JsonDocument doc;
+  doc["ok"] = true;
+  doc["id"] = id;
+  return {serializeDoc(doc), false};
+}
+
+McpToolResult McpServer::playScenario(const McpToolArguments& arguments) {
+  const String event(arguments.getString("event").c_str());
+  const AppCommandResult result = appCommandService_.playScenario(event);
+  return {commandResultJson(result), !result.ok};
+}
+
+McpToolResult McpServer::setPersonality(const McpToolArguments& arguments) {
+  const String personality(arguments.getString("personality").c_str());
+  const AppCommandResult result = appCommandService_.setPersonality(personality);
+  return {commandResultJson(result), !result.ok};
+}
+
+std::string McpServer::commandResultJson(const AppCommandResult& result) const {
+  JsonDocument doc;
+  doc["ok"] = result.ok;
+  doc["code"] = result.code;
+  doc["message"] = result.message;
+  doc["personality"] = appCommandService_.personalityName();
+  return serializeDoc(doc);
+}
+
 std::string McpServer::remindersJson() const {
   JsonDocument doc;
   JsonArray array = doc.to<JsonArray>();
@@ -178,13 +261,35 @@ std::string McpServer::remindersJson() const {
 }
 
 std::string McpServer::statusJson() const {
+  const HardwareDiagnosticStatus hardware = hardwareSelfTest_.status();
+  uint8_t activeReminders = 0;
+  const ReminderRecord* records = reminderStore_.records();
+  for (uint8_t i = 0; i < reminderStore_.capacity(); ++i) {
+    if (records[i].active) {
+      ++activeReminders;
+    }
+  }
+
   JsonDocument doc;
   doc["wifiConnected"] = WiFi.status() == WL_CONNECTED;
   doc["ip"] = WiFi.status() == WL_CONNECTED ? WiFi.localIP().toString() : "";
   doc["rssi"] = WiFi.status() == WL_CONNECTED ? WiFi.RSSI() : 0;
   doc["timeReady"] = timeService_.ready();
   doc["now"] = timeService_.ready() ? timeService_.isoNow() : "";
+  doc["systemMode"] = hardware.degraded ? "degraded" : "normal";
+  doc["personality"] = appCommandService_.personalityName();
+  doc["activeReminders"] = activeReminders;
   doc["reminderCapacity"] = reminderStore_.capacity();
+  doc["hardware"]["face"] = hardware.faceReady;
+  doc["hardware"]["led"] = hardware.ledReady;
+  doc["hardware"]["audioInput"] = hardware.audioInputReady;
+  doc["hardware"]["audioOutput"] = hardware.audioOutputReady;
+  doc["hardware"]["degraded"] = hardware.degraded;
+  doc["capabilities"]["reminders"] = hardware.remindersAvailable;
+  doc["capabilities"]["web"] = hardware.webAvailable;
+  doc["capabilities"]["visual"] = hardware.visualFeedbackAvailable;
+  doc["capabilities"]["sound"] = hardware.soundAvailable;
+  doc["capabilities"]["voiceInput"] = hardware.voiceInputAvailable;
   return serializeDoc(doc);
 }
 

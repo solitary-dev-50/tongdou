@@ -19,6 +19,7 @@
 - 固件中已有剧情配置 API 骨架：`firmware/src/web/ScenarioConfigApi.*`
 - 固件首页已有配网、校时和硬件诊断控制台。
 - 静态网页原型已同步硬件诊断界面：`firmware/web/*`
+- 固件已提供 `/api/mcp`，用于把网页收到的 MCP JSON-RPC 请求转交给 `McpServer`。
 
 尚未完成：
 
@@ -41,6 +42,7 @@
 | `POST` | `/api/scenario/import` | 导入剧情包 |
 | `GET` | `/api/scenario/options` | 读取网页下拉选项 |
 | `POST` | `/api/diagnostic` | 执行硬件诊断命令 |
+| `POST` | `/api/mcp` | 转发 MCP JSON-RPC 请求 |
 
 ---
 
@@ -430,6 +432,42 @@ command=selftest
 - 网页层不直接操作硬件。
 - 命令必须交给 `HardwareSelfTestService` 执行。
 - 电机测试必须是短动作或可停止动作。
+
+---
+
+## 12.1 POST /api/mcp
+
+用途：
+
+> 给电脑端大模型或调试工具调用铜豆 MCP 工具。
+
+请求体：标准 JSON-RPC 文本。
+
+示例：
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/list",
+  "params": {}
+}
+```
+
+当前工具：
+
+- `get_status`
+- `create_reminder`
+- `list_reminders`
+- `delete_reminder`
+- `play_scenario`
+- `set_personality`
+
+边界：
+
+- `/api/mcp` 只转发请求，不直接处理具体工具。
+- `McpServer` 只处理 MCP 协议和工具注册。
+- 剧情触发和人格切换必须交给 `AppCommandService`。
 
 ---
 
