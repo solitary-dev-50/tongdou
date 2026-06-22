@@ -9,7 +9,7 @@
   <body>
     <main>
       <h1>铜豆控制台</h1>
-      <p class="sub">配网、校时、硬件诊断和后续剧情配置入口。</p>
+      <p class="sub">配网、校时、硬件诊断和剧情测试入口。</p>
 
       <section>
         <h2>当前状态</h2>
@@ -60,7 +60,15 @@
           <button data-command="motor stop">电机停止</button>
         </div>
         <h3>剧情测试</h3>
-        <button disabled>剧情触发测试后续接入</button>
+        <div class="button-grid">
+          <button data-mcp-tool="play_scenario" data-mcp-args='{"event":"boot_completed"}'>
+            开机剧情
+          </button>
+          <button data-mcp-tool="play_scenario" data-mcp-args='{"event":"voice_recognition_failed"}'>
+            识别失败补救
+          </button>
+          <button data-mcp-tool="voice_status" data-mcp-args="{}">语音状态</button>
+        </div>
         <pre id="diagnostic-output">等待诊断命令。</pre>
       </section>
 

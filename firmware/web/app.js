@@ -65,12 +65,42 @@ async function runDiagnostic(command) {
   }
 }
 
+async function callMcpTool(name, args = {}) {
+  diagnosticOutput.textContent = `执行中：${name}`;
+  try {
+    const payload = {
+      jsonrpc: "2.0",
+      id: Date.now(),
+      method: "tools/call",
+      params: {
+        name,
+        arguments: args,
+      },
+    };
+    const response = await fetch("/api/mcp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    diagnosticOutput.textContent = await response.text();
+  } catch (error) {
+    diagnosticOutput.textContent = `MCP 调用失败：${error}`;
+  }
+}
+
 personality?.addEventListener("change", (event) => {
-  console.log("personality changed", event.target.value);
+  callMcpTool("set_personality", { personality: event.target.value });
 });
 
 document.querySelectorAll("[data-command]").forEach((button) => {
   button.addEventListener("click", () => runDiagnostic(button.dataset.command));
+});
+
+document.querySelectorAll("[data-mcp-tool]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const args = JSON.parse(button.dataset.mcpArgs || "{}");
+    callMcpTool(button.dataset.mcpTool, args);
+  });
 });
 
 refreshStatus?.addEventListener("click", loadStatus);

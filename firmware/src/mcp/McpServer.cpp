@@ -184,7 +184,7 @@ std::string McpServer::handlePayload(JsonObjectConst payload) {
     return replyResult(id, mcpBuildTextResultJson(result));
   }
 
-  return replyError(id, std::string("Method not implemented: ") + method);
+  return replyError(id, std::string("Unsupported method: ") + method);
 }
 
 std::string McpServer::replyResult(const std::string& idJson,

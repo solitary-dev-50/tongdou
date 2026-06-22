@@ -158,7 +158,7 @@ void WebConfigServer::handleRoot() {
   const String ip = state_ == NetworkState::Connected ? WiFi.localIP().toString()
                                                        : WiFi.softAPIP().toString();
   String body;
-  body.reserve(7800);
+  body.reserve(9200);
   body += F("<!doctype html><html><head><meta charset='utf-8'>");
   body += F("<meta name='viewport' content='width=device-width,initial-scale=1'>");
   body += F("<title>铜豆控制台</title><style>");
@@ -206,7 +206,9 @@ void WebConfigServer::handleRoot() {
   body += F("<button onclick=\"diag('motor reverse')\">电机反转</button>");
   body += F("<button onclick=\"diag('motor stop')\">电机停止</button>");
   body += F("</div><h3>剧情测试</h3><div class='grid'>");
-  body += F("<button disabled>剧情触发测试后续接入</button>");
+  body += F("<button onclick=\"mcpTool('play_scenario',{event:'boot_completed'})\">开机剧情</button>");
+  body += F("<button onclick=\"mcpTool('play_scenario',{event:'voice_recognition_failed'})\">识别失败补救</button>");
+  body += F("<button onclick=\"mcpTool('voice_status',{})\">语音状态</button>");
   body += F("</div><pre id='diag'>等待诊断命令。</pre></div>");
   body += F("<script>");
   body += F("function modeText(m){return {normal:'正常',portal:'配网',connecting:'联网中',degraded:'降级'}[m]||m;}");
@@ -214,6 +216,7 @@ void WebConfigServer::handleRoot() {
   body += F("async function loadStatus(){try{let r=await fetch('/api/status');let j=await r.json();document.getElementById('wifi').textContent=j.wifiConnected?'已连接':(j.portal?'配网模式':'连接中');document.getElementById('mode').textContent=modeText(j.systemMode);document.getElementById('hardware').textContent=j.hardware.degraded?'降级':'正常';document.getElementById('capability').textContent=capText(j.capabilities);}catch(e){document.getElementById('wifi').textContent='读取失败';document.getElementById('mode').textContent='读取失败';document.getElementById('hardware').textContent='读取失败';document.getElementById('capability').textContent='读取失败';}}");
   body += F("async function syncTime(){let e=Math.floor(Date.now()/1000);let r=await fetch('/api/time/sync',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'epoch='+e});document.getElementById('msg').textContent=await r.text();}");
   body += F("async function diag(c){let o=document.getElementById('diag');o.textContent='执行中：'+c;try{let r=await fetch('/api/diagnostic',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'command='+encodeURIComponent(c)});o.textContent=await r.text();}catch(e){o.textContent='诊断失败：'+e;}}");
+  body += F("async function mcpTool(n,a){let o=document.getElementById('diag');o.textContent='执行中：'+n;try{let p={jsonrpc:'2.0',id:Date.now(),method:'tools/call',params:{name:n,arguments:a||{}}};let r=await fetch('/api/mcp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});o.textContent=await r.text();}catch(e){o.textContent='MCP 调用失败：'+e;}}");
   body += F("loadStatus();");
   body += F("</script>");
   body += F("</main></body></html>");

@@ -28,7 +28,7 @@ void App::begin() {
       scenarioEngine_.select({ScenarioEventType::BootCompleted, 0}, scenarioContext_);
   scenarioExecutor_.execute(bootPlan);
 
-  Serial.println("hardware skeleton initialized");
+  Serial.println("tongdou app initialized");
 }
 
 void App::update() {
