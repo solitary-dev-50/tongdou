@@ -5,6 +5,7 @@
 #include "app/AppCommandService.h"
 #include "hardware/HardwareManager.h"
 #include "mcp/McpServer.h"
+#include "realtime/RealtimeVoiceService.h"
 #include "reminder/ReminderManager.h"
 #include "reminder/ReminderStore.h"
 #include "scenario/ScenarioEngine.h"
@@ -25,6 +26,7 @@ class App {
 
  private:
   void handleReminderEvents();
+  void handleRealtimeVoiceEvents();
   void handleSerialDiagnostics();
   void logHeartbeat();
 
@@ -38,7 +40,10 @@ class App {
   ScenarioExecutor scenarioExecutor_{hardware_.faceDisplay(), hardware_.led(),
                                     hardware_.motors(), hardware_.audioOutput()};
   ScenarioContext scenarioContext_;
-  AppCommandService appCommandService_{scenarioEngine_, scenarioExecutor_, scenarioContext_};
+  RealtimeVoiceService realtimeVoiceService_{hardware_.audioInput(),
+                                            hardware_.audioOutput()};
+  AppCommandService appCommandService_{scenarioEngine_, scenarioExecutor_, scenarioContext_,
+                                      realtimeVoiceService_};
   McpServer mcpServer_{timeService_, reminderStore_, hardware_.selfTest(), appCommandService_};
   ScenarioConfigStore scenarioConfigStore_;
   ScenarioConfigApi scenarioConfigApi_{scenarioConfigStore_};

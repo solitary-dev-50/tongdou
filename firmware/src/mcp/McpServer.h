@@ -30,6 +30,10 @@ class McpServer {
   McpToolResult deleteReminder(const McpToolArguments& arguments);
   McpToolResult playScenario(const McpToolArguments& arguments);
   McpToolResult setPersonality(const McpToolArguments& arguments);
+  McpToolResult startVoiceTurn(const McpToolArguments& arguments);
+  McpToolResult voiceStatus(const McpToolArguments& arguments);
+  McpToolResult playVoiceResponse(const McpToolArguments& arguments);
+  McpToolResult failVoiceTurn(const McpToolArguments& arguments);
   std::string commandResultJson(const AppCommandResult& result) const;
   std::string remindersJson() const;
   std::string statusJson() const;

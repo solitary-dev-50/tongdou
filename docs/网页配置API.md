@@ -462,12 +462,17 @@ command=selftest
 - `delete_reminder`
 - `play_scenario`
 - `set_personality`
+- `start_voice_turn`
+- `voice_status`
+- `play_voice_response`
+- `fail_voice_turn`
 
 边界：
 
 - `/api/mcp` 只转发请求，不直接处理具体工具。
 - `McpServer` 只处理 MCP 协议和工具注册。
 - 剧情触发和人格切换必须交给 `AppCommandService`。
+- 实时语音工具必须通过 `AppCommandService` 和 `RealtimeVoiceService`，不能在 MCP 层直接操作麦克风或喇叭。
 
 ---
 

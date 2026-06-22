@@ -35,4 +35,4 @@
 
 `GET /api/status` 会返回 `systemMode`、`hardware` 和 `capabilities`，用于显示启动模式、硬件降级状态和当前保留能力。
 
-`POST /api/mcp` 当前支持 `get_status`、`create_reminder`、`list_reminders`、`delete_reminder`、`play_scenario` 和 `set_personality`。网页或调试工具只负责发送 MCP 请求，具体剧情触发和人格切换交给固件里的应用命令服务。
+`POST /api/mcp` 当前支持 `get_status`、`create_reminder`、`list_reminders`、`delete_reminder`、`play_scenario`、`set_personality`、`start_voice_turn`、`voice_status`、`play_voice_response` 和 `fail_voice_turn`。网页或调试工具只负责发送 MCP 请求，具体剧情触发、人格切换和实时语音回合交给固件里的应用命令服务。

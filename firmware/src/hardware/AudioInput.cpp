@@ -19,6 +19,11 @@ int32_t sampleMagnitude(int32_t raw) {
   return sample < 0 ? -sample : sample;
 }
 
+int16_t sampleToPcm16(int32_t raw) {
+  // Keep the high 16 bits of the 24-bit microphone sample for realtime upload.
+  return static_cast<int16_t>(raw >> 16);
+}
+
 }  // namespace
 
 void AudioInput::begin() {
@@ -111,6 +116,28 @@ AudioInputSnapshot AudioInput::readLevel() {
   snapshot.peak = peak;
   snapshot.averageAbs = static_cast<int32_t>(sum / static_cast<int64_t>(snapshot.samplesRead));
   return snapshot;
+}
+
+bool AudioInput::readPcm16(int16_t* buffer, size_t maxSamples, size_t& samplesRead) {
+  samplesRead = 0;
+  if (!ready_ || buffer == nullptr || maxSamples == 0) {
+    return false;
+  }
+
+  int32_t samples[kSampleCount] = {};
+  size_t bytesRead = 0;
+  const size_t samplesToRead = min(maxSamples, kSampleCount);
+  const esp_err_t err =
+      i2s_read(kMicPort, samples, samplesToRead * sizeof(samples[0]), &bytesRead, 0);
+  if (err != ESP_OK || bytesRead == 0) {
+    return false;
+  }
+
+  samplesRead = bytesRead / sizeof(samples[0]);
+  for (size_t i = 0; i < samplesRead; ++i) {
+    buffer[i] = sampleToPcm16(samples[i]);
+  }
+  return samplesRead > 0;
 }
 
 bool AudioInput::ready() const {

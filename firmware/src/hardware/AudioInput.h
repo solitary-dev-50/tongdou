@@ -17,6 +17,7 @@ class AudioInput {
   void begin();
   void update();
   AudioInputSnapshot readLevel();
+  bool readPcm16(int16_t* buffer, size_t maxSamples, size_t& samplesRead);
   bool ready() const;
 
  private:

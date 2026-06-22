@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 
+#include "realtime/RealtimeVoiceService.h"
 #include "scenario/ScenarioContext.h"
 #include "scenario/ScenarioEngine.h"
 #include "scenario/ScenarioExecutor.h"
@@ -18,10 +19,15 @@ class AppCommandService {
  public:
   AppCommandService(ScenarioEngine& scenarioEngine,
                     ScenarioExecutor& scenarioExecutor,
-                    ScenarioContext& scenarioContext);
+                    ScenarioContext& scenarioContext,
+                    RealtimeVoiceService& realtimeVoiceService);
 
   AppCommandResult playScenario(const String& eventName);
   AppCommandResult setPersonality(const String& personalityName);
+  AppCommandResult startVoiceTurn();
+  AppCommandResult playVoiceResponse(const String& text);
+  AppCommandResult failVoiceTurn(const String& reason);
+  String voiceStatusJson() const;
   const char* personalityName() const;
 
  private:
@@ -31,6 +37,7 @@ class AppCommandService {
   ScenarioEngine& scenarioEngine_;
   ScenarioExecutor& scenarioExecutor_;
   ScenarioContext& scenarioContext_;
+  RealtimeVoiceService& realtimeVoiceService_;
 };
 
 }  // namespace tongdou

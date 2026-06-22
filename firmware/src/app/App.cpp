@@ -15,6 +15,7 @@ void App::begin() {
 
   hardware_.begin();
   scenarioExecutor_.begin();
+  realtimeVoiceService_.begin();
   wifiConfigStore_.begin();
   timeService_.begin();
   reminderStore_.begin();
@@ -33,8 +34,10 @@ void App::begin() {
 void App::update() {
   webConfigServer_.update();
   hardware_.update();
+  realtimeVoiceService_.update();
   handleSerialDiagnostics();
   handleReminderEvents();
+  handleRealtimeVoiceEvents();
   scenarioExecutor_.update();
   logHeartbeat();
 }
@@ -46,6 +49,16 @@ void App::handleReminderEvents() {
   }
 
   const ScenarioPlan plan = scenarioEngine_.select(event, scenarioContext_);
+  scenarioExecutor_.execute(plan);
+}
+
+void App::handleRealtimeVoiceEvents() {
+  if (!realtimeVoiceService_.consumeFailureEvent()) {
+    return;
+  }
+
+  const ScenarioPlan plan = scenarioEngine_.select(
+      {ScenarioEventType::VoiceRecognitionFailed, 0}, scenarioContext_);
   scenarioExecutor_.execute(plan);
 }
 

@@ -73,6 +73,18 @@ void McpServer::addTools() {
   const auto personality = [this](const McpToolArguments& arguments) -> McpToolResult {
     return setPersonality(arguments);
   };
+  const auto startVoice = [this](const McpToolArguments& arguments) -> McpToolResult {
+    return startVoiceTurn(arguments);
+  };
+  const auto voiceStatusTool = [this](const McpToolArguments& arguments) -> McpToolResult {
+    return voiceStatus(arguments);
+  };
+  const auto playVoice = [this](const McpToolArguments& arguments) -> McpToolResult {
+    return playVoiceResponse(arguments);
+  };
+  const auto failVoice = [this](const McpToolArguments& arguments) -> McpToolResult {
+    return failVoiceTurn(arguments);
+  };
 
   const std::vector<McpProperty> reminderCreateProperties = {
       McpProperty::RequiredInteger("dueAt"), McpProperty::RequiredString("text")};
@@ -82,6 +94,10 @@ void McpServer::addTools() {
       McpProperty::RequiredString("event")};
   const std::vector<McpProperty> personalityProperties = {
       McpProperty::RequiredString("personality")};
+  const std::vector<McpProperty> voiceResponseProperties = {
+      McpProperty::RequiredString("text")};
+  const std::vector<McpProperty> voiceFailProperties = {
+      McpProperty::RequiredString("reason")};
 
   registry_.addTool("get_status", "Get Tong Dou status.", {}, status);
   registry_.addTool("tongdou.status.get",
@@ -112,6 +128,26 @@ void McpServer::addTools() {
                     personalityProperties, personality);
   registry_.addTool("tongdou.personality.set", "Set Tong Dou personality mode.",
                     personalityProperties, personality);
+
+  registry_.addTool("start_voice_turn", "Start a realtime voice turn.", {},
+                    startVoice);
+  registry_.addTool("tongdou.voice.start", "Start a realtime voice turn.", {},
+                    startVoice);
+
+  registry_.addTool("voice_status", "Get realtime voice turn status.", {},
+                    voiceStatusTool);
+  registry_.addTool("tongdou.voice.status", "Get realtime voice turn status.", {},
+                    voiceStatusTool);
+
+  registry_.addTool("play_voice_response", "Play a server voice response.",
+                    voiceResponseProperties, playVoice);
+  registry_.addTool("tongdou.voice.play_response", "Play a server voice response.",
+                    voiceResponseProperties, playVoice);
+
+  registry_.addTool("fail_voice_turn", "Report a realtime voice failure.",
+                    voiceFailProperties, failVoice);
+  registry_.addTool("tongdou.voice.fail", "Report a realtime voice failure.",
+                    voiceFailProperties, failVoice);
 }
 
 std::string McpServer::handlePayload(JsonObjectConst payload) {
@@ -229,6 +265,28 @@ McpToolResult McpServer::playScenario(const McpToolArguments& arguments) {
 McpToolResult McpServer::setPersonality(const McpToolArguments& arguments) {
   const String personality(arguments.getString("personality").c_str());
   const AppCommandResult result = appCommandService_.setPersonality(personality);
+  return {commandResultJson(result), !result.ok};
+}
+
+McpToolResult McpServer::startVoiceTurn(const McpToolArguments&) {
+  const AppCommandResult result = appCommandService_.startVoiceTurn();
+  return {commandResultJson(result), !result.ok};
+}
+
+McpToolResult McpServer::voiceStatus(const McpToolArguments&) {
+  const String status = appCommandService_.voiceStatusJson();
+  return {status.c_str(), false};
+}
+
+McpToolResult McpServer::playVoiceResponse(const McpToolArguments& arguments) {
+  const String text(arguments.getString("text").c_str());
+  const AppCommandResult result = appCommandService_.playVoiceResponse(text);
+  return {commandResultJson(result), !result.ok};
+}
+
+McpToolResult McpServer::failVoiceTurn(const McpToolArguments& arguments) {
+  const String reason(arguments.getString("reason").c_str());
+  const AppCommandResult result = appCommandService_.failVoiceTurn(reason);
   return {commandResultJson(result), !result.ok};
 }
 

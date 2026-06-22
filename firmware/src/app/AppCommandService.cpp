@@ -1,13 +1,34 @@
 #include "app/AppCommandService.h"
 
+#include <ArduinoJson.h>
+
 namespace tongdou {
+namespace {
+
+String voiceStateName(RealtimeVoiceState state) {
+  switch (state) {
+    case RealtimeVoiceState::Listening:
+      return "listening";
+    case RealtimeVoiceState::AwaitingResponse:
+      return "awaiting_response";
+    case RealtimeVoiceState::Failed:
+      return "failed";
+    case RealtimeVoiceState::Idle:
+    default:
+      return "idle";
+  }
+}
+
+}  // namespace
 
 AppCommandService::AppCommandService(ScenarioEngine& scenarioEngine,
                                      ScenarioExecutor& scenarioExecutor,
-                                     ScenarioContext& scenarioContext)
+                                     ScenarioContext& scenarioContext,
+                                     RealtimeVoiceService& realtimeVoiceService)
     : scenarioEngine_(scenarioEngine),
       scenarioExecutor_(scenarioExecutor),
-      scenarioContext_(scenarioContext) {}
+      scenarioContext_(scenarioContext),
+      realtimeVoiceService_(realtimeVoiceService) {}
 
 AppCommandResult AppCommandService::playScenario(const String& eventName) {
   ScenarioEventType eventType;
@@ -32,6 +53,49 @@ AppCommandResult AppCommandService::setPersonality(const String& personalityName
 
   scenarioContext_.personality = style;
   return {true, "ok", "personality updated"};
+}
+
+AppCommandResult AppCommandService::startVoiceTurn() {
+  if (!realtimeVoiceService_.startTurn()) {
+    return {false, "voice_start_failed", "voice turn failed to start"};
+  }
+  return {true, "ok", "voice turn started"};
+}
+
+AppCommandResult AppCommandService::playVoiceResponse(const String& text) {
+  if (text.length() == 0) {
+    return {false, "invalid_response", "response text is required"};
+  }
+  if (!realtimeVoiceService_.playResponse(0, text)) {
+    return {false, "voice_response_failed", "voice response failed to play"};
+  }
+  return {true, "ok", "voice response accepted"};
+}
+
+AppCommandResult AppCommandService::failVoiceTurn(const String& reason) {
+  const String message = reason.length() == 0 ? "voice turn failed" : reason;
+  realtimeVoiceService_.failTurn("voice_turn_failed", message);
+  return {true, "ok", "voice failure accepted"};
+}
+
+String AppCommandService::voiceStatusJson() const {
+  const RealtimeVoiceSnapshot snapshot = realtimeVoiceService_.snapshot();
+  JsonDocument doc;
+  doc["ok"] = true;
+  doc["state"] = voiceStateName(snapshot.state);
+  doc["turnId"] = snapshot.turnId;
+  doc["audioInputReady"] = snapshot.audioInputReady;
+  doc["audioOutputReady"] = snapshot.audioOutputReady;
+  doc["lastTurnOk"] = snapshot.lastTurnOk;
+  doc["chunksSent"] = snapshot.chunksSent;
+  doc["samplesSent"] = snapshot.samplesSent;
+  doc["bytesSent"] = snapshot.bytesSent;
+  doc["lastErrorCode"] = snapshot.lastErrorCode;
+  doc["lastErrorMessage"] = snapshot.lastErrorMessage;
+
+  String output;
+  serializeJson(doc, output);
+  return output;
 }
 
 const char* AppCommandService::personalityName() const {
