@@ -7,9 +7,8 @@ namespace tongdou::pins {
 constexpr gpio_num_t I2C_SDA = GPIO_NUM_5;
 constexpr gpio_num_t I2C_SCL = GPIO_NUM_6;
 
-constexpr gpio_num_t I2S_MIC_BCLK = GPIO_NUM_4;
-constexpr gpio_num_t I2S_MIC_DATA = GPIO_NUM_2;
-constexpr gpio_num_t I2S_MIC_LRCLK = GPIO_NUM_1;
+constexpr gpio_num_t PDM_MIC_CLK = GPIO_NUM_1;
+constexpr gpio_num_t PDM_MIC_DATA = GPIO_NUM_2;
 
 constexpr gpio_num_t USB_CHG = GPIO_NUM_17;
 constexpr gpio_num_t VBAT_ADC = GPIO_NUM_8;

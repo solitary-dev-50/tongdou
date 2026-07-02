@@ -3,11 +3,11 @@
 namespace tongdou {
 
 void HardwareManager::begin() {
+  motors_.begin();
   battery_.begin();
   displayBus_.begin();
   faceDisplay_.begin();
   led_.begin();
-  motors_.begin();
   radar_.begin();
   audioInput_.begin();
   audioOutput_.begin();

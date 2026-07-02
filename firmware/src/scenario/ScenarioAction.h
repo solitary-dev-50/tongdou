@@ -44,6 +44,7 @@ enum class MotionAction : uint8_t {
   NudgeForward,
   LeanForward,
   ShrinkBack,
+  CheekyDance,
 };
 
 enum class VoiceLine : uint8_t {
@@ -60,6 +61,8 @@ enum class VoiceLine : uint8_t {
   LowBatteryWhine,
   ChargingRelief,
   RecognitionCoffeeChoke,
+  DanceShowDomestic,
+  DanceShowGlobal,
 };
 
 }  // namespace tongdou

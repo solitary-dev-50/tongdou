@@ -1,6 +1,8 @@
-const personality = document.querySelector("#personality");
 const diagnosticOutput = document.querySelector("#diagnostic-output");
 const refreshStatus = document.querySelector("#refresh-status");
+const syncTimeButton = document.querySelector("#sync-time");
+const timeMessage = document.querySelector("#time-message");
+const personalityMessage = document.querySelector("#personality-message");
 const wifiStatus = document.querySelector("#wifi-status");
 const timeStatus = document.querySelector("#time-status");
 const modeStatus = document.querySelector("#mode-status");
@@ -50,6 +52,14 @@ function capabilityText(capabilities = {}) {
   return items.length > 0 ? items.join(" / ") : "无";
 }
 
+function setActivePersonality(personality) {
+  document.querySelectorAll("[data-personality]").forEach((button) => {
+    const active = button.dataset.personality === personality;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-checked", active ? "true" : "false");
+  });
+}
+
 async function runDiagnostic(command) {
   diagnosticOutput.textContent = `执行中：${command}`;
   try {
@@ -65,8 +75,25 @@ async function runDiagnostic(command) {
   }
 }
 
+async function syncTime() {
+  if (!timeMessage) return;
+  timeMessage.textContent = "同步中";
+  try {
+    const epoch = Math.floor(Date.now() / 1000);
+    const response = await fetch("/api/time/sync", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: `epoch=${epoch}`,
+    });
+    timeMessage.textContent = await response.text();
+    loadStatus();
+  } catch (error) {
+    timeMessage.textContent = `同步失败：${error}`;
+  }
+}
+
 async function callMcpTool(name, args = {}) {
-  diagnosticOutput.textContent = `执行中：${name}`;
+  if (diagnosticOutput) diagnosticOutput.textContent = `执行中：${name}`;
   try {
     const payload = {
       jsonrpc: "2.0",
@@ -82,14 +109,23 @@ async function callMcpTool(name, args = {}) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    diagnosticOutput.textContent = await response.text();
+    const text = await response.text();
+    if (diagnosticOutput) diagnosticOutput.textContent = text;
+    return text;
   } catch (error) {
-    diagnosticOutput.textContent = `MCP 调用失败：${error}`;
+    if (diagnosticOutput) diagnosticOutput.textContent = `MCP 调用失败：${error}`;
+    return "";
   }
 }
 
-personality?.addEventListener("change", (event) => {
-  callMcpTool("set_personality", { personality: event.target.value });
+document.querySelectorAll("[data-personality]").forEach((button) => {
+  button.addEventListener("click", async () => {
+    const personality = button.dataset.personality;
+    setActivePersonality(personality);
+    if (personalityMessage) personalityMessage.textContent = "人格模式设置中";
+    await callMcpTool("set_personality", { personality });
+    if (personalityMessage) personalityMessage.textContent = "人格模式已发送";
+  });
 });
 
 document.querySelectorAll("[data-command]").forEach((button) => {
@@ -104,4 +140,5 @@ document.querySelectorAll("[data-mcp-tool]").forEach((button) => {
 });
 
 refreshStatus?.addEventListener("click", loadStatus);
+syncTimeButton?.addEventListener("click", syncTime);
 loadStatus();

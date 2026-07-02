@@ -6,14 +6,14 @@ namespace tongdou {
 
 void App::begin() {
   Serial.begin(115200);
-  delay(200);
+  hardware_.begin();
 
+  delay(200);
   Serial.println();
   Serial.print(kProjectName);
   Serial.print(" firmware stage: ");
   Serial.println(kFirmwareStage);
 
-  hardware_.begin();
   scenarioExecutor_.begin();
   realtimeVoiceService_.begin();
   wifiConfigStore_.begin();

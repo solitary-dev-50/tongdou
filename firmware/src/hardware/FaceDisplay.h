@@ -13,7 +13,7 @@ class FaceDisplay {
   bool ready() const;
 
  private:
-  static constexpr uint8_t kAddress = 0x3C;
+  static constexpr uint8_t kAddress = 0x3D;
   static constexpr uint8_t kWidth = 128;
   static constexpr uint8_t kHeight = 64;
   static constexpr uint16_t kBufferSize = (kWidth * kHeight) / 8;

@@ -28,6 +28,15 @@ constexpr MotionFrame kShrinkBack[] = {
     {WheelDrive::Reverse, WheelDrive::Reverse, 120},
     {WheelDrive::Stop, WheelDrive::Stop, 0},
 };
+constexpr MotionFrame kCheekyDance[] = {
+    {WheelDrive::Forward, WheelDrive::Reverse, 160},
+    {WheelDrive::Stop, WheelDrive::Stop, 80},
+    {WheelDrive::Reverse, WheelDrive::Forward, 160},
+    {WheelDrive::Stop, WheelDrive::Stop, 80},
+    {WheelDrive::Forward, WheelDrive::Reverse, 140},
+    {WheelDrive::Reverse, WheelDrive::Forward, 140},
+    {WheelDrive::Stop, WheelDrive::Stop, 0},
+};
 
 template <size_t Count>
 MotionSequence makeSequence(const MotionFrame (&frames)[Count]) {
@@ -50,6 +59,8 @@ MotionSequence MotionPack::sequence(MotionAction action) const {
       return makeSequence(kLeanForward);
     case MotionAction::ShrinkBack:
       return makeSequence(kShrinkBack);
+    case MotionAction::CheekyDance:
+      return makeSequence(kCheekyDance);
     case MotionAction::None:
     default:
       return {};

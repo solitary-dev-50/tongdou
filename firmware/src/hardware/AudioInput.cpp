@@ -13,24 +13,21 @@ constexpr uint32_t kSampleRate = 16000;
 constexpr size_t kSampleCount = 128;
 constexpr unsigned long kLogIntervalMs = 1000;
 
-int32_t sampleMagnitude(int32_t raw) {
-  // INMP441 sends 24-bit audio inside a 32-bit I2S slot.
-  const int32_t sample = raw >> 8;
-  return sample < 0 ? -sample : sample;
+int32_t abs32(int32_t value) {
+  return value < 0 ? -value : value;
 }
 
 int16_t sampleToPcm16(int32_t raw) {
-  // Keep the high 16 bits of the 24-bit microphone sample for realtime upload.
-  return static_cast<int16_t>(raw >> 16);
+  return static_cast<int16_t>(raw);
 }
 
 }  // namespace
 
 void AudioInput::begin() {
   i2s_config_t config = {};
-  config.mode = static_cast<i2s_mode_t>(I2S_MODE_MASTER | I2S_MODE_RX);
+  config.mode = static_cast<i2s_mode_t>(I2S_MODE_MASTER | I2S_MODE_RX | I2S_MODE_PDM);
   config.sample_rate = kSampleRate;
-  config.bits_per_sample = I2S_BITS_PER_SAMPLE_32BIT;
+  config.bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT;
   config.channel_format = I2S_CHANNEL_FMT_ONLY_LEFT;
   config.communication_format = I2S_COMM_FORMAT_STAND_I2S;
   config.intr_alloc_flags = ESP_INTR_FLAG_LEVEL1;
@@ -42,14 +39,17 @@ void AudioInput::begin() {
 
   i2s_pin_config_t pins = {};
   pins.mck_io_num = I2S_PIN_NO_CHANGE;
-  pins.bck_io_num = tongdou::pins::I2S_MIC_BCLK;
-  pins.ws_io_num = tongdou::pins::I2S_MIC_LRCLK;
+  pins.bck_io_num = tongdou::pins::PDM_MIC_CLK;
+  pins.ws_io_num = I2S_PIN_NO_CHANGE;
   pins.data_out_num = I2S_PIN_NO_CHANGE;
-  pins.data_in_num = tongdou::pins::I2S_MIC_DATA;
+  pins.data_in_num = tongdou::pins::PDM_MIC_DATA;
 
   esp_err_t err = i2s_driver_install(kMicPort, &config, 0, nullptr);
   if (err == ESP_OK) {
     err = i2s_set_pin(kMicPort, &pins);
+  }
+  if (err == ESP_OK) {
+    err = i2s_set_pdm_rx_down_sample(kMicPort, I2S_PDM_DSR_8S);
   }
 
   if (err == ESP_OK) {
@@ -57,12 +57,10 @@ void AudioInput::begin() {
     ready_ = true;
   }
 
-  Serial.print("audio input pins bclk=");
-  Serial.print(static_cast<int>(tongdou::pins::I2S_MIC_BCLK));
-  Serial.print(" lrclk=");
-  Serial.print(static_cast<int>(tongdou::pins::I2S_MIC_LRCLK));
+  Serial.print("audio input pins pdm_clk=");
+  Serial.print(static_cast<int>(tongdou::pins::PDM_MIC_CLK));
   Serial.print(" data=");
-  Serial.print(static_cast<int>(tongdou::pins::I2S_MIC_DATA));
+  Serial.print(static_cast<int>(tongdou::pins::PDM_MIC_DATA));
   Serial.print(" status=");
   Serial.println(ready_ ? "ready" : esp_err_to_name(err));
 }
@@ -80,6 +78,12 @@ void AudioInput::update() {
   Serial.print(snapshot.ready ? "1" : "0");
   Serial.print(" samples=");
   Serial.print(snapshot.samplesRead);
+  Serial.print(" mean=");
+  Serial.print(snapshot.mean);
+  Serial.print(" min=");
+  Serial.print(snapshot.minSample);
+  Serial.print(" max=");
+  Serial.print(snapshot.maxSample);
   Serial.print(" peak=");
   Serial.print(snapshot.peak);
   Serial.print(" avg_abs=");
@@ -93,7 +97,7 @@ AudioInputSnapshot AudioInput::readLevel() {
     return snapshot;
   }
 
-  int32_t samples[kSampleCount] = {};
+  int16_t samples[kSampleCount] = {};
   size_t bytesRead = 0;
   const esp_err_t err = i2s_read(kMicPort, samples, sizeof(samples), &bytesRead, 0);
   if (err != ESP_OK || bytesRead == 0) {
@@ -103,18 +107,38 @@ AudioInputSnapshot AudioInput::readLevel() {
   snapshot.samplesRead = bytesRead / sizeof(samples[0]);
   snapshot.hasSamples = snapshot.samplesRead > 0;
 
-  int64_t sum = 0;
+  int64_t rawSum = 0;
+  int32_t minSample = samples[0];
+  int32_t maxSample = samples[0];
+  for (size_t i = 0; i < snapshot.samplesRead; ++i) {
+    const int32_t sample = samples[i];
+    rawSum += sample;
+    if (sample < minSample) {
+      minSample = sample;
+    }
+    if (sample > maxSample) {
+      maxSample = sample;
+    }
+  }
+
+  const int32_t mean = static_cast<int32_t>(rawSum / static_cast<int64_t>(snapshot.samplesRead));
+  int64_t centeredAbsSum = 0;
   int32_t peak = 0;
   for (size_t i = 0; i < snapshot.samplesRead; ++i) {
-    const int32_t magnitude = sampleMagnitude(samples[i]);
-    sum += magnitude;
+    const int32_t centered = static_cast<int32_t>(samples[i]) - mean;
+    const int32_t magnitude = abs32(centered);
+    centeredAbsSum += magnitude;
     if (magnitude > peak) {
       peak = magnitude;
     }
   }
 
+  snapshot.mean = mean;
+  snapshot.minSample = minSample;
+  snapshot.maxSample = maxSample;
   snapshot.peak = peak;
-  snapshot.averageAbs = static_cast<int32_t>(sum / static_cast<int64_t>(snapshot.samplesRead));
+  snapshot.averageAbs =
+      static_cast<int32_t>(centeredAbsSum / static_cast<int64_t>(snapshot.samplesRead));
   return snapshot;
 }
 
@@ -124,7 +148,7 @@ bool AudioInput::readPcm16(int16_t* buffer, size_t maxSamples, size_t& samplesRe
     return false;
   }
 
-  int32_t samples[kSampleCount] = {};
+  int16_t samples[kSampleCount] = {};
   size_t bytesRead = 0;
   const size_t samplesToRead = min(maxSamples, kSampleCount);
   const esp_err_t err =

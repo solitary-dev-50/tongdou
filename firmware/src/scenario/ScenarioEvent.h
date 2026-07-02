@@ -17,6 +17,8 @@ enum class ScenarioEventType : uint8_t {
   ChargingStarted,
   OvertimeReminderDue,
   VoiceRecognitionFailed,
+  DanceShowRequested,
+  DanceShowGlobalRequested,
 };
 
 struct ScenarioEvent {

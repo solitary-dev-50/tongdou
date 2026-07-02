@@ -42,6 +42,12 @@ class HardwareSelfTestService {
   void printBattery(Print& out) const;
   void printStatus(Print& out) const;
   void printRadar(Print& out) const;
+  void printRadarTarget(Print& out);
+  void printRadarConfig(Print& out);
+  void printRadarResolution(Print& out);
+  void applyRadarNearConfig(Print& out);
+  void applyRadarResolution20cm(Print& out);
+  void startRadarCalibration(Print& out);
   void printMic(Print& out);
   void testSpeaker(Print& out);
   void testLed(const RgbColor& color, Print& out);

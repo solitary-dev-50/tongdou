@@ -12,6 +12,13 @@ void printBool(Print& out, const __FlashStringHelper* label, bool value) {
   out.println(value ? F("1") : F("0"));
 }
 
+void printHexByte(Print& out, uint8_t value) {
+  if (value < 0x10) {
+    out.print('0');
+  }
+  out.print(value, HEX);
+}
+
 }  // namespace
 
 HardwareSelfTestService::HardwareSelfTestService(BatteryMonitor& battery,
@@ -61,6 +68,12 @@ void HardwareSelfTestService::printHelp(Print& out) const {
   out.println(F("  status"));
   out.println(F("  battery"));
   out.println(F("  radar"));
+  out.println(F("  radar target"));
+  out.println(F("  radar config"));
+  out.println(F("  radar near"));
+  out.println(F("  radar resolution"));
+  out.println(F("  radar res20"));
+  out.println(F("  radar calibrate"));
   out.println(F("  mic"));
   out.println(F("  speaker"));
   out.println(F("  led red|green|blue|off"));
@@ -93,6 +106,30 @@ bool HardwareSelfTestService::handleCommand(const String& command, Print& out) {
   }
   if (cmd == F("radar")) {
     printRadar(out);
+    return true;
+  }
+  if (cmd == F("radar target")) {
+    printRadarTarget(out);
+    return true;
+  }
+  if (cmd == F("radar config")) {
+    printRadarConfig(out);
+    return true;
+  }
+  if (cmd == F("radar near")) {
+    applyRadarNearConfig(out);
+    return true;
+  }
+  if (cmd == F("radar resolution")) {
+    printRadarResolution(out);
+    return true;
+  }
+  if (cmd == F("radar res20")) {
+    applyRadarResolution20cm(out);
+    return true;
+  }
+  if (cmd == F("radar calibrate")) {
+    startRadarCalibration(out);
     return true;
   }
   if (cmd == F("mic")) {
@@ -178,6 +215,101 @@ void HardwareSelfTestService::printRadar(Print& out) const {
   printBool(out, F("  rx_level="), snapshot.rxLevelHigh);
 }
 
+void HardwareSelfTestService::printRadarTarget(Print& out) {
+  const RadarTargetSnapshot snapshot = radar_.readTarget();
+  out.println(F("radar target:"));
+  printBool(out, F("  received="), snapshot.received);
+  if (!snapshot.received) {
+    return;
+  }
+
+  out.print(F("  state="));
+  out.println(snapshot.targetState);
+  out.print(F("  raw_payload="));
+  for (uint8_t i = 0; i < snapshot.rawPayloadLength; ++i) {
+    if (i > 0) {
+      out.print(' ');
+    }
+    printHexByte(out, snapshot.rawPayload[i]);
+  }
+  out.println();
+  printBool(out, F("  has_target="), snapshot.hasTarget);
+  out.print(F("  target_distance_cm="));
+  out.println(snapshot.targetDistanceCm);
+  out.print(F("  moving_distance_cm="));
+  out.println(snapshot.movingDistanceCm);
+  out.print(F("  moving_energy="));
+  out.println(snapshot.movingEnergy);
+  out.print(F("  static_distance_cm="));
+  out.println(snapshot.staticDistanceCm);
+  out.print(F("  static_energy="));
+  out.println(snapshot.staticEnergy);
+}
+
+void HardwareSelfTestService::printRadarConfig(Print& out) {
+  const RadarBasicConfig config = radar_.readBasicConfig();
+  out.println(F("radar config:"));
+  printBool(out, F("  received="), config.received);
+  printBool(out, F("  success="), config.success);
+  if (!config.received || !config.success) {
+    return;
+  }
+
+  out.print(F("  min_gate="));
+  out.println(config.minGate);
+  out.print(F("  max_gate="));
+  out.println(config.maxGate);
+  out.print(F("  absence_hold_s="));
+  out.println(config.absenceHoldSeconds);
+  out.print(F("  out_polarity="));
+  out.println(config.outputPolarity);
+  out.println(config.outputPolarity == 0 ? F("  out_meaning=occupied_high")
+                                         : F("  out_meaning=occupied_low"));
+}
+
+void HardwareSelfTestService::printRadarResolution(Print& out) {
+  const RadarResolutionConfig config = radar_.readResolutionConfig();
+  out.println(F("radar resolution:"));
+  printBool(out, F("  received="), config.received);
+  printBool(out, F("  success="), config.success);
+  if (!config.received || !config.success) {
+    return;
+  }
+
+  out.print(F("  resolution_value="));
+  out.println(config.resolutionValue);
+  out.print(F("  gate_cm="));
+  out.println(config.gateCentimeters);
+}
+
+void HardwareSelfTestService::applyRadarNearConfig(Print& out) {
+  const bool ok = radar_.applyNearDeskConfig();
+  out.println(ok ? F("radar near config applied") : F("radar near config failed"));
+  if (ok) {
+    printRadarConfig(out);
+  }
+}
+
+void HardwareSelfTestService::applyRadarResolution20cm(Print& out) {
+  const RadarCommandResult result = radar_.applyResolution20cm();
+  out.println(F("radar res20:"));
+  printBool(out, F("  received="), result.received);
+  printBool(out, F("  success="), result.success);
+  if (result.success) {
+    out.println(F("  note=radar module rebooting, wait 3 seconds then run radar resolution"));
+  }
+}
+
+void HardwareSelfTestService::startRadarCalibration(Print& out) {
+  const RadarCommandResult result = radar_.startBackgroundCalibration();
+  out.println(F("radar calibrate:"));
+  printBool(out, F("  received="), result.received);
+  printBool(out, F("  success="), result.success);
+  if (result.success) {
+    out.println(F("  note=keep the front empty for at least 10 seconds"));
+  }
+}
+
 void HardwareSelfTestService::printMic(Print& out) {
   const AudioInputSnapshot snapshot = audioInput_.readLevel();
   out.println(F("mic:"));
@@ -185,6 +317,12 @@ void HardwareSelfTestService::printMic(Print& out) {
   printBool(out, F("  has_samples="), snapshot.hasSamples);
   out.print(F("  samples="));
   out.println(snapshot.samplesRead);
+  out.print(F("  mean="));
+  out.println(snapshot.mean);
+  out.print(F("  min="));
+  out.println(snapshot.minSample);
+  out.print(F("  max="));
+  out.println(snapshot.maxSample);
   out.print(F("  peak="));
   out.println(snapshot.peak);
   out.print(F("  avg_abs="));

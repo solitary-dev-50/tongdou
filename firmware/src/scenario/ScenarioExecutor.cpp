@@ -23,6 +23,7 @@ void ScenarioExecutor::begin() {
   motionFrameIndex_ = 0;
   nextMotionFrameMs_ = 0;
   motionRunning_ = false;
+  motors_.stop();
 }
 
 void ScenarioExecutor::execute(const ScenarioPlan& plan) {
@@ -67,6 +68,7 @@ void ScenarioExecutor::startFace(FaceAction action, unsigned long nowMs) {
 }
 
 void ScenarioExecutor::startMotion(MotionAction action, unsigned long nowMs) {
+  motors_.stop();
   motionSequence_ = motionPack_.sequence(action);
   motionFrameIndex_ = 0;
   nextMotionFrameMs_ = nowMs;

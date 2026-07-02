@@ -28,12 +28,19 @@ section {
 }
 
 button,
-select {
+input {
   box-sizing: border-box;
   width: 100%;
   padding: 12px;
   border: 0;
   border-radius: 8px;
+}
+
+input {
+  margin: 6px 0;
+  background: #0f0f0f;
+  color: #f4f1ea;
+  border: 1px solid #2a2a2a;
 }
 
 button {
@@ -48,10 +55,67 @@ button:disabled {
 }
 
 .status-grid,
-.button-grid {
+.button-grid,
+.personality-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 8px;
+}
+
+.personality-grid {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+
+.personality-card {
+  min-height: 132px;
+  text-align: left;
+  background: #0f0f0f;
+  color: #f4f1ea;
+  border: 1px solid #2a2a2a;
+}
+
+.personality-card.active {
+  border: 1px solid #e7b45f;
+  background: rgba(231, 180, 95, 0.16);
+}
+
+.personality-card .emoji,
+.personality-card strong,
+.personality-card small {
+  display: block;
+}
+
+.personality-card .emoji {
+  font-size: 24px;
+}
+
+.personality-card strong {
+  margin-top: 8px;
+  font-size: 17px;
+}
+
+.personality-card small,
+.config-note,
+#time-message,
+#personality-message {
+  color: #a8a29e;
+}
+
+.diagnostic-panel {
+  margin-top: 20px;
+}
+
+.diagnostic-panel summary {
+  padding: 14px 16px;
+  border-radius: 8px;
+  background: #1d1d1d;
+  color: #e7b45f;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.diagnostic-panel section {
+  margin-top: 8px;
 }
 
 .status-item {

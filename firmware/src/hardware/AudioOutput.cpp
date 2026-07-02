@@ -13,7 +13,7 @@ constexpr i2s_port_t kSpeakerPort = I2S_NUM_1;
 constexpr uint32_t kSampleRate = 16000;
 constexpr size_t kFramesPerChunk = 64;
 constexpr float kPi = 3.14159265358979323846F;
-constexpr int16_t kToneAmplitude = 1800;
+constexpr int16_t kToneAmplitude = 10000;
 
 }  // namespace
 

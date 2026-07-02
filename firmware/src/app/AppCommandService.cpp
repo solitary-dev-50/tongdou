@@ -138,6 +138,10 @@ bool AppCommandService::parseEventName(String name, ScenarioEventType& eventType
     eventType = ScenarioEventType::OvertimeReminderDue;
   } else if (name == F("voice_recognition_failed")) {
     eventType = ScenarioEventType::VoiceRecognitionFailed;
+  } else if (name == F("dance_show")) {
+    eventType = ScenarioEventType::DanceShowRequested;
+  } else if (name == F("dance_show_global")) {
+    eventType = ScenarioEventType::DanceShowGlobalRequested;
   } else {
     return false;
   }

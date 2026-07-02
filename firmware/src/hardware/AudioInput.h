@@ -8,6 +8,9 @@ struct AudioInputSnapshot {
   bool ready = false;
   bool hasSamples = false;
   size_t samplesRead = 0;
+  int32_t mean = 0;
+  int32_t minSample = 0;
+  int32_t maxSample = 0;
   int32_t peak = 0;
   int32_t averageAbs = 0;
 };

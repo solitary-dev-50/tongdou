@@ -9,7 +9,7 @@ constexpr ScenarioRule kRules[] = {
         false,
         true,
         PersonalityStyle::Gentle,
-        {true, FaceAction::WakeUp, LightAction::WarmWake, MotionAction::TinyShake,
+        {true, FaceAction::WakeUp, LightAction::WarmWake, MotionAction::None,
          VoiceLine::WakeGreeting, 1200},
     },
     {
@@ -83,6 +83,22 @@ constexpr ScenarioRule kRules[] = {
         PersonalityStyle::Balanced,
         {true, FaceAction::Squint, LightAction::DimWarm, MotionAction::LeanForward,
          VoiceLine::OvertimeNudge, 1800},
+    },
+    {
+        ScenarioEventType::DanceShowRequested,
+        false,
+        false,
+        PersonalityStyle::Dramatic,
+        {true, FaceAction::Proud, LightAction::WeakBreath, MotionAction::CheekyDance,
+         VoiceLine::DanceShowDomestic, 1800},
+    },
+    {
+        ScenarioEventType::DanceShowGlobalRequested,
+        false,
+        false,
+        PersonalityStyle::Dramatic,
+        {true, FaceAction::Proud, LightAction::WeakBreath, MotionAction::CheekyDance,
+         VoiceLine::DanceShowGlobal, 1800},
     },
 };
 

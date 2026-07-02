@@ -5,12 +5,20 @@
 #include "tongdou/Pins.h"
 
 namespace tongdou {
+namespace {
+
+void prepareStoppedOutput(gpio_num_t pin) {
+  digitalWrite(pin, LOW);
+  pinMode(pin, OUTPUT);
+}
+
+}  // namespace
 
 void MotorDriver::begin() {
-  pinMode(pins::MOTOR_AIN1, OUTPUT);
-  pinMode(pins::MOTOR_AIN2, OUTPUT);
-  pinMode(pins::MOTOR_BIN1, OUTPUT);
-  pinMode(pins::MOTOR_BIN2, OUTPUT);
+  prepareStoppedOutput(pins::MOTOR_AIN1);
+  prepareStoppedOutput(pins::MOTOR_AIN2);
+  prepareStoppedOutput(pins::MOTOR_BIN1);
+  prepareStoppedOutput(pins::MOTOR_BIN2);
   stop();
 }
 
