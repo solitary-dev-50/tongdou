@@ -21,6 +21,7 @@ struct McpProperty {
 
   static McpProperty RequiredString(const char* name);
   static McpProperty RequiredInteger(const char* name);
+  static McpProperty OptionalInteger(const char* name);
 };
 
 class McpToolArguments {

@@ -99,8 +99,8 @@ AppCommandResult AppCommandService::sendVoiceDetect(const String& text) {
   return {true, "ok", "voice detect sent"};
 }
 
-AppCommandResult AppCommandService::startVoiceTurn() {
-  if (!realtimeVoiceService_.startTurn()) {
+AppCommandResult AppCommandService::startVoiceTurn(uint16_t captureMs) {
+  if (!realtimeVoiceService_.startTurn(captureMs)) {
     return {false, "voice_start_failed", "voice turn failed to start"};
   }
   return {true, "ok", "voice turn started"};

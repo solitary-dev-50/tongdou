@@ -111,6 +111,8 @@ void McpServer::addTools() {
       McpProperty::RequiredString("host")};
   const std::vector<McpProperty> voiceDetectProperties = {
       McpProperty::RequiredString("text")};
+  const std::vector<McpProperty> voiceStartProperties = {
+      McpProperty::OptionalInteger("captureMs")};
   const std::vector<McpProperty> voiceResponseProperties = {
       McpProperty::RequiredString("text")};
   const std::vector<McpProperty> voiceFailProperties = {
@@ -164,9 +166,11 @@ void McpServer::addTools() {
                     "Send text to voice backend using listen detect.",
                     voiceDetectProperties, voiceDetectTool);
 
-  registry_.addTool("start_voice_turn", "Start a realtime voice turn.", {},
+  registry_.addTool("start_voice_turn", "Start a realtime voice turn.",
+                    voiceStartProperties,
                     startVoice);
-  registry_.addTool("tongdou.voice.start", "Start a realtime voice turn.", {},
+  registry_.addTool("tongdou.voice.start", "Start a realtime voice turn.",
+                    voiceStartProperties,
                     startVoice);
 
   registry_.addTool("voice_status", "Get realtime voice turn status.", {},
@@ -332,8 +336,10 @@ McpToolResult McpServer::voiceDetect(const McpToolArguments& arguments) {
   return {commandResultJson(result), !result.ok};
 }
 
-McpToolResult McpServer::startVoiceTurn(const McpToolArguments&) {
-  const AppCommandResult result = appCommandService_.startVoiceTurn();
+McpToolResult McpServer::startVoiceTurn(const McpToolArguments& arguments) {
+  const int captureMs = arguments.getInt("captureMs", 2500);
+  const AppCommandResult result =
+      appCommandService_.startVoiceTurn(static_cast<uint16_t>(captureMs));
   return {commandResultJson(result), !result.ok};
 }
 

@@ -42,6 +42,14 @@ McpProperty McpProperty::RequiredInteger(const char* nameValue) {
   return property;
 }
 
+McpProperty McpProperty::OptionalInteger(const char* nameValue) {
+  McpProperty property;
+  property.name = nameValue ? nameValue : "";
+  property.type = McpPropertyType::Integer;
+  property.required = false;
+  return property;
+}
+
 McpToolArguments::McpToolArguments(JsonObjectConst input) : input_(input) {}
 
 int McpToolArguments::getInt(const char* name, int defaultValue) const {
