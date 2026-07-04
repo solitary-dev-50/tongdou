@@ -29,6 +29,7 @@ class AppCommandService {
                                          const String& clientId, bool useTls);
   AppCommandResult connectVoiceBackend();
   AppCommandResult sendVoiceDetect(const String& text);
+  AppCommandResult abortVoice();
   AppCommandResult startVoiceTurn(uint16_t captureMs = 2500);
   AppCommandResult playVoiceResponse(const String& text);
   AppCommandResult failVoiceTurn(const String& reason);

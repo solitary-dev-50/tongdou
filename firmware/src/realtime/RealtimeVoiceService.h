@@ -67,6 +67,7 @@ class RealtimeVoiceService {
   void configureBackend(const TongDouVoiceConnectionConfig& config);
   bool connectBackend();
   bool sendDetectText(const String& text);
+  bool abortBackendSpeech();
   bool startTurn(uint16_t captureMs = 2500);
   bool playResponse(uint16_t clipId, const String& text);
   void failTurn(const String& code, const String& message);

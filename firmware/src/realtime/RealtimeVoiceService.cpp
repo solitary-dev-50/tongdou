@@ -95,6 +95,20 @@ bool RealtimeVoiceService::sendDetectText(const String& text) {
   return voiceClient_.sendListenDetect(text);
 }
 
+bool RealtimeVoiceService::abortBackendSpeech() {
+  if (!backendStarted_) {
+    return false;
+  }
+
+  audioOutput_.stopStream();
+  capturedPcmFrameUsed_ = 0;
+  const bool sent = voiceClient_.sendAbort();
+  if (sent) {
+    snapshot_.state = RealtimeVoiceState::Idle;
+  }
+  return sent;
+}
+
 bool RealtimeVoiceService::startTurn(uint16_t captureMs) {
   if (snapshot_.state == RealtimeVoiceState::Listening) {
     failTurn("voice_busy", "voice turn is already listening");

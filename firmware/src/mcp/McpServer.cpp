@@ -82,6 +82,9 @@ void McpServer::addTools() {
   const auto voiceDetectTool = [this](const McpToolArguments& arguments) -> McpToolResult {
     return voiceDetect(arguments);
   };
+  const auto voiceAbortTool = [this](const McpToolArguments& arguments) -> McpToolResult {
+    return voiceAbort(arguments);
+  };
   const auto startVoice = [this](const McpToolArguments& arguments) -> McpToolResult {
     return startVoiceTurn(arguments);
   };
@@ -165,6 +168,10 @@ void McpServer::addTools() {
   registry_.addTool("tongdou.voice.detect",
                     "Send text to voice backend using listen detect.",
                     voiceDetectProperties, voiceDetectTool);
+
+  registry_.addTool("voice_abort", "Abort current backend speech.", {}, voiceAbortTool);
+  registry_.addTool("tongdou.voice.abort", "Abort current backend speech.", {},
+                    voiceAbortTool);
 
   registry_.addTool("start_voice_turn", "Start a realtime voice turn.",
                     voiceStartProperties,
@@ -333,6 +340,11 @@ McpToolResult McpServer::connectVoiceBackend(const McpToolArguments&) {
 McpToolResult McpServer::voiceDetect(const McpToolArguments& arguments) {
   const String text(arguments.getString("text").c_str());
   const AppCommandResult result = appCommandService_.sendVoiceDetect(text);
+  return {commandResultJson(result), !result.ok};
+}
+
+McpToolResult McpServer::voiceAbort(const McpToolArguments&) {
+  const AppCommandResult result = appCommandService_.abortVoice();
   return {commandResultJson(result), !result.ok};
 }
 

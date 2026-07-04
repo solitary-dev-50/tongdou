@@ -99,6 +99,13 @@ AppCommandResult AppCommandService::sendVoiceDetect(const String& text) {
   return {true, "ok", "voice detect sent"};
 }
 
+AppCommandResult AppCommandService::abortVoice() {
+  if (!realtimeVoiceService_.abortBackendSpeech()) {
+    return {false, "voice_abort_failed", "voice backend is not connected"};
+  }
+  return {true, "ok", "voice abort sent"};
+}
+
 AppCommandResult AppCommandService::startVoiceTurn(uint16_t captureMs) {
   if (!realtimeVoiceService_.startTurn(captureMs)) {
     return {false, "voice_start_failed", "voice turn failed to start"};

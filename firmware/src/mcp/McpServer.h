@@ -33,6 +33,7 @@ class McpServer {
   McpToolResult configureVoiceBackend(const McpToolArguments& arguments);
   McpToolResult connectVoiceBackend(const McpToolArguments& arguments);
   McpToolResult voiceDetect(const McpToolArguments& arguments);
+  McpToolResult voiceAbort(const McpToolArguments& arguments);
   McpToolResult startVoiceTurn(const McpToolArguments& arguments);
   McpToolResult voiceStatus(const McpToolArguments& arguments);
   McpToolResult voiceCodecSelfTest(const McpToolArguments& arguments);

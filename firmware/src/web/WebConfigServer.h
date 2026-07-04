@@ -51,6 +51,7 @@ class WebConfigServer {
   void handleVoiceBackendConnect();
   void handleVoiceDetect();
   void handleVoiceStart();
+  void handleVoiceAbort();
   void handleVoiceCodecSelfTest();
   void handleNotFound();
   void sendText(int code, const char* type, const String& body);

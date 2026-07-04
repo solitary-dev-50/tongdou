@@ -157,6 +157,7 @@ void WebConfigServer::setupRoutes() {
   server_.on("/api/voice/connect", HTTP_POST, [this]() { handleVoiceBackendConnect(); });
   server_.on("/api/voice/detect", HTTP_POST, [this]() { handleVoiceDetect(); });
   server_.on("/api/voice/start", HTTP_POST, [this]() { handleVoiceStart(); });
+  server_.on("/api/voice/abort", HTTP_POST, [this]() { handleVoiceAbort(); });
   server_.on("/api/voice/codec-self-test", HTTP_POST,
              [this]() { handleVoiceCodecSelfTest(); });
   server_.onNotFound([this]() { handleNotFound(); });
@@ -499,7 +500,7 @@ pre{white-space:pre-wrap;background:#050505;border:1px solid #333;border-radius:
 </section>
 <section>
 <label>Capture Ms</label><input id="captureMs" value="2500">
-<button onclick="startVoice()">Start Voice Turn</button>
+<div class="row"><button onclick="startVoice()">Start Voice Turn</button><button onclick="abortVoice()">Abort</button></div>
 </section>
 <section>
 <button onclick="codecSelfTest()">Codec Self Test</button>
@@ -517,6 +518,7 @@ async function configureBackend(){show(await post('/api/voice/backend',{host:$('
 async function connectBackend(){show(await post('/api/voice/connect',{}));setTimeout(loadStatus,700)}
 async function sendDetect(){show(await post('/api/voice/detect',{text:$('detectText').value}));setTimeout(loadStatus,1200)}
 async function startVoice(){show(await post('/api/voice/start',{captureMs:$('captureMs').value}));setTimeout(loadStatus,1200)}
+async function abortVoice(){show(await post('/api/voice/abort',{}));setTimeout(loadStatus,500)}
 async function codecSelfTest(){show(await post('/api/voice/codec-self-test',{}))}
 async function loadStatus(){let r=await fetch('/api/voice/status');show(await r.text())}
 function clearOutput(){$('output').textContent=''}
@@ -611,6 +613,10 @@ void WebConfigServer::handleVoiceStart() {
   arguments += captureMs;
   arguments += "}";
   sendText(200, "application/json", callMcpTool("start_voice_turn", arguments));
+}
+
+void WebConfigServer::handleVoiceAbort() {
+  sendText(200, "application/json", callMcpTool("voice_abort", "{}"));
 }
 
 void WebConfigServer::handleVoiceCodecSelfTest() {
