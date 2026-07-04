@@ -32,6 +32,9 @@ struct RealtimeVoiceSnapshot {
   bool backendReady = false;
   uint32_t backendTextMessagesReceived = 0;
   uint32_t backendBinaryPacketsReceived = 0;
+  uint32_t backendUplinkPcmFramesEncoded = 0;
+  uint32_t backendUplinkOpusPacketsSent = 0;
+  uint32_t backendUplinkEncodeFailures = 0;
   uint32_t backendDownlinkPacketsPlayed = 0;
   uint32_t backendDownlinkPlaybackFailures = 0;
   uint16_t backendDownlinkQueued = 0;
@@ -73,7 +76,10 @@ class RealtimeVoiceService {
   const char* stateName() const;
 
  private:
+  static constexpr size_t kCapturedPcmFrameSamples = 960;
+
   void captureFrame(unsigned long nowMs);
+  bool sendCapturedFrame(bool padWithSilence);
   void finishCapture();
 
   AudioInput& audioInput_;
@@ -87,6 +93,8 @@ class RealtimeVoiceService {
   RealtimeVoiceSnapshot snapshot_;
   unsigned long captureUntilMs_ = 0;
   unsigned long nextCaptureMs_ = 0;
+  int16_t capturedPcmFrame_[kCapturedPcmFrameSamples] = {};
+  size_t capturedPcmFrameUsed_ = 0;
   bool failurePending_ = false;
 };
 

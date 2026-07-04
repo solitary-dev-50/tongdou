@@ -4,6 +4,7 @@ namespace tongdou {
 
 void TongDouVoicePerfTracer::reset() {
   listenStartMs_ = 0;
+  firstOpusEncodedLogged_ = false;
   firstAudioSentLogged_ = false;
   firstTtsPacketLogged_ = false;
   speakerStartLogged_ = false;
@@ -13,6 +14,15 @@ void TongDouVoicePerfTracer::listenStart() {
   reset();
   listenStartMs_ = millis();
   printMark("listen_start", listenStartMs_);
+}
+
+void TongDouVoicePerfTracer::firstOpusEncoded() {
+  if (firstOpusEncodedLogged_) {
+    return;
+  }
+
+  firstOpusEncodedLogged_ = true;
+  printMark("first_opus_encoded", millis());
 }
 
 void TongDouVoicePerfTracer::firstAudioSent() {

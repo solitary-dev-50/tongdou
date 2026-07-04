@@ -30,6 +30,9 @@ struct TongDouVoiceClientSnapshot {
   bool ready = false;
   uint32_t textMessagesReceived = 0;
   uint32_t binaryPacketsReceived = 0;
+  uint32_t uplinkPcmFramesEncoded = 0;
+  uint32_t uplinkOpusPacketsSent = 0;
+  uint32_t uplinkEncodeFailures = 0;
   uint32_t downlinkPacketsPlayed = 0;
   uint32_t downlinkPlaybackFailures = 0;
   TongDouVoiceQueueStats queueStats;
@@ -53,6 +56,7 @@ class TongDouVoiceClient {
   bool sendListenStop();
   bool sendListenDetect(const String& text);
   bool sendAbort();
+  bool sendPcm16Frame(const int16_t* samples, size_t sampleCount);
   bool sendAudioPacket(const uint8_t* payload, size_t length);
   bool playNextDownlinkPacket(AudioOutput& audioOutput);
 
@@ -73,6 +77,7 @@ class TongDouVoiceClient {
   TongDouVoiceAudioCodec audioCodec_;
   TongDouVoiceWebSocketClient socket_;
   TongDouVoiceStreamQueues queues_;
+  uint8_t uplinkPacket_[TongDouVoiceStreamQueues::kMaxPacketBytes] = {};
   uint8_t downlinkPacket_[TongDouVoiceStreamQueues::kMaxPacketBytes] = {};
   int16_t decodedPcm_[kMaxDecodedSamples] = {};
   TongDouVoiceHelloConfig helloConfig_;

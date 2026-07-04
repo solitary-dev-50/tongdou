@@ -140,6 +140,9 @@ String AppCommandService::voiceStatusJson() const {
   doc["backend"]["sessionId"] = snapshot.backendSessionId;
   doc["backend"]["textMessagesReceived"] = snapshot.backendTextMessagesReceived;
   doc["backend"]["binaryPacketsReceived"] = snapshot.backendBinaryPacketsReceived;
+  doc["backend"]["uplinkPcmFramesEncoded"] = snapshot.backendUplinkPcmFramesEncoded;
+  doc["backend"]["uplinkOpusPacketsSent"] = snapshot.backendUplinkOpusPacketsSent;
+  doc["backend"]["uplinkEncodeFailures"] = snapshot.backendUplinkEncodeFailures;
   doc["backend"]["downlinkPacketsPlayed"] = snapshot.backendDownlinkPacketsPlayed;
   doc["backend"]["downlinkPlaybackFailures"] = snapshot.backendDownlinkPlaybackFailures;
   doc["backend"]["downlinkQueued"] = snapshot.backendDownlinkQueued;

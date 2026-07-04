@@ -87,6 +87,28 @@ bool TongDouVoiceClient::sendAbort() {
   return sent;
 }
 
+bool TongDouVoiceClient::sendPcm16Frame(const int16_t* samples, size_t sampleCount) {
+  size_t opusLength = 0;
+  if (!audioCodec_.encodePcm16ToOpus(samples, sampleCount, uplinkPacket_,
+                                     sizeof(uplinkPacket_), opusLength)) {
+    ++snapshot_.uplinkEncodeFailures;
+    snapshot_.lastError = audioCodec_.stats().lastError;
+    snapshot_.codecStats = audioCodec_.stats();
+    return false;
+  }
+
+  ++snapshot_.uplinkPcmFramesEncoded;
+  snapshot_.codecStats = audioCodec_.stats();
+  perfTracer_.firstOpusEncoded();
+
+  if (!sendAudioPacket(uplinkPacket_, opusLength)) {
+    return false;
+  }
+
+  ++snapshot_.uplinkOpusPacketsSent;
+  return true;
+}
+
 bool TongDouVoiceClient::sendAudioPacket(const uint8_t* payload, size_t length) {
   if (snapshot_.state != TongDouVoiceClientState::Listening) {
     return false;
