@@ -20,3 +20,25 @@ firmware/vendor/
 !docs/**/*.md
 !docs/**/*.pdf
 !firmware/web/README.md
+
+# Never commit local backend copies.
+xiaozhi-esp32-serve/
+
+# Never commit hardware reference, test, crowdfunding, site, or promo material.
+site/
+docs/HLK LD2412/
+docs/image/
+docs/众筹相关文档/
+docs/新的想法/
+docs/PCB回板测试手册.md
+docs/旧PCB固件组装执行计划.md
+docs/众筹页详细设计文档.md
+docs/众筹与传播思路.md
+docs/临时_*.md
+docs/定位器*.step
+*.step
+
+# Local serial/debug helpers.
+串口日志.txt
+麦克风测试串口日志.txt
+启动串口监控.bat
