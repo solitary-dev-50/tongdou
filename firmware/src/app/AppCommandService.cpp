@@ -55,6 +55,50 @@ AppCommandResult AppCommandService::setPersonality(const String& personalityName
   return {true, "ok", "personality updated"};
 }
 
+AppCommandResult AppCommandService::configureVoiceBackend(const String& host, int port,
+                                                          const String& path,
+                                                          const String& token,
+                                                          const String& deviceId,
+                                                          const String& clientId,
+                                                          bool useTls) {
+  String safeHost = host;
+  safeHost.trim();
+  if (safeHost.length() == 0) {
+    return {false, "invalid_voice_backend", "voice backend host is required"};
+  }
+
+  TongDouVoiceConnectionConfig config;
+  config.host = safeHost;
+  config.port = port > 0 ? static_cast<uint16_t>(port) : 8000;
+  config.path = path.length() > 0 ? path : "/xiaozhi/v1/";
+  config.authorization = token;
+  config.deviceId = deviceId;
+  config.clientId = clientId.length() > 0 ? clientId : "tongdou-demo";
+  config.useTls = useTls;
+
+  realtimeVoiceService_.configureBackend(config);
+  return {true, "ok", "voice backend configured"};
+}
+
+AppCommandResult AppCommandService::connectVoiceBackend() {
+  if (!realtimeVoiceService_.connectBackend()) {
+    return {false, "voice_backend_not_configured", "voice backend is not configured"};
+  }
+  return {true, "ok", "voice backend connecting"};
+}
+
+AppCommandResult AppCommandService::sendVoiceDetect(const String& text) {
+  String safeText = text;
+  safeText.trim();
+  if (safeText.length() == 0) {
+    return {false, "invalid_voice_detect", "detect text is required"};
+  }
+  if (!realtimeVoiceService_.sendDetectText(safeText)) {
+    return {false, "voice_detect_failed", "voice backend is not ready"};
+  }
+  return {true, "ok", "voice detect sent"};
+}
+
 AppCommandResult AppCommandService::startVoiceTurn() {
   if (!realtimeVoiceService_.startTurn()) {
     return {false, "voice_start_failed", "voice turn failed to start"};
@@ -90,6 +134,17 @@ String AppCommandService::voiceStatusJson() const {
   doc["chunksSent"] = snapshot.chunksSent;
   doc["samplesSent"] = snapshot.samplesSent;
   doc["bytesSent"] = snapshot.bytesSent;
+  doc["backend"]["state"] = snapshot.backendState;
+  doc["backend"]["connected"] = snapshot.backendConnected;
+  doc["backend"]["ready"] = snapshot.backendReady;
+  doc["backend"]["sessionId"] = snapshot.backendSessionId;
+  doc["backend"]["textMessagesReceived"] = snapshot.backendTextMessagesReceived;
+  doc["backend"]["binaryPacketsReceived"] = snapshot.backendBinaryPacketsReceived;
+  doc["backend"]["lastMessageType"] = snapshot.backendLastMessageType;
+  doc["backend"]["lastTtsState"] = snapshot.backendLastTtsState;
+  doc["backend"]["lastText"] = snapshot.backendLastText;
+  doc["backend"]["lastEmotion"] = snapshot.backendLastEmotion;
+  doc["backend"]["lastError"] = snapshot.backendLastError;
   doc["lastErrorCode"] = snapshot.lastErrorCode;
   doc["lastErrorMessage"] = snapshot.lastErrorMessage;
 

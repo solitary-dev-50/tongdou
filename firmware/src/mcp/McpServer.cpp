@@ -73,6 +73,15 @@ void McpServer::addTools() {
   const auto personality = [this](const McpToolArguments& arguments) -> McpToolResult {
     return setPersonality(arguments);
   };
+  const auto configureVoice = [this](const McpToolArguments& arguments) -> McpToolResult {
+    return configureVoiceBackend(arguments);
+  };
+  const auto connectVoice = [this](const McpToolArguments& arguments) -> McpToolResult {
+    return connectVoiceBackend(arguments);
+  };
+  const auto voiceDetectTool = [this](const McpToolArguments& arguments) -> McpToolResult {
+    return voiceDetect(arguments);
+  };
   const auto startVoice = [this](const McpToolArguments& arguments) -> McpToolResult {
     return startVoiceTurn(arguments);
   };
@@ -94,6 +103,10 @@ void McpServer::addTools() {
       McpProperty::RequiredString("event")};
   const std::vector<McpProperty> personalityProperties = {
       McpProperty::RequiredString("personality")};
+  const std::vector<McpProperty> voiceBackendConfigureProperties = {
+      McpProperty::RequiredString("host")};
+  const std::vector<McpProperty> voiceDetectProperties = {
+      McpProperty::RequiredString("text")};
   const std::vector<McpProperty> voiceResponseProperties = {
       McpProperty::RequiredString("text")};
   const std::vector<McpProperty> voiceFailProperties = {
@@ -128,6 +141,24 @@ void McpServer::addTools() {
                     personalityProperties, personality);
   registry_.addTool("tongdou.personality.set", "Set Tong Dou personality mode.",
                     personalityProperties, personality);
+
+  registry_.addTool("configure_voice_backend",
+                    "Configure Tong Dou realtime voice backend connection.",
+                    voiceBackendConfigureProperties, configureVoice);
+  registry_.addTool("tongdou.voice.backend.configure",
+                    "Configure Tong Dou realtime voice backend connection.",
+                    voiceBackendConfigureProperties, configureVoice);
+
+  registry_.addTool("connect_voice_backend", "Connect Tong Dou realtime voice backend.",
+                    {}, connectVoice);
+  registry_.addTool("tongdou.voice.backend.connect",
+                    "Connect Tong Dou realtime voice backend.", {}, connectVoice);
+
+  registry_.addTool("voice_detect", "Send text to voice backend using listen detect.",
+                    voiceDetectProperties, voiceDetectTool);
+  registry_.addTool("tongdou.voice.detect",
+                    "Send text to voice backend using listen detect.",
+                    voiceDetectProperties, voiceDetectTool);
 
   registry_.addTool("start_voice_turn", "Start a realtime voice turn.", {},
                     startVoice);
@@ -265,6 +296,30 @@ McpToolResult McpServer::playScenario(const McpToolArguments& arguments) {
 McpToolResult McpServer::setPersonality(const McpToolArguments& arguments) {
   const String personality(arguments.getString("personality").c_str());
   const AppCommandResult result = appCommandService_.setPersonality(personality);
+  return {commandResultJson(result), !result.ok};
+}
+
+McpToolResult McpServer::configureVoiceBackend(const McpToolArguments& arguments) {
+  const String host(arguments.getString("host").c_str());
+  const int port = arguments.getInt("port", 8000);
+  const String path(arguments.getString("path", "/xiaozhi/v1/").c_str());
+  const String token(arguments.getString("token").c_str());
+  const String deviceId(arguments.getString("deviceId").c_str());
+  const String clientId(arguments.getString("clientId", "tongdou-demo").c_str());
+  const bool useTls = arguments.getInt("useTls", 0) != 0;
+  const AppCommandResult result = appCommandService_.configureVoiceBackend(
+      host, port, path, token, deviceId, clientId, useTls);
+  return {commandResultJson(result), !result.ok};
+}
+
+McpToolResult McpServer::connectVoiceBackend(const McpToolArguments&) {
+  const AppCommandResult result = appCommandService_.connectVoiceBackend();
+  return {commandResultJson(result), !result.ok};
+}
+
+McpToolResult McpServer::voiceDetect(const McpToolArguments& arguments) {
+  const String text(arguments.getString("text").c_str());
+  const AppCommandResult result = appCommandService_.sendVoiceDetect(text);
   return {commandResultJson(result), !result.ok};
 }
 

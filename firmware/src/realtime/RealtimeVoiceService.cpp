@@ -1,5 +1,7 @@
 #include "realtime/RealtimeVoiceService.h"
 
+#include <WiFi.h>
+
 namespace tongdou {
 namespace {
 
@@ -34,6 +36,10 @@ void RealtimeVoiceService::begin() {
 }
 
 void RealtimeVoiceService::update() {
+  if (backendStarted_) {
+    voiceClient_.update();
+  }
+
   snapshot_.audioInputReady = audioInput_.ready();
   snapshot_.audioOutputReady = audioOutput_.ready();
 
@@ -51,6 +57,39 @@ void RealtimeVoiceService::update() {
   }
 
   captureFrame(now);
+}
+
+void RealtimeVoiceService::configureBackend(const TongDouVoiceConnectionConfig& config) {
+  backendConfig_ = config;
+  if (backendConfig_.deviceId.length() == 0) {
+    backendConfig_.deviceId = WiFi.macAddress();
+  }
+  backendConfigured_ = backendConfig_.host.length() > 0;
+  backendStarted_ = false;
+  voiceClient_.disconnect();
+}
+
+bool RealtimeVoiceService::connectBackend() {
+  if (!backendConfigured_) {
+    return false;
+  }
+
+  TongDouVoiceHelloConfig hello;
+  hello.audio.sampleRate = 16000;
+  hello.audio.channels = 1;
+  hello.audio.frameDurationMs = 60;
+  hello.mcpEnabled = false;
+
+  voiceClient_.begin(backendConfig_, hello);
+  backendStarted_ = true;
+  return true;
+}
+
+bool RealtimeVoiceService::sendDetectText(const String& text) {
+  if (!backendStarted_ || text.length() == 0) {
+    return false;
+  }
+  return voiceClient_.sendListenDetect(text);
 }
 
 bool RealtimeVoiceService::startTurn(uint16_t captureMs) {
@@ -115,11 +154,23 @@ bool RealtimeVoiceService::consumeFailureEvent() {
 RealtimeVoiceSnapshot RealtimeVoiceService::snapshot() const {
   RealtimeVoiceSnapshot copy = snapshot_;
   const RealtimeAudioSendStats stats = sender_.stats();
+  const TongDouVoiceClientSnapshot backend = voiceClient_.snapshot();
   copy.chunksSent = stats.chunksSent;
   copy.samplesSent = stats.samplesSent;
   copy.bytesSent = stats.bytesSent;
   copy.audioInputReady = audioInput_.ready();
   copy.audioOutputReady = audioOutput_.ready();
+  copy.backendState = tongDouVoiceClientStateName(backend.state);
+  copy.backendConnected = backend.connected;
+  copy.backendReady = backend.ready;
+  copy.backendTextMessagesReceived = backend.textMessagesReceived;
+  copy.backendBinaryPacketsReceived = backend.binaryPacketsReceived;
+  copy.backendSessionId = backend.sessionId;
+  copy.backendLastMessageType = tongDouVoiceMessageTypeName(backend.lastMessageType);
+  copy.backendLastTtsState = tongDouVoiceTtsStateName(backend.lastTtsState);
+  copy.backendLastText = backend.lastText;
+  copy.backendLastEmotion = backend.lastEmotion;
+  copy.backendLastError = backend.lastError;
   return copy;
 }
 

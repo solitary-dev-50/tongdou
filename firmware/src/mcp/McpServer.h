@@ -30,6 +30,9 @@ class McpServer {
   McpToolResult deleteReminder(const McpToolArguments& arguments);
   McpToolResult playScenario(const McpToolArguments& arguments);
   McpToolResult setPersonality(const McpToolArguments& arguments);
+  McpToolResult configureVoiceBackend(const McpToolArguments& arguments);
+  McpToolResult connectVoiceBackend(const McpToolArguments& arguments);
+  McpToolResult voiceDetect(const McpToolArguments& arguments);
   McpToolResult startVoiceTurn(const McpToolArguments& arguments);
   McpToolResult voiceStatus(const McpToolArguments& arguments);
   McpToolResult playVoiceResponse(const McpToolArguments& arguments);

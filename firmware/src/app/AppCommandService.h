@@ -24,6 +24,11 @@ class AppCommandService {
 
   AppCommandResult playScenario(const String& eventName);
   AppCommandResult setPersonality(const String& personalityName);
+  AppCommandResult configureVoiceBackend(const String& host, int port, const String& path,
+                                         const String& token, const String& deviceId,
+                                         const String& clientId, bool useTls);
+  AppCommandResult connectVoiceBackend();
+  AppCommandResult sendVoiceDetect(const String& text);
   AppCommandResult startVoiceTurn();
   AppCommandResult playVoiceResponse(const String& text);
   AppCommandResult failVoiceTurn(const String& reason);
