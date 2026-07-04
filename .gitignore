@@ -42,3 +42,7 @@ docs/定位器*.step
 串口日志.txt
 麦克风测试串口日志.txt
 启动串口监控.bat
+
+# Removed from the public repo but kept locally when needed.
+docs/引脚定义.txt
+docs/铜豆原理图_*.pdf
