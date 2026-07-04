@@ -151,6 +151,10 @@ void WebConfigServer::setupRoutes() {
   server_.on("/api/reminders/delete", HTTP_POST, [this]() { handleReminderDelete(); });
   server_.on("/api/diagnostic", HTTP_POST, [this]() { handleDiagnosticCommand(); });
   server_.on("/api/mcp", HTTP_POST, [this]() { handleMcp(); });
+  server_.on("/api/voice/status", HTTP_GET, [this]() { handleVoiceStatus(); });
+  server_.on("/api/voice/backend", HTTP_POST, [this]() { handleVoiceBackendConfigure(); });
+  server_.on("/api/voice/connect", HTTP_POST, [this]() { handleVoiceBackendConnect(); });
+  server_.on("/api/voice/detect", HTTP_POST, [this]() { handleVoiceDetect(); });
   server_.onNotFound([this]() { handleNotFound(); });
 }
 
@@ -456,6 +460,82 @@ void WebConfigServer::handleMcp() {
   sendText(200, "application/json", mcpServer_.handlePayloadText(payload));
 }
 
+void WebConfigServer::handleVoiceStatus() {
+  sendText(200, "application/json", callMcpTool("voice_status", "{}"));
+}
+
+void WebConfigServer::handleVoiceBackendConfigure() {
+  String host = server_.arg("host");
+  host.trim();
+  if (host.length() == 0) {
+    sendText(400, "application/json", "{\"ok\":false,\"code\":\"missing_host\"}");
+    return;
+  }
+
+  const int port = server_.arg("port").toInt() > 0 ? server_.arg("port").toInt() : 8000;
+  String path = server_.arg("path");
+  path.trim();
+  if (path.length() == 0) {
+    path = "/xiaozhi/v1/";
+  }
+
+  String arguments;
+  arguments.reserve(240);
+  arguments += "{\"host\":\"";
+  arguments += jsonEscape(host);
+  arguments += "\",\"port\":";
+  arguments += port;
+  arguments += ",\"path\":\"";
+  arguments += jsonEscape(path);
+  arguments += "\"";
+
+  const String token = server_.arg("token");
+  if (token.length() > 0) {
+    arguments += ",\"token\":\"";
+    arguments += jsonEscape(token);
+    arguments += "\"";
+  }
+  const String deviceId = server_.arg("deviceId");
+  if (deviceId.length() > 0) {
+    arguments += ",\"deviceId\":\"";
+    arguments += jsonEscape(deviceId);
+    arguments += "\"";
+  }
+  const String clientId = server_.arg("clientId");
+  if (clientId.length() > 0) {
+    arguments += ",\"clientId\":\"";
+    arguments += jsonEscape(clientId);
+    arguments += "\"";
+  }
+  const String useTls = server_.arg("useTls");
+  if (useTls == "1" || useTls == "true") {
+    arguments += ",\"useTls\":1";
+  }
+  arguments += "}";
+
+  sendText(200, "application/json", callMcpTool("configure_voice_backend", arguments));
+}
+
+void WebConfigServer::handleVoiceBackendConnect() {
+  sendText(200, "application/json", callMcpTool("connect_voice_backend", "{}"));
+}
+
+void WebConfigServer::handleVoiceDetect() {
+  String text = server_.arg("text");
+  text.trim();
+  if (text.length() == 0) {
+    sendText(400, "application/json", "{\"ok\":false,\"code\":\"missing_text\"}");
+    return;
+  }
+
+  String arguments;
+  arguments.reserve(text.length() + 24);
+  arguments += "{\"text\":\"";
+  arguments += jsonEscape(text);
+  arguments += "\"}";
+  sendText(200, "application/json", callMcpTool("voice_detect", arguments));
+}
+
 void WebConfigServer::handleNotFound() {
   if (state_ == NetworkState::Portal) {
     server_.sendHeader("Location", String("http://") + kPortalIp.toString() + "/", true);
@@ -469,6 +549,19 @@ void WebConfigServer::handleNotFound() {
 void WebConfigServer::sendText(int code, const char* type, const String& body) {
   server_.sendHeader("Cache-Control", "no-store");
   server_.send(code, type, body);
+}
+
+String WebConfigServer::callMcpTool(const char* name, const String& argumentsJson) {
+  String payload;
+  payload.reserve(argumentsJson.length() + 120);
+  payload += "{\"jsonrpc\":\"2.0\",\"id\":";
+  payload += millis();
+  payload += ",\"method\":\"tools/call\",\"params\":{\"name\":\"";
+  payload += name;
+  payload += "\",\"arguments\":";
+  payload += argumentsJson;
+  payload += "}}";
+  return mcpServer_.handlePayloadText(payload);
 }
 
 String WebConfigServer::statusJson() const {

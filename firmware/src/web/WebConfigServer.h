@@ -45,8 +45,13 @@ class WebConfigServer {
   void handleReminderDelete();
   void handleDiagnosticCommand();
   void handleMcp();
+  void handleVoiceStatus();
+  void handleVoiceBackendConfigure();
+  void handleVoiceBackendConnect();
+  void handleVoiceDetect();
   void handleNotFound();
   void sendText(int code, const char* type, const String& body);
+  String callMcpTool(const char* name, const String& argumentsJson);
   String statusJson() const;
   String remindersJson() const;
 
