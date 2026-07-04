@@ -45,6 +45,7 @@ class WebConfigServer {
   void handleReminderDelete();
   void handleDiagnosticCommand();
   void handleMcp();
+  void handleVoiceDebugPage();
   void handleVoiceStatus();
   void handleVoiceBackendConfigure();
   void handleVoiceBackendConnect();

@@ -151,6 +151,7 @@ void WebConfigServer::setupRoutes() {
   server_.on("/api/reminders/delete", HTTP_POST, [this]() { handleReminderDelete(); });
   server_.on("/api/diagnostic", HTTP_POST, [this]() { handleDiagnosticCommand(); });
   server_.on("/api/mcp", HTTP_POST, [this]() { handleMcp(); });
+  server_.on("/voice", HTTP_GET, [this]() { handleVoiceDebugPage(); });
   server_.on("/api/voice/status", HTTP_GET, [this]() { handleVoiceStatus(); });
   server_.on("/api/voice/backend", HTTP_POST, [this]() { handleVoiceBackendConfigure(); });
   server_.on("/api/voice/connect", HTTP_POST, [this]() { handleVoiceBackendConnect(); });
@@ -458,6 +459,58 @@ void WebConfigServer::handleMcp() {
   }
 
   sendText(200, "application/json", mcpServer_.handlePayloadText(payload));
+}
+
+void WebConfigServer::handleVoiceDebugPage() {
+  String body;
+  body.reserve(5200);
+  body += F(R"HTML(<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tong Dou Voice</title>
+<style>
+body{font-family:Arial,'Microsoft YaHei',sans-serif;margin:0;background:#111;color:#f5f2ea}
+main{max-width:720px;margin:auto;padding:18px}
+h1{font-size:24px;margin:0 0 14px}
+section{border-top:1px solid #333;padding:14px 0}
+label{display:block;color:#b9b2a3;font-size:13px;margin-top:10px}
+input,button,textarea{box-sizing:border-box;width:100%;padding:12px;border-radius:8px;margin-top:6px}
+input,textarea{background:#0b0b0b;border:1px solid #333;color:#f5f2ea}
+button{border:0;background:#e1b35f;color:#111;font-weight:700}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+pre{white-space:pre-wrap;background:#050505;border:1px solid #333;border-radius:8px;padding:12px;min-height:140px}
+@media(max-width:560px){.row{grid-template-columns:1fr}}
+</style></head><body><main>
+<h1>Tong Dou Voice</h1>
+<section>
+<label>Host</label><input id="host" placeholder="192.168.1.10">
+<div class="row"><div><label>Port</label><input id="port" value="8000"></div>
+<div><label>Path</label><input id="path" value="/xiaozhi/v1/"></div></div>
+<label>Device Id</label><input id="deviceId" placeholder="empty = device mac">
+<label>Client Id</label><input id="clientId" value="tongdou-demo">
+<label>Token</label><input id="token" placeholder="optional">
+<div class="row"><button onclick="configureBackend()">Configure</button><button onclick="connectBackend()">Connect</button></div>
+</section>
+<section>
+<label>Detect Text</label><textarea id="detectText" rows="3">你好，简单介绍一下你自己</textarea>
+<button onclick="sendDetect()">Send Detect</button>
+</section>
+<section>
+<div class="row"><button onclick="loadStatus()">Refresh</button><button onclick="clearOutput()">Clear</button></div>
+<pre id="output">Ready</pre>
+</section>
+<script>
+const $=id=>document.getElementById(id);
+function formBody(data){return Object.keys(data).map(k=>encodeURIComponent(k)+'='+encodeURIComponent(data[k]||'')).join('&')}
+async function post(url,data){let r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:formBody(data||{})});return await r.text()}
+function show(v){try{$('output').textContent=JSON.stringify(JSON.parse(v),null,2)}catch(e){$('output').textContent=v}}
+async function configureBackend(){show(await post('/api/voice/backend',{host:$('host').value,port:$('port').value,path:$('path').value,deviceId:$('deviceId').value,clientId:$('clientId').value,token:$('token').value}))}
+async function connectBackend(){show(await post('/api/voice/connect',{}));setTimeout(loadStatus,700)}
+async function sendDetect(){show(await post('/api/voice/detect',{text:$('detectText').value}));setTimeout(loadStatus,1200)}
+async function loadStatus(){let r=await fetch('/api/voice/status');show(await r.text())}
+function clearOutput(){$('output').textContent=''}
+loadStatus();
+</script></main></body></html>)HTML");
+  sendText(200, "text/html; charset=utf-8", body);
 }
 
 void WebConfigServer::handleVoiceStatus() {
