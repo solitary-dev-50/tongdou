@@ -6,6 +6,7 @@ void TongDouVoiceClient::begin(const TongDouVoiceConnectionConfig& connectionCon
                                const TongDouVoiceHelloConfig& helloConfig) {
   helloConfig_ = helloConfig;
   snapshot_ = {};
+  queues_.clear();
   snapshot_.downstreamAudio = helloConfig_.audio;
   if (connectionConfig.host.length() == 0) {
     snapshot_.lastError = "voice_server_host_missing";
@@ -34,6 +35,7 @@ void TongDouVoiceClient::update() {
 
 void TongDouVoiceClient::disconnect() {
   socket_.disconnect();
+  queues_.clear();
   snapshot_.connected = false;
   snapshot_.ready = false;
   setState(TongDouVoiceClientState::Offline);
@@ -76,6 +78,7 @@ bool TongDouVoiceClient::sendAbort() {
   }
   const bool sent = sendText(protocol_.buildAbort(snapshot_.sessionId));
   if (sent) {
+    queues_.clear();
     setState(TongDouVoiceClientState::Ready);
   }
   return sent;
@@ -93,7 +96,9 @@ bool TongDouVoiceClient::sendAudioPacket(const uint8_t* payload, size_t length) 
 }
 
 TongDouVoiceClientSnapshot TongDouVoiceClient::snapshot() const {
-  return snapshot_;
+  TongDouVoiceClientSnapshot copy = snapshot_;
+  copy.queueStats = queues_.stats();
+  return copy;
 }
 
 TongDouVoiceClientState TongDouVoiceClient::state() const {
@@ -159,11 +164,12 @@ void TongDouVoiceClient::handleTextMessage(const String& payload) {
   }
 }
 
-void TongDouVoiceClient::handleBinaryMessage(const uint8_t*, size_t length) {
+void TongDouVoiceClient::handleBinaryMessage(const uint8_t* payload, size_t length) {
   if (length == 0) {
     return;
   }
   ++snapshot_.binaryPacketsReceived;
+  queues_.pushDownlink(payload, length);
   perfTracer_.firstTtsPacketReceived();
   setState(TongDouVoiceClientState::Speaking);
 }

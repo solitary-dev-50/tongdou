@@ -31,6 +31,11 @@ struct RealtimeVoiceSnapshot {
   bool backendReady = false;
   uint32_t backendTextMessagesReceived = 0;
   uint32_t backendBinaryPacketsReceived = 0;
+  uint16_t backendDownlinkQueued = 0;
+  uint32_t backendDownlinkPushed = 0;
+  uint32_t backendDownlinkPopped = 0;
+  uint32_t backendDownlinkDropped = 0;
+  uint32_t backendDownlinkOversized = 0;
   String backendSessionId;
   String backendLastMessageType;
   String backendLastTtsState;

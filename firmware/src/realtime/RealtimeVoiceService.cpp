@@ -165,6 +165,11 @@ RealtimeVoiceSnapshot RealtimeVoiceService::snapshot() const {
   copy.backendReady = backend.ready;
   copy.backendTextMessagesReceived = backend.textMessagesReceived;
   copy.backendBinaryPacketsReceived = backend.binaryPacketsReceived;
+  copy.backendDownlinkQueued = backend.queueStats.downlinkQueued;
+  copy.backendDownlinkPushed = backend.queueStats.downlinkPushed;
+  copy.backendDownlinkPopped = backend.queueStats.downlinkPopped;
+  copy.backendDownlinkDropped = backend.queueStats.downlinkDropped;
+  copy.backendDownlinkOversized = backend.queueStats.downlinkOversized;
   copy.backendSessionId = backend.sessionId;
   copy.backendLastMessageType = tongDouVoiceMessageTypeName(backend.lastMessageType);
   copy.backendLastTtsState = tongDouVoiceTtsStateName(backend.lastTtsState);

@@ -5,6 +5,7 @@
 #include "tongdou_voice/TongDouVoiceConfig.h"
 #include "tongdou_voice/TongDouVoicePerfTracer.h"
 #include "tongdou_voice/TongDouVoiceProtocol.h"
+#include "tongdou_voice/TongDouVoiceStreamQueues.h"
 #include "tongdou_voice/TongDouVoiceWebSocketClient.h"
 
 namespace tongdou {
@@ -27,6 +28,7 @@ struct TongDouVoiceClientSnapshot {
   bool ready = false;
   uint32_t textMessagesReceived = 0;
   uint32_t binaryPacketsReceived = 0;
+  TongDouVoiceQueueStats queueStats;
   TongDouVoiceMessageType lastMessageType = TongDouVoiceMessageType::Unknown;
   TongDouVoiceTtsState lastTtsState = TongDouVoiceTtsState::None;
   String lastText;
@@ -61,6 +63,7 @@ class TongDouVoiceClient {
 
   TongDouVoiceProtocol protocol_;
   TongDouVoiceWebSocketClient socket_;
+  TongDouVoiceStreamQueues queues_;
   TongDouVoiceHelloConfig helloConfig_;
   TongDouVoiceClientSnapshot snapshot_;
   TongDouVoicePerfTracer perfTracer_;
