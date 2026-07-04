@@ -123,6 +123,10 @@ bool RealtimeVoiceService::startTurn(uint16_t captureMs) {
   capturedPcmFrameUsed_ = 0;
 
   if (backendStarted_) {
+    if (voiceClient_.state() == TongDouVoiceClientState::Speaking ||
+        voiceClient_.state() == TongDouVoiceClientState::PreparingSpeak) {
+      abortBackendSpeech();
+    }
     if (!voiceClient_.ready()) {
       failTurn("voice_backend_not_ready", "voice backend is not ready");
       return false;
