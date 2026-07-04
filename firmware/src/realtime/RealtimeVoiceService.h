@@ -32,6 +32,8 @@ struct RealtimeVoiceSnapshot {
   bool backendReady = false;
   uint32_t backendTextMessagesReceived = 0;
   uint32_t backendBinaryPacketsReceived = 0;
+  uint32_t backendDownlinkPacketsPlayed = 0;
+  uint32_t backendDownlinkPlaybackFailures = 0;
   uint16_t backendDownlinkQueued = 0;
   uint32_t backendDownlinkPushed = 0;
   uint32_t backendDownlinkPopped = 0;

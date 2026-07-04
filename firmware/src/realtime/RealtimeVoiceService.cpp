@@ -38,6 +38,7 @@ void RealtimeVoiceService::begin() {
 void RealtimeVoiceService::update() {
   if (backendStarted_) {
     voiceClient_.update();
+    voiceClient_.playNextDownlinkPacket(audioOutput_);
   }
 
   snapshot_.audioInputReady = audioInput_.ready();
@@ -182,6 +183,8 @@ RealtimeVoiceSnapshot RealtimeVoiceService::snapshot() const {
   copy.backendReady = backend.ready;
   copy.backendTextMessagesReceived = backend.textMessagesReceived;
   copy.backendBinaryPacketsReceived = backend.binaryPacketsReceived;
+  copy.backendDownlinkPacketsPlayed = backend.downlinkPacketsPlayed;
+  copy.backendDownlinkPlaybackFailures = backend.downlinkPlaybackFailures;
   copy.backendDownlinkQueued = backend.queueStats.downlinkQueued;
   copy.backendDownlinkPushed = backend.queueStats.downlinkPushed;
   copy.backendDownlinkPopped = backend.queueStats.downlinkPopped;

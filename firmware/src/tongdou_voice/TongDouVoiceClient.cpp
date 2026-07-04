@@ -98,6 +98,39 @@ bool TongDouVoiceClient::sendAudioPacket(const uint8_t* payload, size_t length) 
   return sent;
 }
 
+bool TongDouVoiceClient::playNextDownlinkPacket(AudioOutput& audioOutput) {
+  size_t packetLength = 0;
+  if (!queues_.popDownlink(downlinkPacket_, sizeof(downlinkPacket_), packetLength)) {
+    return false;
+  }
+  if (!audioOutput.ready()) {
+    ++snapshot_.downlinkPlaybackFailures;
+    snapshot_.lastError = "audio_output_not_ready";
+    return false;
+  }
+
+  size_t decodedSamples = 0;
+  if (!audioCodec_.decodeOpusToPcm16(downlinkPacket_, packetLength, decodedPcm_,
+                                     kMaxDecodedSamples, decodedSamples)) {
+    ++snapshot_.downlinkPlaybackFailures;
+    snapshot_.lastError = audioCodec_.stats().lastError;
+    snapshot_.codecStats = audioCodec_.stats();
+    return false;
+  }
+
+  if (!audioOutput.writePcm16Mono(decodedPcm_, decodedSamples,
+                                  snapshot_.downstreamAudio.sampleRate)) {
+    ++snapshot_.downlinkPlaybackFailures;
+    snapshot_.lastError = "audio_output_write_failed";
+    return false;
+  }
+
+  ++snapshot_.downlinkPacketsPlayed;
+  perfTracer_.speakerStart();
+  setState(TongDouVoiceClientState::Speaking);
+  return true;
+}
+
 TongDouVoiceClientSnapshot TongDouVoiceClient::snapshot() const {
   TongDouVoiceClientSnapshot copy = snapshot_;
   copy.queueStats = queues_.stats();

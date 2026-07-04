@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 
+#include "hardware/AudioOutput.h"
 #include "tongdou_voice/TongDouVoiceConfig.h"
 #include "tongdou_voice/TongDouVoiceAudioCodec.h"
 #include "tongdou_voice/TongDouVoicePerfTracer.h"
@@ -29,6 +30,8 @@ struct TongDouVoiceClientSnapshot {
   bool ready = false;
   uint32_t textMessagesReceived = 0;
   uint32_t binaryPacketsReceived = 0;
+  uint32_t downlinkPacketsPlayed = 0;
+  uint32_t downlinkPlaybackFailures = 0;
   TongDouVoiceQueueStats queueStats;
   TongDouVoiceMessageType lastMessageType = TongDouVoiceMessageType::Unknown;
   TongDouVoiceTtsState lastTtsState = TongDouVoiceTtsState::None;
@@ -51,6 +54,7 @@ class TongDouVoiceClient {
   bool sendListenDetect(const String& text);
   bool sendAbort();
   bool sendAudioPacket(const uint8_t* payload, size_t length);
+  bool playNextDownlinkPacket(AudioOutput& audioOutput);
 
   TongDouVoiceClientSnapshot snapshot() const;
   TongDouVoiceClientState state() const;
@@ -63,10 +67,14 @@ class TongDouVoiceClient {
   void setState(TongDouVoiceClientState state);
   bool sendText(const String& payload);
 
+  static constexpr size_t kMaxDecodedSamples = 2880;
+
   TongDouVoiceProtocol protocol_;
   TongDouVoiceAudioCodec audioCodec_;
   TongDouVoiceWebSocketClient socket_;
   TongDouVoiceStreamQueues queues_;
+  uint8_t downlinkPacket_[TongDouVoiceStreamQueues::kMaxPacketBytes] = {};
+  int16_t decodedPcm_[kMaxDecodedSamples] = {};
   TongDouVoiceHelloConfig helloConfig_;
   TongDouVoiceClientSnapshot snapshot_;
   TongDouVoicePerfTracer perfTracer_;
