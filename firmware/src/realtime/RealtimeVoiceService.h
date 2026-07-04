@@ -36,11 +36,17 @@ struct RealtimeVoiceSnapshot {
   uint32_t backendDownlinkPopped = 0;
   uint32_t backendDownlinkDropped = 0;
   uint32_t backendDownlinkOversized = 0;
+  bool backendCodecReady = false;
+  uint32_t backendCodecEncodeAttempts = 0;
+  uint32_t backendCodecDecodeAttempts = 0;
+  uint32_t backendCodecEncodeFailures = 0;
+  uint32_t backendCodecDecodeFailures = 0;
   String backendSessionId;
   String backendLastMessageType;
   String backendLastTtsState;
   String backendLastText;
   String backendLastEmotion;
+  String backendCodecLastError;
   String backendLastError;
   String lastErrorCode;
   String lastErrorMessage;

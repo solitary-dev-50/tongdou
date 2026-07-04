@@ -170,11 +170,17 @@ RealtimeVoiceSnapshot RealtimeVoiceService::snapshot() const {
   copy.backendDownlinkPopped = backend.queueStats.downlinkPopped;
   copy.backendDownlinkDropped = backend.queueStats.downlinkDropped;
   copy.backendDownlinkOversized = backend.queueStats.downlinkOversized;
+  copy.backendCodecReady = backend.codecStats.ready;
+  copy.backendCodecEncodeAttempts = backend.codecStats.encodeAttempts;
+  copy.backendCodecDecodeAttempts = backend.codecStats.decodeAttempts;
+  copy.backendCodecEncodeFailures = backend.codecStats.encodeFailures;
+  copy.backendCodecDecodeFailures = backend.codecStats.decodeFailures;
   copy.backendSessionId = backend.sessionId;
   copy.backendLastMessageType = tongDouVoiceMessageTypeName(backend.lastMessageType);
   copy.backendLastTtsState = tongDouVoiceTtsStateName(backend.lastTtsState);
   copy.backendLastText = backend.lastText;
   copy.backendLastEmotion = backend.lastEmotion;
+  copy.backendCodecLastError = backend.codecStats.lastError;
   copy.backendLastError = backend.lastError;
   return copy;
 }

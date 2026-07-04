@@ -3,6 +3,7 @@
 #include <Arduino.h>
 
 #include "tongdou_voice/TongDouVoiceConfig.h"
+#include "tongdou_voice/TongDouVoiceAudioCodec.h"
 #include "tongdou_voice/TongDouVoicePerfTracer.h"
 #include "tongdou_voice/TongDouVoiceProtocol.h"
 #include "tongdou_voice/TongDouVoiceStreamQueues.h"
@@ -35,6 +36,7 @@ struct TongDouVoiceClientSnapshot {
   String lastEmotion;
   String lastError;
   TongDouVoiceAudioParams downstreamAudio;
+  TongDouVoiceAudioCodecStats codecStats;
 };
 
 class TongDouVoiceClient {
@@ -62,6 +64,7 @@ class TongDouVoiceClient {
   bool sendText(const String& payload);
 
   TongDouVoiceProtocol protocol_;
+  TongDouVoiceAudioCodec audioCodec_;
   TongDouVoiceWebSocketClient socket_;
   TongDouVoiceStreamQueues queues_;
   TongDouVoiceHelloConfig helloConfig_;

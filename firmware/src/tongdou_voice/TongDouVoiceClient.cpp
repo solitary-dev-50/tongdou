@@ -8,6 +8,8 @@ void TongDouVoiceClient::begin(const TongDouVoiceConnectionConfig& connectionCon
   snapshot_ = {};
   queues_.clear();
   snapshot_.downstreamAudio = helloConfig_.audio;
+  audioCodec_.begin(helloConfig_.audio);
+  snapshot_.codecStats = audioCodec_.stats();
   if (connectionConfig.host.length() == 0) {
     snapshot_.lastError = "voice_server_host_missing";
     setState(TongDouVoiceClientState::Failed);
@@ -31,6 +33,7 @@ void TongDouVoiceClient::begin(const TongDouVoiceConnectionConfig& connectionCon
 void TongDouVoiceClient::update() {
   socket_.update();
   snapshot_.connected = socket_.connected();
+  snapshot_.codecStats = audioCodec_.stats();
 }
 
 void TongDouVoiceClient::disconnect() {
@@ -98,6 +101,7 @@ bool TongDouVoiceClient::sendAudioPacket(const uint8_t* payload, size_t length) 
 TongDouVoiceClientSnapshot TongDouVoiceClient::snapshot() const {
   TongDouVoiceClientSnapshot copy = snapshot_;
   copy.queueStats = queues_.stats();
+  copy.codecStats = audioCodec_.stats();
   return copy;
 }
 
