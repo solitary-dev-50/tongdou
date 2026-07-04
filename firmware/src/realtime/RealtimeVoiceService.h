@@ -5,6 +5,7 @@
 #include "hardware/AudioInput.h"
 #include "hardware/AudioOutput.h"
 #include "realtime/RealtimeAudioSender.h"
+#include "tongdou_voice/TongDouVoicePerfTracer.h"
 
 namespace tongdou {
 
@@ -48,6 +49,7 @@ class RealtimeVoiceService {
   AudioInput& audioInput_;
   AudioOutput& audioOutput_;
   RealtimeAudioSender sender_;
+  TongDouVoicePerfTracer perfTracer_;
   RealtimeVoiceSnapshot snapshot_;
   unsigned long captureUntilMs_ = 0;
   unsigned long nextCaptureMs_ = 0;

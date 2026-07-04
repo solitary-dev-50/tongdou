@@ -76,6 +76,7 @@ bool RealtimeVoiceService::startTurn(uint16_t captureMs) {
   const unsigned long now = millis();
   captureUntilMs_ = now + clampCaptureMs(captureMs);
   nextCaptureMs_ = now;
+  perfTracer_.listenStart();
   return true;
 }
 
@@ -140,7 +141,9 @@ void RealtimeVoiceService::captureFrame(unsigned long nowMs) {
   int16_t samples[kFrameSamples] = {};
   size_t samplesRead = 0;
   if (audioInput_.readPcm16(samples, kFrameSamples, samplesRead)) {
-    sender_.sendPcm16(samples, samplesRead);
+    if (sender_.sendPcm16(samples, samplesRead)) {
+      perfTracer_.firstAudioSent();
+    }
   }
 
   nextCaptureMs_ = nowMs + kFrameIntervalMs;
@@ -157,6 +160,7 @@ void RealtimeVoiceService::finishCapture() {
   snapshot_.chunksSent = stats.chunksSent;
   snapshot_.samplesSent = stats.samplesSent;
   snapshot_.bytesSent = stats.bytesSent;
+  perfTracer_.listenStop();
 }
 
 }  // namespace tongdou
