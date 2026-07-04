@@ -35,6 +35,7 @@ class McpServer {
   McpToolResult voiceDetect(const McpToolArguments& arguments);
   McpToolResult startVoiceTurn(const McpToolArguments& arguments);
   McpToolResult voiceStatus(const McpToolArguments& arguments);
+  McpToolResult voiceCodecSelfTest(const McpToolArguments& arguments);
   McpToolResult playVoiceResponse(const McpToolArguments& arguments);
   McpToolResult failVoiceTurn(const McpToolArguments& arguments);
   std::string commandResultJson(const AppCommandResult& result) const;

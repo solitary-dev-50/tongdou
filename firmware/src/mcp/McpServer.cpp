@@ -88,6 +88,10 @@ void McpServer::addTools() {
   const auto voiceStatusTool = [this](const McpToolArguments& arguments) -> McpToolResult {
     return voiceStatus(arguments);
   };
+  const auto voiceCodecSelfTestTool =
+      [this](const McpToolArguments& arguments) -> McpToolResult {
+    return voiceCodecSelfTest(arguments);
+  };
   const auto playVoice = [this](const McpToolArguments& arguments) -> McpToolResult {
     return playVoiceResponse(arguments);
   };
@@ -169,6 +173,11 @@ void McpServer::addTools() {
                     voiceStatusTool);
   registry_.addTool("tongdou.voice.status", "Get realtime voice turn status.", {},
                     voiceStatusTool);
+
+  registry_.addTool("voice_codec_self_test", "Run local Opus codec self test.", {},
+                    voiceCodecSelfTestTool);
+  registry_.addTool("tongdou.voice.codec_self_test",
+                    "Run local Opus codec self test.", {}, voiceCodecSelfTestTool);
 
   registry_.addTool("play_voice_response", "Play a server voice response.",
                     voiceResponseProperties, playVoice);
@@ -331,6 +340,11 @@ McpToolResult McpServer::startVoiceTurn(const McpToolArguments&) {
 McpToolResult McpServer::voiceStatus(const McpToolArguments&) {
   const String status = appCommandService_.voiceStatusJson();
   return {status.c_str(), false};
+}
+
+McpToolResult McpServer::voiceCodecSelfTest(const McpToolArguments&) {
+  const String result = appCommandService_.voiceCodecSelfTestJson();
+  return {result.c_str(), false};
 }
 
 McpToolResult McpServer::playVoiceResponse(const McpToolArguments& arguments) {

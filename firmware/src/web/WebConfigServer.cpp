@@ -156,6 +156,8 @@ void WebConfigServer::setupRoutes() {
   server_.on("/api/voice/backend", HTTP_POST, [this]() { handleVoiceBackendConfigure(); });
   server_.on("/api/voice/connect", HTTP_POST, [this]() { handleVoiceBackendConnect(); });
   server_.on("/api/voice/detect", HTTP_POST, [this]() { handleVoiceDetect(); });
+  server_.on("/api/voice/codec-self-test", HTTP_POST,
+             [this]() { handleVoiceCodecSelfTest(); });
   server_.onNotFound([this]() { handleNotFound(); });
 }
 
@@ -495,6 +497,9 @@ pre{white-space:pre-wrap;background:#050505;border:1px solid #333;border-radius:
 <button onclick="sendDetect()">Send Detect</button>
 </section>
 <section>
+<button onclick="codecSelfTest()">Codec Self Test</button>
+</section>
+<section>
 <div class="row"><button onclick="loadStatus()">Refresh</button><button onclick="clearOutput()">Clear</button></div>
 <pre id="output">Ready</pre>
 </section>
@@ -506,6 +511,7 @@ function show(v){try{$('output').textContent=JSON.stringify(JSON.parse(v),null,2
 async function configureBackend(){show(await post('/api/voice/backend',{host:$('host').value,port:$('port').value,path:$('path').value,deviceId:$('deviceId').value,clientId:$('clientId').value,token:$('token').value}))}
 async function connectBackend(){show(await post('/api/voice/connect',{}));setTimeout(loadStatus,700)}
 async function sendDetect(){show(await post('/api/voice/detect',{text:$('detectText').value}));setTimeout(loadStatus,1200)}
+async function codecSelfTest(){show(await post('/api/voice/codec-self-test',{}))}
 async function loadStatus(){let r=await fetch('/api/voice/status');show(await r.text())}
 function clearOutput(){$('output').textContent=''}
 loadStatus();
@@ -587,6 +593,10 @@ void WebConfigServer::handleVoiceDetect() {
   arguments += jsonEscape(text);
   arguments += "\"}";
   sendText(200, "application/json", callMcpTool("voice_detect", arguments));
+}
+
+void WebConfigServer::handleVoiceCodecSelfTest() {
+  sendText(200, "application/json", callMcpTool("voice_codec_self_test", "{}"));
 }
 
 void WebConfigServer::handleNotFound() {

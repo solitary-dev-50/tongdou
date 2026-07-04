@@ -7,10 +7,26 @@ namespace {
 
 constexpr int kOpusBitrate = 24000;
 constexpr int kOpusComplexity = 3;
+constexpr size_t kSelfTestMaxSamples = 960;
+constexpr size_t kSelfTestOpusCapacity = 512;
+constexpr int16_t kSelfTestAmplitude = 9000;
 
 bool isSupportedSampleRate(uint16_t sampleRate) {
   return sampleRate == 8000 || sampleRate == 12000 || sampleRate == 16000 ||
          sampleRate == 24000 || sampleRate == 48000;
+}
+
+uint32_t meanAbs(const int16_t* samples, size_t sampleCount) {
+  if (samples == nullptr || sampleCount == 0) {
+    return 0;
+  }
+
+  uint64_t sum = 0;
+  for (size_t i = 0; i < sampleCount; ++i) {
+    const int32_t sample = samples[i];
+    sum += static_cast<uint32_t>(sample < 0 ? -sample : sample);
+  }
+  return static_cast<uint32_t>(sum / sampleCount);
 }
 
 }  // namespace
@@ -83,6 +99,47 @@ void TongDouVoiceAudioCodec::end() {
   }
   frameSamples_ = 0;
   stats_.ready = false;
+}
+
+TongDouVoiceAudioCodecSelfTestResult TongDouVoiceAudioCodec::runSelfTest() {
+  TongDouVoiceAudioCodecSelfTestResult result;
+  result.inputSamples = frameSamples_;
+  if (!ready() || frameSamples_ == 0) {
+    result.error = "opus_codec_not_ready";
+    return result;
+  }
+  if (frameSamples_ > kSelfTestMaxSamples) {
+    result.error = "self_test_frame_too_large";
+    return result;
+  }
+
+  int16_t pcm[kSelfTestMaxSamples] = {};
+  int16_t decoded[kSelfTestMaxSamples] = {};
+  uint8_t opus[kSelfTestOpusCapacity] = {};
+
+  for (size_t i = 0; i < frameSamples_; ++i) {
+    const int16_t sample = (i % 64U) < 32U ? kSelfTestAmplitude : -kSelfTestAmplitude;
+    pcm[i] = sample;
+  }
+
+  size_t opusLength = 0;
+  if (!encodePcm16ToOpus(pcm, frameSamples_, opus, kSelfTestOpusCapacity,
+                         opusLength)) {
+    result.error = stats_.lastError;
+  } else {
+    size_t decodedSamples = 0;
+    if (!decodeOpusToPcm16(opus, opusLength, decoded, frameSamples_, decodedSamples)) {
+      result.error = stats_.lastError;
+    } else {
+      result.ok = true;
+      result.encodedBytes = opusLength;
+      result.decodedSamples = decodedSamples;
+      result.inputMeanAbs = meanAbs(pcm, frameSamples_);
+      result.decodedMeanAbs = meanAbs(decoded, decodedSamples);
+    }
+  }
+
+  return result;
 }
 
 bool TongDouVoiceAudioCodec::encodePcm16ToOpus(const int16_t* pcm,

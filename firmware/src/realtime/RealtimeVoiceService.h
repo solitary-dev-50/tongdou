@@ -5,6 +5,7 @@
 #include "hardware/AudioInput.h"
 #include "hardware/AudioOutput.h"
 #include "realtime/RealtimeAudioSender.h"
+#include "tongdou_voice/TongDouVoiceAudioCodec.h"
 #include "tongdou_voice/TongDouVoiceClient.h"
 #include "tongdou_voice/TongDouVoicePerfTracer.h"
 
@@ -65,6 +66,7 @@ class RealtimeVoiceService {
   bool playResponse(uint16_t clipId, const String& text);
   void failTurn(const String& code, const String& message);
   bool consumeFailureEvent();
+  TongDouVoiceAudioCodecSelfTestResult runCodecSelfTest();
   RealtimeVoiceSnapshot snapshot() const;
   const char* stateName() const;
 

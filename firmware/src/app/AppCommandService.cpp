@@ -164,6 +164,24 @@ String AppCommandService::voiceStatusJson() const {
   return output;
 }
 
+String AppCommandService::voiceCodecSelfTestJson() {
+  const TongDouVoiceAudioCodecSelfTestResult result =
+      realtimeVoiceService_.runCodecSelfTest();
+
+  JsonDocument doc;
+  doc["ok"] = result.ok;
+  doc["inputSamples"] = result.inputSamples;
+  doc["encodedBytes"] = result.encodedBytes;
+  doc["decodedSamples"] = result.decodedSamples;
+  doc["inputMeanAbs"] = result.inputMeanAbs;
+  doc["decodedMeanAbs"] = result.decodedMeanAbs;
+  doc["error"] = result.error;
+
+  String output;
+  serializeJson(doc, output);
+  return output;
+}
+
 const char* AppCommandService::personalityName() const {
   switch (scenarioContext_.personality) {
     case PersonalityStyle::Gentle:

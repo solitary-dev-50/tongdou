@@ -18,12 +18,23 @@ struct TongDouVoiceAudioCodecStats {
   String lastError;
 };
 
+struct TongDouVoiceAudioCodecSelfTestResult {
+  bool ok = false;
+  size_t inputSamples = 0;
+  size_t encodedBytes = 0;
+  size_t decodedSamples = 0;
+  uint32_t inputMeanAbs = 0;
+  uint32_t decodedMeanAbs = 0;
+  String error;
+};
+
 class TongDouVoiceAudioCodec {
  public:
   ~TongDouVoiceAudioCodec();
 
   bool begin(const TongDouVoiceAudioParams& audio);
   void end();
+  TongDouVoiceAudioCodecSelfTestResult runSelfTest();
   bool encodePcm16ToOpus(const int16_t* pcm, size_t sampleCount, uint8_t* opus,
                          size_t opusCapacity, size_t& opusLength);
   bool decodeOpusToPcm16(const uint8_t* opus, size_t opusLength, int16_t* pcm,

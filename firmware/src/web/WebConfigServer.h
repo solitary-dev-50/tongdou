@@ -50,6 +50,7 @@ class WebConfigServer {
   void handleVoiceBackendConfigure();
   void handleVoiceBackendConnect();
   void handleVoiceDetect();
+  void handleVoiceCodecSelfTest();
   void handleNotFound();
   void sendText(int code, const char* type, const String& body);
   String callMcpTool(const char* name, const String& argumentsJson);

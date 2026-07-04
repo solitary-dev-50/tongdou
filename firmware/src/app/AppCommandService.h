@@ -33,6 +33,7 @@ class AppCommandService {
   AppCommandResult playVoiceResponse(const String& text);
   AppCommandResult failVoiceTurn(const String& reason);
   String voiceStatusJson() const;
+  String voiceCodecSelfTestJson();
   const char* personalityName() const;
 
  private:

@@ -151,6 +151,23 @@ bool RealtimeVoiceService::consumeFailureEvent() {
   return true;
 }
 
+TongDouVoiceAudioCodecSelfTestResult RealtimeVoiceService::runCodecSelfTest() {
+  TongDouVoiceAudioCodec codec;
+  TongDouVoiceAudioParams audio;
+  audio.format = "opus";
+  audio.sampleRate = 16000;
+  audio.channels = 1;
+  audio.frameDurationMs = 60;
+
+  if (!codec.begin(audio)) {
+    TongDouVoiceAudioCodecSelfTestResult result;
+    result.error = codec.stats().lastError;
+    return result;
+  }
+
+  return codec.runSelfTest();
+}
+
 RealtimeVoiceSnapshot RealtimeVoiceService::snapshot() const {
   RealtimeVoiceSnapshot copy = snapshot_;
   const RealtimeAudioSendStats stats = sender_.stats();
