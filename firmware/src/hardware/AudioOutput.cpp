@@ -48,14 +48,6 @@ void AudioOutput::begin() {
     ready_ = true;
   }
 
-  Serial.print("audio output pins bclk=");
-  Serial.print(static_cast<int>(pins::I2S_SPK_BCLK));
-  Serial.print(" lrclk=");
-  Serial.print(static_cast<int>(pins::I2S_SPK_LRCLK));
-  Serial.print(" data=");
-  Serial.print(static_cast<int>(pins::I2S_SPK_DATA));
-  Serial.print(" status=");
-  Serial.println(ready_ ? "ready" : esp_err_to_name(err));
 }
 
 void AudioOutput::playTestTone(uint16_t frequencyHz, uint16_t durationMs) {

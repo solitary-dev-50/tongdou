@@ -1,14 +1,25 @@
 #include "hardware/HardwareManager.h"
 
+#include <Arduino.h>
+
+#include "tongdou/Pins.h"
+
 namespace tongdou {
 
 void HardwareManager::begin() {
   motors_.begin();
+
   battery_.begin();
+  startupBattery_ = battery_.read();
+
   displayBus_.begin();
+
   faceDisplay_.begin();
+
   led_.begin();
+
   radar_.begin();
+
   audioInput_.begin();
   audioOutput_.begin();
   selfTest_.begin();
@@ -17,6 +28,43 @@ void HardwareManager::begin() {
 void HardwareManager::update() {
   audioInput_.update();
   selfTest_.update();
+}
+
+void HardwareManager::printStartupReport(Print& out) const {
+  out.println("hardware begin");
+  out.println("  motor stop");
+
+  out.print("  battery ready usb=");
+  out.print(startupBattery_.usbPresent ? "1" : "0");
+  out.print(" chrg=");
+  out.print(startupBattery_.charging ? "1" : "0");
+  out.print(" stby=");
+  out.print(startupBattery_.standby ? "1" : "0");
+  out.print(" vbat_adc=");
+  out.println(startupBattery_.rawAdc);
+
+  out.println("  i2c ready");
+  out.println(faceDisplay_.ready() ? "  display ready" : "  display failed");
+  out.println(led_.ready() ? "  led off" : "  led failed");
+  out.println("  radar ready");
+
+  out.print("  mic ");
+  out.print(audioInput_.ready() ? "ready" : "failed");
+  out.print(" pdm_clk=");
+  out.print(static_cast<int>(pins::PDM_MIC_CLK));
+  out.print(" data=");
+  out.println(static_cast<int>(pins::PDM_MIC_DATA));
+
+  out.print("  speaker ");
+  out.print(audioOutput_.ready() ? "ready" : "failed");
+  out.print(" bclk=");
+  out.print(static_cast<int>(pins::I2S_SPK_BCLK));
+  out.print(" lrclk=");
+  out.print(static_cast<int>(pins::I2S_SPK_LRCLK));
+  out.print(" data=");
+  out.println(static_cast<int>(pins::I2S_SPK_DATA));
+
+  out.println("hardware ready");
 }
 
 BatteryMonitor& HardwareManager::battery() {

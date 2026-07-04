@@ -34,6 +34,7 @@ class HardwareSelfTestService {
   void begin();
   void update();
   HardwareDiagnosticStatus status() const;
+  BatterySnapshot batterySnapshot() const;
   void printHelp(Print& out) const;
   bool handleCommand(const String& command, Print& out);
 
@@ -43,6 +44,7 @@ class HardwareSelfTestService {
   void printStatus(Print& out) const;
   void printRadar(Print& out) const;
   void printRadarTarget(Print& out);
+  void printRadarSamples(Print& out);
   void printRadarConfig(Print& out);
   void printRadarResolution(Print& out);
   void applyRadarNearConfig(Print& out);

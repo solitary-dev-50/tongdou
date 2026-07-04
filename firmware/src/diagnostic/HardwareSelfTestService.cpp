@@ -62,6 +62,10 @@ HardwareDiagnosticStatus HardwareSelfTestService::status() const {
   return result;
 }
 
+BatterySnapshot HardwareSelfTestService::batterySnapshot() const {
+  return battery_.read();
+}
+
 void HardwareSelfTestService::printHelp(Print& out) const {
   out.println(F("self-test commands:"));
   out.println(F("  selftest"));
@@ -69,6 +73,7 @@ void HardwareSelfTestService::printHelp(Print& out) const {
   out.println(F("  battery"));
   out.println(F("  radar"));
   out.println(F("  radar target"));
+  out.println(F("  radar sample"));
   out.println(F("  radar config"));
   out.println(F("  radar near"));
   out.println(F("  radar resolution"));
@@ -110,6 +115,10 @@ bool HardwareSelfTestService::handleCommand(const String& command, Print& out) {
   }
   if (cmd == F("radar target")) {
     printRadarTarget(out);
+    return true;
+  }
+  if (cmd == F("radar sample")) {
+    printRadarSamples(out);
     return true;
   }
   if (cmd == F("radar config")) {
@@ -234,6 +243,7 @@ void HardwareSelfTestService::printRadarTarget(Print& out) {
   }
   out.println();
   printBool(out, F("  has_target="), snapshot.hasTarget);
+  out.println(F("  distance_note=raw_auxiliary_not_real_distance"));
   out.print(F("  target_distance_cm="));
   out.println(snapshot.targetDistanceCm);
   out.print(F("  moving_distance_cm="));
@@ -244,6 +254,32 @@ void HardwareSelfTestService::printRadarTarget(Print& out) {
   out.println(snapshot.staticDistanceCm);
   out.print(F("  static_energy="));
   out.println(snapshot.staticEnergy);
+}
+
+void HardwareSelfTestService::printRadarSamples(Print& out) {
+  out.println(F("radar sample:"));
+  out.println(F("  distance_note=raw_auxiliary_not_real_distance"));
+  for (uint8_t sample = 1; sample <= 8; ++sample) {
+    const RadarTargetSnapshot snapshot = radar_.readTarget();
+    out.print(F("  sample="));
+    out.print(sample);
+    printBool(out, F(" received="), snapshot.received);
+    if (snapshot.received) {
+      out.print(F("    state="));
+      out.print(snapshot.targetState);
+      out.print(F(" has_target="));
+      out.print(snapshot.hasTarget ? F("1") : F("0"));
+      out.print(F(" moving_cm="));
+      out.print(snapshot.movingDistanceCm);
+      out.print(F(" moving_energy="));
+      out.print(snapshot.movingEnergy);
+      out.print(F(" static_cm="));
+      out.print(snapshot.staticDistanceCm);
+      out.print(F(" static_energy="));
+      out.println(snapshot.staticEnergy);
+    }
+    delay(120);
+  }
 }
 
 void HardwareSelfTestService::printRadarConfig(Print& out) {

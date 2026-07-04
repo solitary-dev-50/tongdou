@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Arduino.h>
+
 #include "diagnostic/HardwareSelfTestService.h"
 #include "hardware/AudioInput.h"
 #include "hardware/AudioOutput.h"
@@ -16,6 +18,7 @@ class HardwareManager {
  public:
   void begin();
   void update();
+  void printStartupReport(Print& out) const;
 
   BatteryMonitor& battery();
   FaceDisplay& faceDisplay();
@@ -35,6 +38,7 @@ class HardwareManager {
   RadarSensor radar_;
   AudioInput audioInput_;
   AudioOutput audioOutput_;
+  BatterySnapshot startupBattery_;
   HardwareSelfTestService selfTest_{battery_, audioInput_, audioOutput_, led_, motors_,
                                     radar_, faceDisplay_};
 };

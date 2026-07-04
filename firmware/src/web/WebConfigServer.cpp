@@ -155,6 +155,110 @@ void WebConfigServer::setupRoutes() {
 }
 
 void WebConfigServer::handleRoot() {
+  {
+    String body;
+    body.reserve(18000);
+    body += F(R"HTML(<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>铜豆控制台</title>
+<style>
+body{font-family:Arial,'Microsoft YaHei',sans-serif;margin:0;background:#121212;color:#f4f1ea}
+main{max-width:980px;margin:auto;padding:22px}
+h1{margin:0 0 6px}h2{margin:0 0 12px}h3{margin:16px 0 8px}.sub{color:#aaa;margin:0 0 18px}
+.card{background:#1d1d1d;padding:18px;border-radius:8px;margin:14px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.status{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:8px}
+.item{background:#0f0f0f;border:1px solid #2a2a2a;border-radius:8px;padding:12px}
+.label{color:#aaa;font-size:12px}.value{font-size:17px;margin-top:4px;word-break:break-word}
+button,input{box-sizing:border-box;width:100%;padding:12px;margin:5px 0;border-radius:8px}
+button{border:0;background:#e7b45f;color:#111;font-weight:700;cursor:pointer}button.secondary{background:#2a2a2a;color:#f4f1ea}
+input{background:#0f0f0f;color:#f4f1ea;border:1px solid #2a2a2a}
+pre{white-space:pre-wrap;background:#0b0b0b;padding:12px;border-radius:8px;min-height:120px}
+.meter{height:16px;background:#0b0b0b;border:1px solid #2a2a2a;border-radius:999px;overflow:hidden}.bar{height:100%;width:0;background:#e7b45f}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}@media(max-width:560px){.row{grid-template-columns:1fr}}
+small{color:#aaa}
+</style></head><body><main>
+<h1>铜豆控制台</h1><p class="sub">旧 PCB 固件调试面板</p>
+
+<section class="card"><h2>状态</h2><div class="status">
+<div class="item"><div class="label">网络</div><div class="value" id="wifi">读取中</div></div>
+<div class="item"><div class="label">地址</div><div class="value" id="ip">读取中</div></div>
+<div class="item"><div class="label">时间</div><div class="value" id="time">读取中</div></div>
+<div class="item"><div class="label">电池</div><div class="value" id="battery">读取中</div></div>
+<div class="item"><div class="label">硬件</div><div class="value" id="hardware">读取中</div></div>
+<div class="item"><div class="label">能力</div><div class="value" id="capability">读取中</div></div>
+</div><button onclick="loadStatus()">刷新状态</button></section>
+
+<section class="card"><h2>连接和时间</h2>
+<form method="post" action="/api/setup/wifi">
+<input name="ssid" placeholder="WiFi 名称" required>
+<input name="password" type="password" placeholder="WiFi 密码">
+<button type="submit">保存并连接</button>
+</form><button onclick="syncTime()">同步当前时间</button><small id="msg"></small></section>
+
+<section class="card"><h2>麦克风</h2>
+<div class="meter"><div class="bar" id="micBar"></div></div>
+<div class="row"><button onclick="startMicTest()">开始持续测试</button><button class="secondary" onclick="stopMicTest()">停止</button></div>
+<div class="item"><div class="label">当前读数</div><div class="value" id="micValue">未开始</div></div></section>
+
+<section class="card"><h2>雷达</h2>
+<div class="status">
+<div class="item"><div class="label">是否有人</div><div class="value" id="radarOccupied">未读取</div></div>
+<div class="item"><div class="label">距离</div><div class="value" id="radarDistance">不用于判断</div></div>
+<div class="item"><div class="label">原始辅助值</div><div class="value" id="radarRaw">未读取</div></div>
+<div class="item"><div class="label">状态</div><div class="value" id="radarState">未读取</div></div>
+</div>
+<div class="row"><button onclick="startRadarTest()">开始持续测试</button><button class="secondary" onclick="stopRadarTest()">停止</button></div></section>
+
+<section class="card"><h2>输出测试</h2><div class="grid">
+<button onclick="diag('speaker')">喇叭短音</button>
+<button onclick="diag('led red')">红灯</button>
+<button onclick="diag('led green')">绿灯</button>
+<button onclick="diag('led blue')">蓝灯</button>
+<button onclick="diag('led off')">关灯</button>
+<button onclick="diag('motor forward')">电机正转</button>
+<button onclick="diag('motor reverse')">电机反转</button>
+<button onclick="diag('motor stop')">电机停止</button>
+</div></section>
+
+<section class="card"><h2>硬件读取</h2><div class="grid">
+<button onclick="diag('selftest')">完整自检</button>
+<button onclick="diag('status')">硬件状态</button>
+<button onclick="diag('battery')">电池/充电</button>
+<button onclick="diag('radar')">雷达电平</button>
+<button onclick="diag('radar target')">雷达目标</button>
+<button onclick="diag('radar sample')">雷达连续采样</button>
+<button onclick="diag('mic')">麦克风单次</button>
+</div></section>
+
+<section class="card"><h2>剧情测试</h2><div class="grid">
+<button onclick="mcpTool('play_scenario',{event:'boot_completed'})">开机场景</button>
+<button onclick="mcpTool('play_scenario',{event:'voice_recognition_failed'})">识别失败</button>
+<button onclick="mcpTool('voice_status',{})">语音状态</button>
+</div></section>
+
+<section class="card"><h2>输出</h2><pre id="diag">等待操作</pre></section>
+
+<script>
+const $=id=>document.getElementById(id);let micTimer=null,radarTimer=null;
+function capText(c){let a=[];if(c.reminders)a.push('提醒');if(c.web)a.push('网页');if(c.visual)a.push('视觉');if(c.sound)a.push('声音');if(c.voiceInput)a.push('麦克风');return a.join(' / ')||'无'}
+async function loadStatus(){try{let r=await fetch('/api/status');let j=await r.json();$('wifi').textContent=j.wifiConnected?'已连接':(j.portal?'配网模式':'连接中');$('ip').textContent=j.ip||'-';$('time').textContent=j.timeReady?j.now:'未校时';$('battery').textContent=`USB ${j.battery.usb?'有':'无'} / 充电 ${j.battery.charging?'是':'否'} / ADC ${j.battery.rawAdc}`;$('hardware').textContent=j.hardware.degraded?'降级':'正常';$('capability').textContent=capText(j.capabilities)}catch(e){$('wifi').textContent='读取失败'}}
+async function syncTime(){let e=Math.floor(Date.now()/1000);let r=await fetch('/api/time/sync',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'epoch='+e});$('msg').textContent=await r.text();loadStatus()}
+async function diag(c){$('diag').textContent='执行中：'+c;let r=await fetch('/api/diagnostic',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'command='+encodeURIComponent(c)});let t=await r.text();$('diag').textContent=t;return t}
+function val(t,k){let m=t.match(new RegExp(k+'=([^\\n\\r]+)'));return m?m[1].trim():''}
+async function pollMic(){let t=await diag('mic');let avg=Number(val(t,'avg_abs')||0),peak=Number(val(t,'peak')||0);$('micValue').textContent=`avg_abs=${avg} peak=${peak}`;$('micBar').style.width=Math.min(100,Math.round(peak/600))+'%'}
+function startMicTest(){if(micTimer)return;pollMic();micTimer=setInterval(pollMic,350)}
+function stopMicTest(){if(!micTimer)return;clearInterval(micTimer);micTimer=null}
+function radarStateText(s){return {0:'无人',1:'移动目标',2:'静止目标',3:'移动+静止'}[s]||'未知'}
+async function pollRadar(){let t=await diag('radar target');let has=val(t,'has_target'),state=val(t,'state'),md=val(t,'moving_distance_cm'),me=val(t,'moving_energy'),sd=val(t,'static_distance_cm'),se=val(t,'static_energy');$('radarOccupied').textContent=has==='1'?'有人':(has==='0'?'无人':'未知');$('radarDistance').textContent='不可用：LD2412 只用于有人/无人';$('radarRaw').textContent='移动原始 '+(md||'-')+' cm / 能量 '+(me||'-')+'；静止原始 '+(sd||'-')+' cm / 能量 '+(se||'-');$('radarState').textContent=radarStateText(state)}
+function startRadarTest(){if(radarTimer)return;pollRadar();radarTimer=setInterval(pollRadar,700)}
+function stopRadarTest(){if(!radarTimer)return;clearInterval(radarTimer);radarTimer=null}
+async function mcpTool(n,a){$('diag').textContent='执行中：'+n;let p={jsonrpc:'2.0',id:Date.now(),method:'tools/call',params:{name:n,arguments:a||{}}};let r=await fetch('/api/mcp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});$('diag').textContent=await r.text()}
+loadStatus();setInterval(loadStatus,5000);
+</script></main></body></html>)HTML");
+    sendText(200, "text/html; charset=utf-8", body);
+    return;
+  }
   const String ip = state_ == NetworkState::Connected ? WiFi.localIP().toString()
                                                        : WiFi.softAPIP().toString();
   String body;
@@ -369,8 +473,9 @@ void WebConfigServer::sendText(int code, const char* type, const String& body) {
 
 String WebConfigServer::statusJson() const {
   const HardwareDiagnosticStatus hardware = hardwareSelfTest_.status();
+  const BatterySnapshot battery = hardwareSelfTest_.batterySnapshot();
   String body;
-  body.reserve(560);
+  body.reserve(760);
   const char* systemMode = "normal";
   if (state_ == NetworkState::Portal) {
     systemMode = "portal";
@@ -384,6 +489,10 @@ String WebConfigServer::statusJson() const {
   body += WiFi.status() == WL_CONNECTED ? "true" : "false";
   body += ",\"portal\":";
   body += state_ == NetworkState::Portal ? "true" : "false";
+  body += ",\"ip\":\"";
+  body += state_ == NetworkState::Connected ? WiFi.localIP().toString()
+                                            : WiFi.softAPIP().toString();
+  body += "\"";
   body += ",\"timeReady\":";
   body += timeService_.ready() ? "true" : "false";
   body += ",\"now\":\"";
@@ -400,6 +509,14 @@ String WebConfigServer::statusJson() const {
   body += hardware.audioOutputReady ? "true" : "false";
   body += ",\"degraded\":";
   body += hardware.degraded ? "true" : "false";
+  body += "},\"battery\":{\"usb\":";
+  body += battery.usbPresent ? "true" : "false";
+  body += ",\"charging\":";
+  body += battery.charging ? "true" : "false";
+  body += ",\"standby\":";
+  body += battery.standby ? "true" : "false";
+  body += ",\"rawAdc\":";
+  body += battery.rawAdc;
   body += "},\"capabilities\":{\"reminders\":";
   body += hardware.remindersAvailable ? "true" : "false";
   body += ",\"web\":";

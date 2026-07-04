@@ -11,7 +11,6 @@ namespace {
 constexpr i2s_port_t kMicPort = I2S_NUM_0;
 constexpr uint32_t kSampleRate = 16000;
 constexpr size_t kSampleCount = 128;
-constexpr unsigned long kLogIntervalMs = 1000;
 
 int32_t abs32(int32_t value) {
   return value < 0 ? -value : value;
@@ -57,37 +56,9 @@ void AudioInput::begin() {
     ready_ = true;
   }
 
-  Serial.print("audio input pins pdm_clk=");
-  Serial.print(static_cast<int>(tongdou::pins::PDM_MIC_CLK));
-  Serial.print(" data=");
-  Serial.print(static_cast<int>(tongdou::pins::PDM_MIC_DATA));
-  Serial.print(" status=");
-  Serial.println(ready_ ? "ready" : esp_err_to_name(err));
 }
 
 void AudioInput::update() {
-  const unsigned long now = millis();
-  if (now - lastLogMs_ < kLogIntervalMs) {
-    return;
-  }
-
-  lastLogMs_ = now;
-  const AudioInputSnapshot snapshot = readLevel();
-
-  Serial.print("audio input ready=");
-  Serial.print(snapshot.ready ? "1" : "0");
-  Serial.print(" samples=");
-  Serial.print(snapshot.samplesRead);
-  Serial.print(" mean=");
-  Serial.print(snapshot.mean);
-  Serial.print(" min=");
-  Serial.print(snapshot.minSample);
-  Serial.print(" max=");
-  Serial.print(snapshot.maxSample);
-  Serial.print(" peak=");
-  Serial.print(snapshot.peak);
-  Serial.print(" avg_abs=");
-  Serial.println(snapshot.averageAbs);
 }
 
 AudioInputSnapshot AudioInput::readLevel() {

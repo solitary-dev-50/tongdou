@@ -25,7 +25,6 @@ class AudioInput {
 
  private:
   bool ready_ = false;
-  unsigned long lastLogMs_ = 0;
 };
 
 }  // namespace tongdou

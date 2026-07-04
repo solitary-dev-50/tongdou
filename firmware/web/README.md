@@ -8,7 +8,7 @@
 
 - 查看联网和时间状态。
 - 执行硬件诊断命令。
-- 通过 MCP 选择铜豆性格。
+- 通过 MCP 人格卡片选择铜豆性格。
 - 开关搞怪彩蛋。
 - 编辑触发条件。
 - 选择屏幕表情、灯光、电机动作和语音台词。
@@ -38,3 +38,5 @@
 `POST /api/mcp` 当前支持 `get_status`、`create_reminder`、`list_reminders`、`delete_reminder`、`play_scenario`、`set_personality`、`start_voice_turn`、`voice_status`、`play_voice_response` 和 `fail_voice_turn`。网页或调试工具只负责发送 MCP 请求，具体剧情触发、人格切换和实时语音回合交给固件里的应用命令服务。
 
 静态原型里的剧情测试和人格选择已经走 `/api/mcp`，不直接碰硬件。
+
+日常界面顺序是：当前状态、人格卡片、连接和时间。硬件诊断默认折叠，只有排查问题时展开。

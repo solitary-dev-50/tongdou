@@ -9,8 +9,8 @@ constexpr ScenarioRule kRules[] = {
         false,
         true,
         PersonalityStyle::Gentle,
-        {true, FaceAction::WakeUp, LightAction::WarmWake, MotionAction::None,
-         VoiceLine::WakeGreeting, 1200},
+        {true, FaceAction::WakeUp, LightAction::Off, MotionAction::None,
+         VoiceLine::None, 1200},
     },
     {
         ScenarioEventType::ReminderSnoozed,

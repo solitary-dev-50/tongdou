@@ -28,7 +28,8 @@ class App {
   void handleReminderEvents();
   void handleRealtimeVoiceEvents();
   void handleSerialDiagnostics();
-  void logHeartbeat();
+  void handleStartupReport();
+  void printStartupReport(const char* title);
 
   HardwareManager hardware_;
   WifiConfigStore wifiConfigStore_;
@@ -49,7 +50,8 @@ class App {
   ScenarioConfigApi scenarioConfigApi_{scenarioConfigStore_};
   WebConfigServer webConfigServer_{scenarioConfigApi_, wifiConfigStore_, timeService_,
                                    reminderStore_, mcpServer_, hardware_.selfTest()};
-  unsigned long lastHeartbeatMs_ = 0;
+  unsigned long bootMs_ = 0;
+  uint8_t startupReportCount_ = 0;
 };
 
 }  // namespace tongdou
