@@ -1,0 +1,8 @@
+name = "tongdou"
+compatibility_date = "2026-07-07"
+pages_build_output_dir = "."
+
+[[d1_databases]]
+binding = "TONGDOU_DB"
+database_name = "tongdou-leads"
+database_id = "6da9fb62-d241-444a-a3c8-76cfd980bd27"
