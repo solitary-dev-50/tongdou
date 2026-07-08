@@ -1,0 +1,22 @@
+#pragma once
+
+#include <Arduino.h>
+
+namespace tongdou {
+
+class AudioOutput {
+ public:
+  void begin();
+  void playTestTone(uint16_t frequencyHz = 880, uint16_t durationMs = 120);
+  void playClip(uint16_t clipId, const char* text);
+  void playClip(uint16_t clipId, const char* fileName, const char* text);
+  bool writePcm16Mono(const int16_t* samples, size_t sampleCount, uint32_t sampleRate);
+  void stopStream();
+  bool ready() const;
+
+ private:
+  bool ready_ = false;
+  uint32_t currentSampleRate_ = 0;
+};
+
+}  // namespace tongdou

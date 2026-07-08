@@ -3,6 +3,9 @@ tmp/
 outputs/
 *.log
 
+# Internal demo firmware for filming only.
+local_demo_firmware/
+
 # Large reference projects and imported vendor material
 可参考的项目/
 firmware/vendor/

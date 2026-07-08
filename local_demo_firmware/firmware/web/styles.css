@@ -1,0 +1,151 @@
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: #121212;
+  color: #f4f1ea;
+}
+
+main {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 24px 20px 40px;
+}
+
+h1 {
+  margin-bottom: 4px;
+}
+
+.sub {
+  margin-top: 0;
+  color: #a8a29e;
+}
+
+section {
+  margin-top: 20px;
+  padding: 16px;
+  border-radius: 10px;
+  background: #1d1d1d;
+}
+
+button,
+input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 12px;
+  border: 0;
+  border-radius: 8px;
+}
+
+input {
+  margin: 6px 0;
+  background: #0f0f0f;
+  color: #f4f1ea;
+  border: 1px solid #2a2a2a;
+}
+
+button {
+  background: #e7b45f;
+  color: #111111;
+  font-weight: 700;
+}
+
+button:disabled {
+  background: #555555;
+  color: #aaaaaa;
+}
+
+.status-grid,
+.button-grid,
+.personality-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+.personality-grid {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+
+.personality-card {
+  min-height: 132px;
+  text-align: left;
+  background: #0f0f0f;
+  color: #f4f1ea;
+  border: 1px solid #2a2a2a;
+}
+
+.personality-card.active {
+  border: 1px solid #e7b45f;
+  background: rgba(231, 180, 95, 0.16);
+}
+
+.personality-card .emoji,
+.personality-card strong,
+.personality-card small {
+  display: block;
+}
+
+.personality-card .emoji {
+  font-size: 24px;
+}
+
+.personality-card strong {
+  margin-top: 8px;
+  font-size: 17px;
+}
+
+.personality-card small,
+.config-note,
+#time-message,
+#personality-message {
+  color: #a8a29e;
+}
+
+.diagnostic-panel {
+  margin-top: 20px;
+}
+
+.diagnostic-panel summary {
+  padding: 14px 16px;
+  border-radius: 8px;
+  background: #1d1d1d;
+  color: #e7b45f;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.diagnostic-panel section {
+  margin-top: 8px;
+}
+
+.status-item {
+  padding: 12px;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  background: #0f0f0f;
+}
+
+.status-item span {
+  display: block;
+  color: #a8a29e;
+  font-size: 12px;
+}
+
+.status-item strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 18px;
+}
+
+pre {
+  min-height: 100px;
+  white-space: pre-wrap;
+  padding: 12px;
+  border-radius: 8px;
+  background: #0b0b0b;
+}
+
+li {
+  margin: 6px 0;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
