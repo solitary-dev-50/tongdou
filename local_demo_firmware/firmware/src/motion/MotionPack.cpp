@@ -37,6 +37,18 @@ constexpr MotionFrame kCheekyDance[] = {
     {WheelDrive::Reverse, WheelDrive::Forward, 140},
     {WheelDrive::Stop, WheelDrive::Stop, 0},
 };
+constexpr MotionFrame kCheekyDanceV2[] = {
+    {WheelDrive::Forward, WheelDrive::Reverse, 180},
+    {WheelDrive::Reverse, WheelDrive::Forward, 180},
+    {WheelDrive::Forward, WheelDrive::Reverse, 170},
+    {WheelDrive::Reverse, WheelDrive::Forward, 170},
+    {WheelDrive::Forward, WheelDrive::Reverse, 160},
+    {WheelDrive::Reverse, WheelDrive::Forward, 160},
+    {WheelDrive::Forward, WheelDrive::Reverse, 150},
+    {WheelDrive::Reverse, WheelDrive::Forward, 150},
+    {WheelDrive::Brake, WheelDrive::Brake, 120},
+    {WheelDrive::Stop, WheelDrive::Stop, 0},
+};
 constexpr MotionFrame kSummonSpinBrake[] = {
     {WheelDrive::Forward, WheelDrive::Reverse, 240},
     {WheelDrive::Reverse, WheelDrive::Forward, 220},
@@ -68,6 +80,8 @@ MotionSequence MotionPack::sequence(MotionAction action) const {
       return makeSequence(kShrinkBack);
     case MotionAction::CheekyDance:
       return makeSequence(kCheekyDance);
+    case MotionAction::CheekyDanceV2:
+      return makeSequence(kCheekyDanceV2);
     case MotionAction::SummonSpinBrake:
       return makeSequence(kSummonSpinBrake);
     case MotionAction::None:

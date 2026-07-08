@@ -31,7 +31,9 @@ VoiceClip VoiceLinePack::clip(VoiceLine line) const {
     case VoiceLine::DanceShowDomestic:
       return {113, "", "左三下，右三下，铜豆扭扭不白忙。跳完了，拿表演费。要不用奶茶顶也行，嘿嘿。"};
     case VoiceLine::DanceShowGlobal:
-      return {114, "demo_06_dance_global.wav", "I'm not dancing... you're dancing. Done. Pay up. No free shows. A coffee works too."};
+      return {114, "demo_06_dance.wav", "This is not dancing. This is a highly advanced wheel calibration protocol. Mm-mm... left wheel, right wheel. Nobody dances better than me. Coffee. Now."};
+    case VoiceLine::DemoCheekyCalibrationDance:
+      return {121, "demo_06_dance.wav", "This is not dancing. This is a highly advanced wheel calibration protocol. Mm-mm... left wheel, right wheel. Nobody dances better than me. Coffee. Now."};
     case VoiceLine::DemoNightGossipGlobal:
       return {115, "demo_01_late_night_hook.wav", "Still working? Careful, the couch is waiting. I brought popcorn."};
     case VoiceLine::DemoNightCowardGlobal:

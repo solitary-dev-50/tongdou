@@ -46,6 +46,7 @@ enum class MotionAction : uint8_t {
   LeanForward,
   ShrinkBack,
   CheekyDance,
+  CheekyDanceV2,
   SummonSpinBrake,
 };
 
@@ -65,6 +66,7 @@ enum class VoiceLine : uint8_t {
   RecognitionCoffeeChoke,
   DanceShowDomestic,
   DanceShowGlobal,
+  DemoCheekyCalibrationDance,
   DemoNightGossipGlobal,
   DemoNightCowardGlobal,
   DemoMorningSoftGlobal,

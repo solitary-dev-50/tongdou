@@ -75,13 +75,17 @@ constexpr DemoSceneStep kRealtimeEmailSummary[] = {
 };
 
 constexpr DemoSceneStep kCheekyDanceGlobal[] = {
-    {0, plan(FaceAction::Proud, LightAction::WarmWake, MotionAction::None,
-             VoiceLine::None, 300)},
-    {300, plan(FaceAction::Smile, LightAction::SoftWhite, MotionAction::CheekyDance,
-               VoiceLine::DanceShowGlobal, 1300)},
-    {1600, plan(FaceAction::Proud, LightAction::WeakBreath, MotionAction::None,
-                VoiceLine::None, 1100)},
-    {3000, plan(FaceAction::Smile, LightAction::WeakBreath, MotionAction::None,
+    {0, plan(FaceAction::Proud, LightAction::DimCyan, MotionAction::None,
+             VoiceLine::DemoCheekyCalibrationDance, 500)},
+    {500, plan(FaceAction::Proud, LightAction::SoftWhite, MotionAction::TinyShake,
+               VoiceLine::None, 900)},
+    {1400, plan(FaceAction::Squint, LightAction::DimCyan, MotionAction::CheekyDanceV2,
+                VoiceLine::None, 1200)},
+    {2600, plan(FaceAction::Proud, LightAction::WeakBreath, MotionAction::Stop,
+                VoiceLine::None, 1000)},
+    {3600, plan(FaceAction::Proud, LightAction::WeakBreath, MotionAction::None,
+                VoiceLine::None, 700)},
+    {4300, plan(FaceAction::Smile, LightAction::WeakBreath, MotionAction::Stop,
                 VoiceLine::None, 1000)},
 };
 
