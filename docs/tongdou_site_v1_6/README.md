@@ -737,3 +737,22 @@ https://gettongdou.com/api/leads
 Maker Letter 不放价格、不放早鸟、不放购买按钮。
 顶部导航的 Maker Letter 锚点仍然指向 #maker-letter。
 ```
+
+---
+
+## 18. v1.7 首页数据链路检查记录
+
+`tongdou_site_v1_7.html` 已检查，未破坏 v1.6 数据收集逻辑。
+
+检查结论：
+
+```text
+POST /api/leads 保留。
+waitlist / tester 字段保持正常。
+tester agreement required 保留。
+localStorage 本地备份、Export JSON、Export CSV 保留。
+档位卡片联动正常。
+浏览器运行无 JS 错误。
+```
+
+当前主要待替换内容是真实视频和图片素材。
