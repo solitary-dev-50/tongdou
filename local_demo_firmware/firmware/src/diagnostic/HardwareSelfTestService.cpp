@@ -4,8 +4,13 @@ namespace tongdou {
 namespace {
 
 constexpr unsigned long kMotorPulseMs = 120;
+constexpr unsigned long kManualMotorTimeoutMs = 450;
+constexpr unsigned long kMotorCalibrationStartMs = 90;
+constexpr unsigned long kMotorCalibrationHoldMs = 820;
+constexpr unsigned long kMotorCalibrationBrakeMs = 90;
 constexpr uint16_t kSpeakerTestHz = 880;
 constexpr uint16_t kSpeakerTestMs = 120;
+constexpr uint8_t kMotorCalibrationBrakePwm = 160;
 
 void printBool(Print& out, const __FlashStringHelper* label, bool value) {
   out.print(label);
@@ -38,11 +43,38 @@ HardwareSelfTestService::HardwareSelfTestService(BatteryMonitor& battery,
 
 void HardwareSelfTestService::begin() {
   motorStopAtMs_ = 0;
+  manualMotorTimeoutMs_ = 0;
+  motorCalibrationNextMs_ = 0;
+  motorCalibrationPhase_ = 0;
 }
 
 void HardwareSelfTestService::update() {
-  if (motorStopAtMs_ == 0 || millis() < motorStopAtMs_) {
+  if (motorCalibrationPhase_ != 0 && motorCalibrationNextMs_ != 0 &&
+      static_cast<long>(millis() - motorCalibrationNextMs_) >= 0) {
+    if (motorCalibrationPhase_ == 1) {
+      motors_.drive(motorCalibrationDirection_, motorCalibrationDirection_, 0,
+                    motorCalibrationLeftHoldPwm_, motorCalibrationRightHoldPwm_);
+      motorCalibrationPhase_ = 2;
+      motorCalibrationNextMs_ = millis() + kMotorCalibrationHoldMs;
+      return;
+    }
+
+    if (motorCalibrationPhase_ == 2) {
+      motors_.drive(WheelDrive::Brake, WheelDrive::Brake, 0,
+                    kMotorCalibrationBrakePwm, kMotorCalibrationBrakePwm);
+      motorCalibrationPhase_ = 3;
+      motorCalibrationNextMs_ = millis() + kMotorCalibrationBrakeMs;
+      return;
+    }
+
+    stopMotorPulse();
     return;
+  }
+
+  if (motorStopAtMs_ == 0 || millis() < motorStopAtMs_) {
+    if (manualMotorTimeoutMs_ == 0 || millis() < manualMotorTimeoutMs_) {
+      return;
+    }
   }
 
   stopMotorPulse();
@@ -83,6 +115,11 @@ void HardwareSelfTestService::printHelp(Print& out) const {
   out.println(F("  speaker"));
   out.println(F("  led red|green|blue|off"));
   out.println(F("  motor forward|reverse|stop"));
+  out.println(F("  motor manual forward [leftPwm rightPwm]"));
+  out.println(F("  motor manual reverse [leftPwm rightPwm]"));
+  out.println(F("  motor cal forward [leftStart rightStart leftHold rightHold]"));
+  out.println(F("  motor cal reverse [leftStart rightStart leftHold rightHold]"));
+  out.println(F("  motor cal stop"));
 }
 
 bool HardwareSelfTestService::handleCommand(const String& command, Print& out) {
@@ -177,6 +214,27 @@ bool HardwareSelfTestService::handleCommand(const String& command, Print& out) {
   if (cmd == F("motor stop")) {
     stopMotorPulse();
     out.println(F("motor stop"));
+    return true;
+  }
+  if (cmd == F("motor manual forward") || cmd.startsWith(F("motor manual forward "))) {
+    startManualMotor(WheelDrive::Forward, cmd, out);
+    return true;
+  }
+  if (cmd == F("motor manual reverse") || cmd.startsWith(F("motor manual reverse "))) {
+    startManualMotor(WheelDrive::Reverse, cmd, out);
+    return true;
+  }
+  if (cmd == F("motor cal forward") || cmd.startsWith(F("motor cal forward "))) {
+    startMotorCalibration(WheelDrive::Forward, cmd, out);
+    return true;
+  }
+  if (cmd == F("motor cal reverse") || cmd.startsWith(F("motor cal reverse "))) {
+    startMotorCalibration(WheelDrive::Reverse, cmd, out);
+    return true;
+  }
+  if (cmd == F("motor cal stop")) {
+    stopMotorPulse();
+    out.println(F("motor calibration stop"));
     return true;
   }
 
@@ -376,14 +434,121 @@ void HardwareSelfTestService::testLed(const RgbColor& color, Print& out) {
 }
 
 void HardwareSelfTestService::testMotor(WheelDrive left, WheelDrive right, Print& out) {
+  motorCalibrationPhase_ = 0;
+  motorCalibrationNextMs_ = 0;
+  manualMotorTimeoutMs_ = 0;
   motors_.drive(left, right);
   motorStopAtMs_ = millis() + kMotorPulseMs;
   out.println(F("motor pulse started"));
 }
 
+void HardwareSelfTestService::startManualMotor(WheelDrive direction,
+                                               const String& command,
+                                               Print& out) {
+  motorStopAtMs_ = 0;
+  motorCalibrationPhase_ = 0;
+  motorCalibrationNextMs_ = 0;
+
+  uint8_t leftPwm = 170;
+  uint8_t rightPwm = 170;
+  int parsed = 0;
+  int start = command.indexOf(' ', command.indexOf(F("manual")));
+  if (start >= 0) {
+    start = command.indexOf(' ', start + 1);
+  }
+  while (start >= 0 && parsed < 2) {
+    const int next = command.indexOf(' ', start + 1);
+    const String token = command.substring(start + 1, next < 0 ? command.length() : next);
+    if (token.length() > 0) {
+      const int value = token.toInt();
+      if (value > 0 && value <= 255) {
+        if (parsed == 0) {
+          leftPwm = static_cast<uint8_t>(value);
+        } else {
+          rightPwm = static_cast<uint8_t>(value);
+        }
+        ++parsed;
+      }
+    }
+    start = next;
+  }
+
+  motors_.drive(direction, direction, 0, leftPwm, rightPwm);
+  manualMotorTimeoutMs_ = millis() + kManualMotorTimeoutMs;
+
+  out.println(F("motor manual keepalive"));
+  out.print(F("  direction="));
+  out.println(direction == WheelDrive::Forward ? F("forward") : F("reverse"));
+  out.print(F("  left_pwm="));
+  out.println(leftPwm);
+  out.print(F("  right_pwm="));
+  out.println(rightPwm);
+  out.print(F("  timeout_ms="));
+  out.println(kManualMotorTimeoutMs);
+}
+
+void HardwareSelfTestService::startMotorCalibration(WheelDrive direction,
+                                                    const String& command,
+                                                    Print& out) {
+  motorStopAtMs_ = 0;
+  manualMotorTimeoutMs_ = 0;
+
+  uint8_t values[4] = {210, 210, 150, 150};
+  int parsed = 0;
+  int start = command.indexOf(' ', command.indexOf(F("cal")));
+  if (start >= 0) {
+    start = command.indexOf(' ', start + 1);
+  }
+  while (start >= 0 && parsed < 4) {
+    const int next = command.indexOf(' ', start + 1);
+    const String token = command.substring(start + 1, next < 0 ? command.length() : next);
+    if (token.length() > 0) {
+      const int value = token.toInt();
+      if (value > 0 && value <= 255) {
+        values[parsed++] = static_cast<uint8_t>(value);
+      }
+    }
+    start = next;
+  }
+
+  motorCalibrationDirection_ = direction;
+  motorCalibrationLeftStartPwm_ = values[0];
+  motorCalibrationRightStartPwm_ = values[1];
+  motorCalibrationLeftHoldPwm_ = values[2];
+  motorCalibrationRightHoldPwm_ = values[3];
+  motorCalibrationPhase_ = 1;
+  motorCalibrationNextMs_ = millis() + kMotorCalibrationStartMs;
+
+  motors_.drive(direction, direction, 0, motorCalibrationLeftStartPwm_,
+                motorCalibrationRightStartPwm_);
+
+  out.println(F("motor calibration begin"));
+  out.print(F("  direction="));
+  out.println(direction == WheelDrive::Forward ? F("forward") : F("reverse"));
+  out.print(F("  start_left_pwm="));
+  out.println(motorCalibrationLeftStartPwm_);
+  out.print(F("  start_right_pwm="));
+  out.println(motorCalibrationRightStartPwm_);
+  out.print(F("  start_ms="));
+  out.println(kMotorCalibrationStartMs);
+  out.print(F("  hold_left_pwm="));
+  out.println(motorCalibrationLeftHoldPwm_);
+  out.print(F("  hold_right_pwm="));
+  out.println(motorCalibrationRightHoldPwm_);
+  out.print(F("  hold_ms="));
+  out.println(kMotorCalibrationHoldMs);
+  out.print(F("  brake_pwm="));
+  out.println(kMotorCalibrationBrakePwm);
+  out.print(F("  brake_ms="));
+  out.println(kMotorCalibrationBrakeMs);
+}
+
 void HardwareSelfTestService::stopMotorPulse() {
   motors_.stop();
   motorStopAtMs_ = 0;
+  manualMotorTimeoutMs_ = 0;
+  motorCalibrationNextMs_ = 0;
+  motorCalibrationPhase_ = 0;
 }
 
 }  // namespace tongdou

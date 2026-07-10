@@ -139,6 +139,7 @@ void WebConfigServer::ensureHttpServer() {
 void WebConfigServer::setupRoutes() {
   server_.on("/", HTTP_GET, [this]() { handleRoot(); });
   server_.on("/demo", HTTP_GET, [this]() { handleDemoPage(); });
+  server_.on("/motor", HTTP_GET, [this]() { handleMotorPage(); });
   server_.on("/api/demo/scene", HTTP_POST, [this]() { handleDemoScene(); });
   server_.on("/api/demo/status", HTTP_GET, [this]() { handleDemoStatus(); });
   server_.on("/api/status", HTTP_GET, [this]() { sendText(200, "application/json", statusJson()); });
@@ -165,6 +166,103 @@ void WebConfigServer::setupRoutes() {
 
 void WebConfigServer::handleDemoPage() {
   sendText(200, "text/html; charset=utf-8", demoWebPage_.html());
+}
+
+void WebConfigServer::handleMotorPage() {
+  String body;
+  body.reserve(6200);
+  body += F(R"HTML(<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TongDou Motor Cal</title>
+<style>
+:root{color-scheme:dark;--bg:#101010;--panel:#1b1b1b;--line:#303030;--gold:#e5b55f;--text:#f4efe4;--muted:#aaa;--danger:#7a2e2e}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,sans-serif;touch-action:none}
+main{max-width:620px;margin:auto;padding:18px}
+h1{margin:0 0 8px;font-size:26px}p{color:var(--muted);line-height:1.45}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px;margin:14px 0}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+label{display:block;color:var(--muted);font-size:13px;margin-bottom:6px}
+input{width:100%;padding:13px;border-radius:8px;border:1px solid var(--line);background:#080808;color:var(--text);font-size:22px;text-align:center}
+button{width:100%;min-height:130px;border-radius:8px;border:1px solid var(--line);background:#242424;color:var(--text);font-size:22px;font-weight:800;touch-action:none}
+button:active,button.active{background:var(--gold);color:#111;transform:translateY(1px)}
+button.stop{min-height:62px;background:var(--danger);border-color:#a94848}
+button.drive::before{content:"";display:block;width:0;height:0;margin:auto;border-left:30px solid transparent;border-right:30px solid transparent}
+button.forward::before{border-bottom:52px solid currentColor}
+button.reverse::before{border-top:52px solid currentColor}
+pre{white-space:pre-wrap;background:#050505;border:1px solid var(--line);border-radius:8px;padding:12px;min-height:120px}
+.small{font-size:13px;color:var(--muted)}
+</style></head><body><main>
+<h1>TongDou Motor Cal</h1>
+<p>Hold a button to move. Release to stop. If WiFi drops, firmware stops the motors automatically.</p>
+<section class="panel">
+<div class="row">
+<div><label>Left PWM</label><input id="leftPwm" type="number" min="1" max="255" value="187"></div>
+<div><label>Right PWM</label><input id="rightPwm" type="number" min="1" max="255" value="170"></div>
+</div>
+<p class="small">Current straight-line baseline: left 187, right 170. If it turns left, lower the right PWM or raise the left PWM. If it turns right, do the opposite.</p>
+</section>
+<section class="row">
+<button id="forward" class="drive forward" aria-label="forward"></button>
+<button id="reverse" class="drive reverse" aria-label="reverse"></button>
+</section>
+<section class="panel">
+<button class="stop" onclick="stopMotor()">STOP</button>
+</section>
+<pre id="log">Ready</pre>
+<script>
+const $=id=>document.getElementById(id);
+let active='',timer=null,busy=false;
+function pwm(id){let v=Number($(id).value||170);return Math.max(1,Math.min(255,Math.round(v)))}
+async function diag(command){
+  const r=await fetch('/api/diagnostic',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'command='+encodeURIComponent(command)});
+  const text=await r.text();
+  $('log').textContent=text;
+  return text;
+}
+async function keepalive(){
+  if(!active||busy)return;
+  busy=true;
+  try{await diag('motor manual '+active+' '+pwm('leftPwm')+' '+pwm('rightPwm'))}
+  catch(e){$('log').textContent='request failed: '+e}
+  finally{busy=false}
+}
+function begin(direction,button){
+  if(active===direction)return;
+  end(false);
+  active=direction;
+  button.classList.add('active');
+  keepalive();
+  timer=setInterval(keepalive,220);
+}
+async function end(sendStop=true){
+  active='';
+  if(timer){clearInterval(timer);timer=null}
+  $('forward').classList.remove('active');
+  $('reverse').classList.remove('active');
+  if(sendStop)await stopMotor();
+}
+async function stopMotor(){
+  active='';
+  if(timer){clearInterval(timer);timer=null}
+  $('forward').classList.remove('active');
+  $('reverse').classList.remove('active');
+  try{await diag('motor stop')}catch(e){$('log').textContent='stop failed: '+e}
+}
+function bind(id,direction){
+  const b=$(id);
+  b.addEventListener('pointerdown',e=>{e.preventDefault();b.setPointerCapture(e.pointerId);begin(direction,b)});
+  b.addEventListener('pointerup',e=>{e.preventDefault();end(true)});
+  b.addEventListener('pointercancel',e=>{e.preventDefault();end(true)});
+  b.addEventListener('lostpointercapture',()=>end(true));
+}
+bind('forward','forward');
+bind('reverse','reverse');
+document.addEventListener('contextmenu',e=>e.preventDefault());
+window.addEventListener('blur',()=>end(true));
+window.addEventListener('beforeunload',()=>navigator.sendBeacon('/api/diagnostic','command=motor%20stop'));
+</script></main></body></html>)HTML");
+  sendText(200, "text/html; charset=utf-8", body);
 }
 
 void WebConfigServer::handleDemoScene() {

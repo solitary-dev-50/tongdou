@@ -7,70 +7,123 @@
 namespace tongdou {
 namespace {
 
+constexpr uint8_t kMotorAin1Channel = 0;
+constexpr uint8_t kMotorAin2Channel = 1;
+constexpr uint8_t kMotorBin1Channel = 2;
+constexpr uint8_t kMotorBin2Channel = 3;
+constexpr uint32_t kMotorPwmHz = 20000;
+constexpr uint8_t kMotorPwmBits = 8;
+constexpr uint8_t kDriveDuty = 200;
+constexpr uint8_t kBrakeDuty = 255;
+
 void prepareStoppedOutput(gpio_num_t pin) {
   digitalWrite(pin, LOW);
   pinMode(pin, OUTPUT);
 }
 
+void preparePwmOutput(gpio_num_t pin, uint8_t channel) {
+  digitalWrite(pin, LOW);
+  pinMode(pin, OUTPUT);
+  ledcSetup(channel, kMotorPwmHz, kMotorPwmBits);
+  ledcAttachPin(pin, channel);
+  ledcWrite(channel, 0);
+}
+
 }  // namespace
 
 void MotorDriver::begin() {
-  prepareStoppedOutput(pins::MOTOR_AIN1);
-  prepareStoppedOutput(pins::MOTOR_AIN2);
-  prepareStoppedOutput(pins::MOTOR_BIN1);
-  prepareStoppedOutput(pins::MOTOR_BIN2);
+  prepareStoppedOutput(pins::MOTOR_SLEEP);
+  preparePwmOutput(pins::MOTOR_AIN1, kMotorAin1Channel);
+  preparePwmOutput(pins::MOTOR_AIN2, kMotorAin2Channel);
+  preparePwmOutput(pins::MOTOR_BIN1, kMotorBin1Channel);
+  preparePwmOutput(pins::MOTOR_BIN2, kMotorBin2Channel);
   stop();
 }
 
 void MotorDriver::drive(WheelDrive left, WheelDrive right) {
-  driveLeft(left);
-  driveRight(right);
+  drive(left, right, kDriveDuty);
+}
+
+void MotorDriver::drive(WheelDrive left, WheelDrive right, uint8_t duty) {
+  drive(left, right, duty, 0, 0);
+}
+
+void MotorDriver::drive(WheelDrive left, WheelDrive right, uint8_t duty,
+                        uint8_t leftDuty, uint8_t rightDuty) {
+  if (left == WheelDrive::Stop && right == WheelDrive::Stop) {
+    stop();
+    return;
+  }
+
+  wake();
+  const uint8_t baseDuty = duty == 0 ? kDriveDuty : duty;
+  driveLeft(left, leftDuty == 0 ? baseDuty : leftDuty);
+  driveRight(right, rightDuty == 0 ? baseDuty : rightDuty);
 }
 
 void MotorDriver::stop() {
-  drive(WheelDrive::Stop, WheelDrive::Stop);
+  driveLeft(WheelDrive::Stop, 0);
+  driveRight(WheelDrive::Stop, 0);
+  sleep();
 }
 
-void MotorDriver::driveLeft(WheelDrive drive) {
+void MotorDriver::wake() {
+  if (awake_) {
+    return;
+  }
+
+  digitalWrite(pins::MOTOR_SLEEP, HIGH);
+  delayMicroseconds(1000);
+  awake_ = true;
+}
+
+void MotorDriver::sleep() {
+  digitalWrite(pins::MOTOR_SLEEP, LOW);
+  awake_ = false;
+}
+
+void MotorDriver::driveLeft(WheelDrive drive, uint8_t duty) {
+  const uint8_t activeDuty = duty == 0 ? kDriveDuty : duty;
   switch (drive) {
     case WheelDrive::Forward:
-      digitalWrite(pins::MOTOR_AIN1, HIGH);
-      digitalWrite(pins::MOTOR_AIN2, LOW);
+      ledcWrite(kMotorAin2Channel, 0);
+      ledcWrite(kMotorAin1Channel, activeDuty);
       break;
     case WheelDrive::Reverse:
-      digitalWrite(pins::MOTOR_AIN1, LOW);
-      digitalWrite(pins::MOTOR_AIN2, HIGH);
+      ledcWrite(kMotorAin1Channel, 0);
+      ledcWrite(kMotorAin2Channel, activeDuty);
       break;
     case WheelDrive::Brake:
-      digitalWrite(pins::MOTOR_AIN1, HIGH);
-      digitalWrite(pins::MOTOR_AIN2, HIGH);
+      ledcWrite(kMotorAin1Channel, duty == 0 ? kBrakeDuty : duty);
+      ledcWrite(kMotorAin2Channel, duty == 0 ? kBrakeDuty : duty);
       break;
     case WheelDrive::Stop:
     default:
-      digitalWrite(pins::MOTOR_AIN1, LOW);
-      digitalWrite(pins::MOTOR_AIN2, LOW);
+      ledcWrite(kMotorAin1Channel, 0);
+      ledcWrite(kMotorAin2Channel, 0);
       break;
   }
 }
 
-void MotorDriver::driveRight(WheelDrive drive) {
+void MotorDriver::driveRight(WheelDrive drive, uint8_t duty) {
+  const uint8_t activeDuty = duty == 0 ? kDriveDuty : duty;
   switch (drive) {
     case WheelDrive::Forward:
-      digitalWrite(pins::MOTOR_BIN1, HIGH);
-      digitalWrite(pins::MOTOR_BIN2, LOW);
+      ledcWrite(kMotorBin1Channel, 0);
+      ledcWrite(kMotorBin2Channel, activeDuty);
       break;
     case WheelDrive::Reverse:
-      digitalWrite(pins::MOTOR_BIN1, LOW);
-      digitalWrite(pins::MOTOR_BIN2, HIGH);
+      ledcWrite(kMotorBin2Channel, 0);
+      ledcWrite(kMotorBin1Channel, activeDuty);
       break;
     case WheelDrive::Brake:
-      digitalWrite(pins::MOTOR_BIN1, HIGH);
-      digitalWrite(pins::MOTOR_BIN2, HIGH);
+      ledcWrite(kMotorBin1Channel, duty == 0 ? kBrakeDuty : duty);
+      ledcWrite(kMotorBin2Channel, duty == 0 ? kBrakeDuty : duty);
       break;
     case WheelDrive::Stop:
     default:
-      digitalWrite(pins::MOTOR_BIN1, LOW);
-      digitalWrite(pins::MOTOR_BIN2, LOW);
+      ledcWrite(kMotorBin1Channel, 0);
+      ledcWrite(kMotorBin2Channel, 0);
       break;
   }
 }

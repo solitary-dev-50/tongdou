@@ -39,6 +39,7 @@ class WebConfigServer {
   void setupRoutes();
   void handleRoot();
   void handleDemoPage();
+  void handleMotorPage();
   void handleDemoScene();
   void handleDemoStatus();
   void handleWifiSave();

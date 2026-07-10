@@ -54,6 +54,8 @@ class HardwareSelfTestService {
   void testSpeaker(Print& out);
   void testLed(const RgbColor& color, Print& out);
   void testMotor(WheelDrive left, WheelDrive right, Print& out);
+  void startManualMotor(WheelDrive direction, const String& command, Print& out);
+  void startMotorCalibration(WheelDrive direction, const String& command, Print& out);
   void stopMotorPulse();
 
   BatteryMonitor& battery_;
@@ -64,6 +66,14 @@ class HardwareSelfTestService {
   RadarSensor& radar_;
   FaceDisplay& faceDisplay_;
   unsigned long motorStopAtMs_ = 0;
+  unsigned long manualMotorTimeoutMs_ = 0;
+  unsigned long motorCalibrationNextMs_ = 0;
+  uint8_t motorCalibrationPhase_ = 0;
+  WheelDrive motorCalibrationDirection_ = WheelDrive::Stop;
+  uint8_t motorCalibrationLeftStartPwm_ = 210;
+  uint8_t motorCalibrationRightStartPwm_ = 210;
+  uint8_t motorCalibrationLeftHoldPwm_ = 150;
+  uint8_t motorCalibrationRightHoldPwm_ = 150;
 };
 
 }  // namespace tongdou
