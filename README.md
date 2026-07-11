@@ -1,164 +1,179 @@
-# 铜豆
+# TongDou
 
-铜豆是一个会提醒、会动、会亮、会用小表情和人互动的桌面提醒伙伴。
+> ⚠️ **Work in Progress**
+>
+> TongDou is being actively documented and open-sourced step by step.  
+> Hardware design files, original fixture files, manufacturing documents,
+> and build guides will be released progressively.  
+> Please see the [Roadmap](#roadmap) below for the current release plan.
 
-它不是普通定时器，也不是只会播报的语音玩具。铜豆的核心价值是：用一点点性格、一点点动作和一点点嘴欠，把冷冰冰的提醒变成让人愿意接受的陪伴。
+🌐 **Official website:** https://gettongdou.com
 
-> 铜豆存在的意义，是让人类更从容地做人类，而不是让人类觉得自己可以被替代。
+TongDou is a small desktop companion that turns ordinary reminders into
+expressions, light, movement, voice, and character.
 
-## 当前路线
+It is not a timer with a speaker. TongDou is designed to make everyday
+reminders feel more human: a little expressive, a little playful, and hard to
+ignore in the best possible way.
 
-项目已经切换到新版硬件路线：
+**TongDou has been physically built and is running.** It is now being
+open-sourced step by step by one independent maker.
 
-- 主控直接使用 `ESP32-S3`
-- 单个 `INMP441` I2S 数字麦克风负责采音
-- `NS4168` I2S 数字功放负责喇叭播放
-- OLED 显示眼神和状态
-- WS2812 显示情绪灯效
-- AT8833 驱动双电机做小幅动作
-- LD2412 毫米波雷达感知用户是否在桌前
-- 复用 JiShi 项目中已经跑通的系统编排、网页配置、音频、联网和 MCP 相关软件资产
+## Official Website
 
-后续硬件、固件和文档都以本路线为准。
+Follow TongDou’s development, testing program, and future crowdfunding
+updates:
 
-## 第一版目标
+https://gettongdou.com
 
-第一版不是堆功能，而是做出一个能拍视频、能让人第一眼记住的样机。
+## What TongDou Demonstrates
 
-必须做到：
+- OLED expressions and status display
+- WS2812 light effects
+- Dual-motor movement
+- Voice playback and scripted interactions
+- Millimeter-wave presence detection
+- A compact brass-and-PCB mechanical form
 
-- 能联网，知道当前日期和时间。
-- 能通过单麦采集语音。
-- 能通过喇叭播放语音。
-- 能保存提醒、计算到期时间、触发提醒剧情。
-- 能用 OLED 表情、WS2812 灯光、电机动作和台词完成提醒。
-- 能用网页配置基础参数和后续剧情包。
-- 能通过毫米波雷达判断用户是否在桌前。
-- 能在识别失败、听错、卡壳时把技术缺陷演成人设的一部分。
+The current demonstration firmware is internal development and performance
+firmware. It is shown in videos, but it is not included in this repository and
+is not a promised future release.
 
-第一版先不做：
+## Hardware Platform
 
-- 摄像头
-- 手机应用
-- 桌面大范围移动
-- 精准声源定位
-- 全屋智能中控
-- 复杂账号系统
+- ESP32-S3-MINI-1-N4R2
+- IM72D128V01XTMA1 PDM microphone
+- NS4168 I2S audio amplifier
+- 0.96-inch OLED display
+- WS2812B-2020 RGB LED
+- AT8833CT dual-motor driver
+- HLK-LD2412 millimeter-wave radar module
+- TP4057 battery charging and battery monitoring
 
-## 硬件概览
+For design files, electrical details, and PCB assembly notes, see the
+[TongDou PCB v8 package](hardware/pcb/tongdou-pcb-v8/).
 
-当前主要硬件：
+## Open-Source Status
 
-- `ESP32-S3-MINI-1-N4R2`：主控
-- `INMP441`：I2S 数字麦克风
-- `NS4168`：I2S 数字功放
-- `0.96 寸 OLED`：表情和状态显示
-- `WS2812B-2020`：单颗彩色状态灯
-- `AT8833CT`：双电机驱动
-- `LD2412`：毫米波雷达接口
-- `TP4057`：锂电池充电
-- Type-C、升压 5V、3.3V 稳压、电池电压检测
+TongDou is a phased open-source hardware project. It does not provide a
+complete manufacturing package at this stage.
 
-详见 [docs/硬件说明.md](docs/硬件说明.md)。
+### Available now
 
-## 软件方向
+- Project overview and hardware direction
+- Verified prototype status
+- [Hardware release package](hardware/)
+- [TongDou PCB v8 design package](hardware/pcb/tongdou-pcb-v8/)
+- [TongDou brass side-plate DXF](hardware/mechanical/TongDou_Brass_Frame_1mm_H62_RevA.dxf)
+- License, attribution, and brand-use boundaries
+- Hardware and documentation release plan
 
-铜豆固件后续不从零造轮子，而是复用 JiShi 中已经验证过的高价值模块，给铜豆 PCB 做板级适配。
+### Not included
 
-可复用方向：
-
-- 系统启动编排
-- 强制门户和网页配置
-- 网络和时间服务
-- 音频输入输出链路
-- MCP 工具层
-- 状态机和降级机制
-- OLED 表情状态层
-
-需要替换的部分：
-
-- JiShi 的舵机控制要换成铜豆双电机控制。
-- JiShi 的双麦和音频处理链路要换成铜豆单麦链路。
-- JiShi 的摄像头、教育场景和儿童身份相关能力不进入铜豆第一版。
-
-详见 [docs/JiShi资产复用评估.md](docs/JiShi资产复用评估.md)。
-
-## 文档入口
-
-- [AGENTS.md](AGENTS.md)：项目协作规则，助手必须先看。
-- [docs/知识库索引.md](docs/知识库索引.md)：文档导航。
-- [docs/硬件说明.md](docs/硬件说明.md)：新版硬件模块、引脚和打样注意事项。
-- [docs/JiShi资产复用评估.md](docs/JiShi资产复用评估.md)：JiShi 里哪些模块适合铜豆复用。
-- [docs/系统架构.md](docs/系统架构.md)：固件分层、职责边界和单一职责规则。
-- [docs/系统启动时序.md](docs/系统启动时序.md)：从上电到正常运行的启动流程。
-- [docs/网页配置API.md](docs/网页配置API.md)：网页配置页面和固件之间的接口约定。
-- [docs/铜豆剧情包.md](docs/铜豆剧情包.md)：铜豆的人格、台词、表情、灯光和动作设计。
-- [docs/人格宪法.md](docs/人格宪法.md)：铜豆所有表现的最高原则。
-- [docs/声音风格指南.md](docs/声音风格指南.md)：铜豆怎么说话、什么时候说、说多长。
-- [docs/表情系统.md](docs/表情系统.md)：OLED 眼神和表情状态。
-- [docs/灯光系统.md](docs/灯光系统.md)：WS2812 灯效规则。
-- [docs/动作系统.md](docs/动作系统.md)：双电机动作规则。
-- [docs/众筹与传播思路.md](docs/众筹与传播思路.md)：后期传播和众筹方向。
+- Internal demonstration firmware
+- Private data, keys, backend configuration, and service credentials
+- Any asset not explicitly marked as open hardware material
 
 ## Roadmap
 
-### 第一阶段：桌面提醒伙伴
+### 1. Project entry
 
-铜豆先成为一个靠谱、有性格、能提醒、能演示的小样机。
+Project overview, real prototype media, demonstration video, verified status,
+license information, and the public release route.
 
-这一阶段重点是：
+### 2. Additional hardware design materials
 
-- 能听
-- 会说
-- 会提醒
-- 会动
-- 会亮
-- 有让人愿意拍视频的性格
+The verified TongDou PCB v8 package is available now. It includes editable PCB
+source files, schematic PDFs, Gerber manufacturing files, BOM, and
+pick-and-place data.
 
-### 第二阶段：PC 智能体物理外挂
+Further hardware notes and validation records will be added progressively.
 
-通过 USB HID 或局域网 MCP 协议接入电脑端大模型，让铜豆成为桌面端 AI 的物理化身。
+### 3. Original fixture and mechanical package
 
-典型场景：
+TongDou’s original soldering and alignment fixture, CAD and STEP files,
+mechanical drawings, CNC notes, and fixture documentation.
 
-- 会议记录和总结助手
-- 桌面任务状态反馈
-- 大模型处理任务时，铜豆在物理世界中显示“正在干活”
-- 提醒用户休息、下班、回消息、处理待办
+### 4. Build and verification records
 
-### 第三阶段：桌面具身智能
+Brass-frame soldering, assembly, power-on checks, testing records, and
+troubleshooting material.
 
-铜豆可以作为电脑端大模型的物理传感器与发声器官。
+## TongDou PCB v8
 
-它不替用户做人，而是帮用户把事情落地：查资料、整理表格、归档文件、生成会议纪要、提醒未完成待办。
+The current verified PCB package is available in
+[hardware/pcb/tongdou-pcb-v8](hardware/pcb/tongdou-pcb-v8/):
 
-## 当前状态
+- Editable PCB source file
+- Main-control and power schematic PDFs
+- Gerber manufacturing archive
+- BOM with PCB, external-component, and assembly-material categories
+- Pick-and-place data
 
-已经完成：
+This is a PCB design package. TongDou as a whole is still being released in
+phases and is not yet a complete end-to-end manufacturing kit.
 
-- 产品方向和人格设定
-- 剧情包文档
-- 新版硬件路线确认
-- 新版原理图 PDF 导入
-- JiShi 复用方向评估
-- 新版引脚定义同步到固件
-- 表情、灯光、动作、台词基础模块
-- 硬件自检服务
-- 网页诊断控制台
-- 启动编排和硬件降级状态展示
-- MCP 工具层
-- 实时语音链路最小骨架
+## License and Attribution
 
-下一步：
+Hardware design materials explicitly marked as open hardware are licensed
+under [CERN-OHL-P-2.0](LICENSE). The full license text is included in this
+repository.
 
-1. 等 PCB 回来后做板级硬件验证。
-2. 实测麦克风采音、NS4168 播放、OLED、WS2812、电机、雷达、电池和充电状态。
-3. 根据实测结果修板或修固件，不再随意改引脚定义。
-4. 接入真实服务端实时语音协议。
-5. 做开源发布前的文档、图片和测试记录整理。
+You may use, copy, modify, manufacture, and sell hardware based on those
+materials, provided that the original attribution and license notice are kept.
 
-## 一句话
+Recommended attribution:
 
-铜豆第一版的目标不是炫技，而是把一个小东西做得可靠、可爱、能提醒、能演戏。
+```text
+Based on the TongDou open-source project by solitary-dev-50
+https://github.com/solitary-dev-50/tongdou
+```
 
-先让它活起来，再让它越来越像铜豆。
+See [NOTICE.md](NOTICE.md) for the exact license scope, attribution rules, and
+brand boundaries.
+
+### Brand Boundary
+
+The name “TongDou”, its logo, character design, official audio, promotional
+videos, and official packaging are not granted under the hardware license.
+
+Third parties must not present a derivative as an official TongDou product or
+claim official certification or endorsement.
+
+## Repository Documents
+
+- [Hardware Release Package](hardware/)
+- [TongDou PCB v8 Package](hardware/pcb/tongdou-pcb-v8/)
+- [License Scope and Attribution](NOTICE.md)
+
+## Inspiration & Acknowledgements
+
+TongDou's brass-and-PCB aesthetic and compact mechanical form were deeply
+inspired by the incredible craftsmanship of **Huy Vector** of
+**Huy Vector Lab**, particularly the desktop robot **Mo-chan**, as shown
+in [this original build video](https://www.youtube.com/watch?v=3hjvpyjxPsk).
+
+I’m a huge fan of Huy’s work and highly recommend exploring the original
+projects and [Huy Vector on YouTube](https://www.youtube.com/@huyvector).
+
+Thank you, Huy, for inspiring TongDou and for showing how beautifully brass,
+PCBs, and mechanical structures can be brought to life.
+
+TongDou’s electronics, PCB, brass frame, original soldering and alignment
+fixture, firmware, character design, and interaction system were independently
+developed for this project.
+
+## Community & Contact
+
+> **Note:** TongDou is currently a solo-maker project. To keep my focus on
+> hardware development, firmware polishing, documentation, and the early
+> tester program, GitHub Issues and Discussions are temporarily disabled.
+>
+> To follow project updates, join the waitlist, or apply for the early tester
+> program, please visit the [TongDou official website](https://gettongdou.com)
+> and read the [Tester Program & Agreement](https://gettongdou.com/tester-agreement.html).
+>
+> For essential project, media, licensing, or collaboration inquiries:
+> **[hello@gettongdou.com](mailto:hello@gettongdou.com)**
+>
+> Thank you for your patience while I build and document TongDou step by step.

@@ -1,10 +1,9 @@
+*.md text eol=lf
+LICENSE text eol=lf
+NOTICE.md text eol=lf
+*.csv text eol=lf
+
 *.pdf binary
-*.png binary
-*.jpg binary
-*.jpeg binary
-*.xlsx binary
-*.mp3 binary
-*.wav binary
-*.opus binary
-*.speex binary
-*.dat binary
+*.zip binary
+*.eprj2 binary
+*.dxf binary
