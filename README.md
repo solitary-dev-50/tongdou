@@ -9,6 +9,14 @@ Contact: hello@gettongdou.com
 
 Official TongDou products and crowdfunding campaigns will only be announced through https://gettongdou.com
 
+## Watch TongDou Run
+
+Open the local showcase page:
+
+[TongDou public showcase](index.html)
+
+The showcase page uses a muted, looping video so it can autoplay in normal browsers.
+
 ## Current Public Release
 
 This repository currently includes:
