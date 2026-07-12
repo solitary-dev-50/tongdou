@@ -29,7 +29,11 @@ Media folders:
 - [Images](media/images/)
 - [Videos](media/videos/)
 
-If the media folders only contain README files, real photos and videos have not been added to this public repository yet.
+Current public video:
+
+- [TongDou demo - Devil Descends](media/videos/tongdou-demo-devil-descends.mp4)
+
+If a media folder only contains a README file, real media for that category has not been added to this public repository yet.
 
 ## What Is Not Included Yet
 
