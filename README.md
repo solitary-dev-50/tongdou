@@ -11,6 +11,16 @@ Contact: hello@gettongdou.com
 
 Official TongDou products and crowdfunding campaigns will only be announced through https://gettongdou.com
 
+## Prototype Photos
+
+![TongDou prototype 45 degree view](media/images/tongdou-hero-45-degree.jpg)
+
+![TongDou front powered on](media/images/tongdou-front-powered-on.jpg)
+
+![TongDou size in hand](media/images/tongdou-size-in-hand.jpg)
+
+![TongDou side brass frame](media/images/tongdou-side-brass-frame.jpg)
+
 ## Watch TongDou Run
 
 Open the local showcase page:
