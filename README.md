@@ -1,5 +1,7 @@
 # TongDou
 
+[![TongDou demo keyframes](media/images/tongdou-demo-keyframes.gif)](media/videos/tongdou-demo-devil-descends.mp4)
+
 TongDou is a small desktop robot that has already been physically built and run. It is not a concept project.
 
 This repository is the official public project showcase and phased open-source entry point for TongDou.
@@ -10,8 +12,6 @@ Contact: hello@gettongdou.com
 Official TongDou products and crowdfunding campaigns will only be announced through https://gettongdou.com
 
 ## Watch TongDou Run
-
-![TongDou demo keyframes](media/images/tongdou-demo-keyframes.gif)
 
 Open the local showcase page:
 
