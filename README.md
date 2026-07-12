@@ -11,11 +11,17 @@ Official TongDou products and crowdfunding campaigns will only be announced thro
 
 ## Watch TongDou Run
 
+![TongDou demo keyframes](media/images/tongdou-demo-keyframes.gif)
+
 Open the local showcase page:
 
 [TongDou public showcase](index.html)
 
 The showcase page uses a muted, looping video so it can autoplay in normal browsers.
+
+Full video:
+
+[TongDou demo - Devil Descends](media/videos/tongdou-demo-devil-descends.mp4)
 
 ## Current Public Release
 
