@@ -49,3 +49,8 @@ docs/定位器*.step
 # Removed from the public repo but kept locally when needed.
 docs/引脚定义.txt
 docs/铜豆原理图_*.pdf
+.codex_video_frames/
+.pio-core/
+
+# Local site export copy.
+docs/tongdou_site_v1_6/
