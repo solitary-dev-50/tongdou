@@ -11,8 +11,12 @@ class MotorDriver {
   void stop();
 
  private:
+  void wake();
+  void sleep();
   void driveLeft(WheelDrive drive);
   void driveRight(WheelDrive drive);
+
+  bool awake_ = false;
 };
 
 }  // namespace tongdou

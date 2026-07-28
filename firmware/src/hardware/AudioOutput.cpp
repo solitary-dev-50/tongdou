@@ -18,6 +18,9 @@ constexpr int16_t kToneAmplitude = 10000;
 }  // namespace
 
 void AudioOutput::begin() {
+  digitalWrite(tongdou::pins::SPK_CTRL, HIGH);
+  pinMode(tongdou::pins::SPK_CTRL, OUTPUT);
+
   i2s_config_t config = {};
   config.mode = static_cast<i2s_mode_t>(I2S_MODE_MASTER | I2S_MODE_TX);
   config.sample_rate = kSampleRate;

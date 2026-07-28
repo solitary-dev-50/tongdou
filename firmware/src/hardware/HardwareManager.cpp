@@ -62,7 +62,9 @@ void HardwareManager::printStartupReport(Print& out) const {
   out.print(" lrclk=");
   out.print(static_cast<int>(pins::I2S_SPK_LRCLK));
   out.print(" data=");
-  out.println(static_cast<int>(pins::I2S_SPK_DATA));
+  out.print(static_cast<int>(pins::I2S_SPK_DATA));
+  out.print(" ctrl=");
+  out.println(static_cast<int>(pins::SPK_CTRL));
 
   out.println("hardware ready");
 }

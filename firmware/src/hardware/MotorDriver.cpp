@@ -15,6 +15,7 @@ void prepareStoppedOutput(gpio_num_t pin) {
 }  // namespace
 
 void MotorDriver::begin() {
+  prepareStoppedOutput(pins::MOTOR_SLEEP);
   prepareStoppedOutput(pins::MOTOR_AIN1);
   prepareStoppedOutput(pins::MOTOR_AIN2);
   prepareStoppedOutput(pins::MOTOR_BIN1);
@@ -23,12 +24,35 @@ void MotorDriver::begin() {
 }
 
 void MotorDriver::drive(WheelDrive left, WheelDrive right) {
+  if (left == WheelDrive::Stop && right == WheelDrive::Stop) {
+    stop();
+    return;
+  }
+
+  wake();
   driveLeft(left);
   driveRight(right);
 }
 
 void MotorDriver::stop() {
-  drive(WheelDrive::Stop, WheelDrive::Stop);
+  driveLeft(WheelDrive::Stop);
+  driveRight(WheelDrive::Stop);
+  sleep();
+}
+
+void MotorDriver::wake() {
+  if (awake_) {
+    return;
+  }
+
+  digitalWrite(pins::MOTOR_SLEEP, HIGH);
+  delay(2);
+  awake_ = true;
+}
+
+void MotorDriver::sleep() {
+  digitalWrite(pins::MOTOR_SLEEP, LOW);
+  awake_ = false;
 }
 
 void MotorDriver::driveLeft(WheelDrive drive) {
