@@ -2,7 +2,9 @@
 
 This folder is for internal filming only. Keep it clean for overseas demo shots.
 
-It is ignored by git and should not be uploaded as the public firmware.
+Do not use it as the public firmware. New generated files, local audio exports,
+and build outputs under this folder are ignored by git unless they are
+explicitly reviewed and added.
 
 ## Build
 
@@ -11,7 +13,7 @@ cd local_demo_firmware/firmware
 platformio run
 ```
 
-## Test Tomorrow
+## Test
 
 1. Flash this firmware to the demo board.
 2. Power on TongDou.
@@ -23,8 +25,8 @@ platformio run
 ## Notes
 
 - This firmware always starts the demo access point.
-- Board-level test pages and diagnostic APIs live in `../local_board_test_firmware/firmware`.
-- Voice clips currently go through the existing clip logging/playback path.
+- Board-level test pages and diagnostic APIs live in `../board_test_firmware/firmware`.
+- Voice clips use local pre-recorded audio files under `firmware/data/audio`.
 - Scene `5` uses a recorded email-summary voice line for faster filming.
 - Scene `8` plays `first_summon_nightmare`.
 - Serial `summon` or `nightmare` triggers scene `8`.
