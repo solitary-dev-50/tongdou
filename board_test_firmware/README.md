@@ -12,6 +12,18 @@ cd board_test_firmware/firmware
 platformio run
 ```
 
+## Upload
+
+The board-test firmware uses the 4 MB flash layout and DIO flash mode.
+
+If normal upload drops the USB serial port near the end of the application
+write, use the chunked uploader:
+
+```bash
+cd board_test_firmware/firmware
+platformio run -t upload_chunked --upload-port COM13
+```
+
 ## Test
 
 1. Flash this firmware to the V9 board.
