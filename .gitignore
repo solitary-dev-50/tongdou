@@ -54,3 +54,17 @@ docs/铜豆原理图_*.pdf
 
 # Local site export copy.
 docs/tongdou_site_v1_6/
+
+# Internal local docs, tools, scripts, and private preparation material.
+docs/V9_PCB回板验证清单.md
+docs/tongdou_alarm_v1/
+docs/三种人格剧本.md
+docs/制造资料说明.md
+docs/原创治具说明.md
+docs/扩展能力与本地助手.md
+docs/新建 文本文档.txt
+docs/焊接与组装指南.md
+docs/铜豆_开源发布方案_最终版.md
+docs/铜豆_魔头诞生视频拍摄与置顶评论.md
+docs/铜豆原理图/
+docs/验证记录.md
