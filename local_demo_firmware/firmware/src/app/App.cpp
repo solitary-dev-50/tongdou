@@ -151,15 +151,11 @@ void App::handleSerialDiagnostics() {
     return;
   }
 
-  if (hardware_.selfTest().handleCommand(command, Serial)) {
-    return;
-  }
-
   if (demoScenePlayer_.handleSerialCommand(trimmed, Serial)) {
     return;
   }
 
-  Serial.println("unknown command, type help");
+  Serial.println("unknown demo command");
 }
 
 void App::handleStartupReport() {

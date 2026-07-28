@@ -1,6 +1,6 @@
 # TongDou Internal Demo Firmware
 
-This folder is for internal filming only.
+This folder is for internal filming only. Keep it clean for overseas demo shots.
 
 It is ignored by git and should not be uploaded as the public firmware.
 
@@ -23,7 +23,7 @@ platformio run
 ## Notes
 
 - This firmware always starts the demo access point.
-- The normal diagnostic APIs are still available for hardware checks.
+- Board-level test pages and diagnostic APIs live in `../local_board_test_firmware/firmware`.
 - Voice clips currently go through the existing clip logging/playback path.
 - Scene `5` uses a recorded email-summary voice line for faster filming.
 - Scene `8` plays `first_summon_nightmare`.

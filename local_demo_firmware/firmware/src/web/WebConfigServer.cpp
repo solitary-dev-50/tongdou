@@ -6,6 +6,7 @@ namespace tongdou {
 namespace {
 
 constexpr const char* kPortalSsid = "TongDou-Demo";
+constexpr bool kEnableInternalDiagnostics = false;
 constexpr uint16_t kDnsPort = 53;
 const IPAddress kPortalIp(192, 168, 4, 1);
 const IPAddress kPortalGateway(192, 168, 4, 1);
@@ -147,9 +148,6 @@ void WebConfigServer::ensureHttpServer() {
 void WebConfigServer::setupRoutes() {
   server_.on("/", HTTP_GET, [this]() { handleRoot(); });
   server_.on("/demo", HTTP_GET, [this]() { handleDemoPage(); });
-  server_.on("/motor", HTTP_GET, [this]() { handleMotorPage(); });
-  server_.on("/api/motor/config", HTTP_GET, [this]() { handleMotorConfigGet(); });
-  server_.on("/api/motor/config", HTTP_POST, [this]() { handleMotorConfigSave(); });
   server_.on("/generate_204", HTTP_GET, [this]() { handleNotFound(); });
   server_.on("/gen_204", HTTP_GET, [this]() { handleNotFound(); });
   server_.on("/hotspot-detect.html", HTTP_GET, [this]() { handleNotFound(); });
@@ -159,25 +157,31 @@ void WebConfigServer::setupRoutes() {
   server_.on("/favicon.ico", HTTP_GET, [this]() { sendText(204, "image/x-icon", ""); });
   server_.on("/api/demo/scene", HTTP_POST, [this]() { handleDemoScene(); });
   server_.on("/api/demo/status", HTTP_GET, [this]() { handleDemoStatus(); });
-  server_.on("/api/status", HTTP_GET, [this]() { sendText(200, "application/json", statusJson()); });
-  server_.on("/api/wifi/scan", HTTP_GET, [this]() { handleWifiScan(); });
-  server_.on("/api/setup/wifi", HTTP_POST, [this]() { handleWifiSave(); });
-  server_.on("/api/time/sync", HTTP_POST, [this]() { handleTimeSync(); });
-  server_.on("/api/time/status", HTTP_GET, [this]() { handleTimeStatus(); });
-  server_.on("/api/reminders", HTTP_GET, [this]() { handleReminderList(); });
-  server_.on("/api/reminders", HTTP_POST, [this]() { handleReminderCreate(); });
-  server_.on("/api/reminders/delete", HTTP_POST, [this]() { handleReminderDelete(); });
-  server_.on("/api/diagnostic", HTTP_POST, [this]() { handleDiagnosticCommand(); });
-  server_.on("/api/mcp", HTTP_POST, [this]() { handleMcp(); });
-  server_.on("/voice", HTTP_GET, [this]() { handleVoiceDebugPage(); });
-  server_.on("/api/voice/status", HTTP_GET, [this]() { handleVoiceStatus(); });
-  server_.on("/api/voice/backend", HTTP_POST, [this]() { handleVoiceBackendConfigure(); });
-  server_.on("/api/voice/connect", HTTP_POST, [this]() { handleVoiceBackendConnect(); });
-  server_.on("/api/voice/detect", HTTP_POST, [this]() { handleVoiceDetect(); });
-  server_.on("/api/voice/start", HTTP_POST, [this]() { handleVoiceStart(); });
-  server_.on("/api/voice/abort", HTTP_POST, [this]() { handleVoiceAbort(); });
-  server_.on("/api/voice/codec-self-test", HTTP_POST,
-             [this]() { handleVoiceCodecSelfTest(); });
+  if (kEnableInternalDiagnostics) {
+    server_.on("/motor", HTTP_GET, [this]() { handleMotorPage(); });
+    server_.on("/api/motor/config", HTTP_GET, [this]() { handleMotorConfigGet(); });
+    server_.on("/api/motor/config", HTTP_POST, [this]() { handleMotorConfigSave(); });
+    server_.on("/api/status", HTTP_GET,
+               [this]() { sendText(200, "application/json", statusJson()); });
+    server_.on("/api/wifi/scan", HTTP_GET, [this]() { handleWifiScan(); });
+    server_.on("/api/setup/wifi", HTTP_POST, [this]() { handleWifiSave(); });
+    server_.on("/api/time/sync", HTTP_POST, [this]() { handleTimeSync(); });
+    server_.on("/api/time/status", HTTP_GET, [this]() { handleTimeStatus(); });
+    server_.on("/api/reminders", HTTP_GET, [this]() { handleReminderList(); });
+    server_.on("/api/reminders", HTTP_POST, [this]() { handleReminderCreate(); });
+    server_.on("/api/reminders/delete", HTTP_POST, [this]() { handleReminderDelete(); });
+    server_.on("/api/diagnostic", HTTP_POST, [this]() { handleDiagnosticCommand(); });
+    server_.on("/api/mcp", HTTP_POST, [this]() { handleMcp(); });
+    server_.on("/voice", HTTP_GET, [this]() { handleVoiceDebugPage(); });
+    server_.on("/api/voice/status", HTTP_GET, [this]() { handleVoiceStatus(); });
+    server_.on("/api/voice/backend", HTTP_POST, [this]() { handleVoiceBackendConfigure(); });
+    server_.on("/api/voice/connect", HTTP_POST, [this]() { handleVoiceBackendConnect(); });
+    server_.on("/api/voice/detect", HTTP_POST, [this]() { handleVoiceDetect(); });
+    server_.on("/api/voice/start", HTTP_POST, [this]() { handleVoiceStart(); });
+    server_.on("/api/voice/abort", HTTP_POST, [this]() { handleVoiceAbort(); });
+    server_.on("/api/voice/codec-self-test", HTTP_POST,
+               [this]() { handleVoiceCodecSelfTest(); });
+  }
   server_.onNotFound([this]() { handleNotFound(); });
 }
 
