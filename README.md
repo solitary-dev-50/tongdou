@@ -123,7 +123,7 @@ phases and is not yet a complete end-to-end manufacturing kit.
 
 V9 hardware bring-up is in progress. V9 adds the QMI8658A motion sensor, the
 TongDou logo touch input on IO4, and AT8833CT nFAULT feedback on IO37. The
-QMI8658A has passed board-level bring-up and is used by the local demo
+QMI8658A has passed board-level bring-up and is used by the public board-test
 firmware's `/motor` diagnostic page for gyro-assisted straight-line testing;
 V9 files are not yet part of the published manufacturing package.
 
