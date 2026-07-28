@@ -32,6 +32,8 @@ https://gettongdou.com
 - WS2812 light effects
 - Dual-motor movement
 - Voice playback and scripted interactions
+- Logo touch interaction
+- Motion, tilt, and tap sensing
 - Millimeter-wave presence detection
 - A compact brass-and-PCB mechanical form
 
@@ -46,12 +48,18 @@ is not a promised future release.
 - NS4168 I2S audio amplifier
 - 0.96-inch OLED display
 - WS2812B-2020 RGB LED
-- AT8833CT dual-motor driver
+- AT8833CT dual-motor driver, with nFAULT connected to IO37
+- QMI8658A 6-axis IMU
+- TongDou logo touch input on IO4
 - HLK-LD2412 millimeter-wave radar module
 - TP4057 battery charging and battery monitoring
 
-For design files, electrical details, and PCB assembly notes, see the
-[TongDou PCB v8 package](hardware/pcb/tongdou-pcb-v8/).
+The V9 PCB is the current bring-up target. The public PCB package currently
+available in this repository is still the verified v8 package; V9 manufacturing
+files will be published after bring-up checks are complete.
+
+For the currently published design files, electrical details, and PCB assembly
+notes, see the [TongDou PCB v8 package](hardware/pcb/tongdou-pcb-v8/).
 
 ## Open-Source Status
 
@@ -112,6 +120,12 @@ The current verified PCB package is available in
 
 This is a PCB design package. TongDou as a whole is still being released in
 phases and is not yet a complete end-to-end manufacturing kit.
+
+V9 hardware bring-up is in progress. V9 adds the QMI8658A motion sensor, the
+TongDou logo touch input on IO4, and AT8833CT nFAULT feedback on IO37. The
+QMI8658A has passed board-level bring-up and is used by the local demo
+firmware's `/motor` diagnostic page for gyro-assisted straight-line testing;
+V9 files are not yet part of the published manufacturing package.
 
 ## License and Attribution
 
