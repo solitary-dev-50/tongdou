@@ -24,6 +24,17 @@ enum class FaceAction : uint8_t {
   Fierce,
   Proud,
   Nervous,
+  FirstSummonConfusedHold,
+  AccountantPause,
+  AccountantRoundEyes,
+  AccountantSuspiciousSquint,
+  AccountantCalculating,
+  AccountantLedgerSearch,
+  AccountantDebt3,
+  AccountantDebtScratch,
+  AccountantDebt2,
+  AccountantDebtPi,
+  AccountantSmugSquint,
 };
 
 enum class LightAction : uint8_t {
@@ -35,6 +46,17 @@ enum class LightAction : uint8_t {
   WeakBreath,
   DimWarm,
   DimCyan,
+  SummonCyanWake,
+  SummonCyanHold,
+  SummonCyanFocus,
+  SummonPurpleApproach,
+  SummonGoodFlash,
+  SummonPurpleHold,
+  SummonNightmareRise,
+  SummonDrop,
+  SummonNowFlash,
+  SummonLaughBreath,
+  SummonIdleCyan,
 };
 
 enum class MotionAction : uint8_t {
@@ -47,7 +69,29 @@ enum class MotionAction : uint8_t {
   ShrinkBack,
   CheekyDance,
   CheekyDanceV2,
+  TinyReluctantShake,
+  TurnAwayToRear,
+  RearWiggleLeft,
+  RearWiggleRight,
+  RearWiggleShowoff,
+  HardBrakeStop,
+  TurnBackToFront,
   SummonSpinBrake,
+  SummonStretchBack,
+  SummonLookAside,
+  SummonReturnFromLook,
+  SummonCreepForward,
+  SummonGoodLunge,
+  SummonHoldTilt,
+  SummonReturnFromHold,
+  SummonNightmareCreep,
+  SummonNowLunge,
+  SummonLaughWiggle,
+  AccountantConfusedFidget,
+  AccountantExtortLean,
+  AccountantStubbornWiggle,
+  TinySmugWiggle,
+  SummonStartLunge,
 };
 
 enum class VoiceLine : uint8_t {
@@ -73,6 +117,12 @@ enum class VoiceLine : uint8_t {
   DemoRecordedEmailSummaryGlobal,
   DemoFirstSummonNightmare,
   DemoCrowdfundingCallGlobal,
+  DemoConfusedAccountant,
+  DemoAccountantClearDebt,
+  DemoAccountantEmotionalDamage,
+  DemoAccountantBribeAccepted,
+  DemoAccountantSelectiveMemory,
+  DemoAccountantPiDebt,
 };
 
 }  // namespace tongdou

@@ -24,6 +24,19 @@ enum class FaceExpression : uint8_t {
   Fierce,
   Proud,
   Nervous,
+  AccountantPause,
+  AccountantRoundEyes,
+  AccountantSuspiciousSquint,
+  AccountantCalculating,
+  AccountantLedgerSearchHigh,
+  AccountantLedgerSearchLow,
+  AccountantDebt3,
+  AccountantDebtScratchStart,
+  AccountantDebtScratchMid,
+  AccountantDebtScratchEnd,
+  AccountantDebt2,
+  AccountantDebtPi,
+  AccountantSmugSquint,
 };
 
 struct FaceFrame {

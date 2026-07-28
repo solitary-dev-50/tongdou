@@ -3,6 +3,23 @@
 #include <Arduino.h>
 
 namespace tongdou {
+namespace {
+
+const __FlashStringHelper* wheelName(WheelDrive drive) {
+  switch (drive) {
+    case WheelDrive::Forward:
+      return F("forward");
+    case WheelDrive::Reverse:
+      return F("reverse");
+    case WheelDrive::Brake:
+      return F("brake");
+    case WheelDrive::Stop:
+    default:
+      return F("stop");
+  }
+}
+
+}  // namespace
 
 ScenarioExecutor::ScenarioExecutor(FaceDisplay& faceDisplay, LedPixel& led,
                                    MotorDriver& motors, AudioOutput& audio)
@@ -142,7 +159,8 @@ void ScenarioExecutor::updateMotion(unsigned long nowMs) {
   while (motionRunning_ &&
          static_cast<long>(nowMs - nextMotionFrameMs_) >= 0) {
     const MotionFrame& frame = motionSequence_.frames[motionFrameIndex_];
-    motors_.drive(frame.left, frame.right);
+    motors_.drive(frame.left, frame.right, frame.duty, frame.leftDuty,
+                  frame.rightDuty);
     ++motionFrameIndex_;
     if (motionFrameIndex_ >= motionSequence_.count) {
       motionRunning_ = false;
@@ -158,6 +176,38 @@ void ScenarioExecutor::update() {
   updateLight(now);
   updateFace(now);
   updateMotion(now);
+}
+
+void ScenarioExecutor::printMotionDebug(MotionAction action, uint32_t relativeT0Ms,
+                                        Print& out) const {
+  const MotionSequence sequence = motionPack_.sequence(action);
+  if (sequence.frames == nullptr || sequence.count == 0) {
+    return;
+  }
+
+  for (size_t i = 0; i < sequence.count; ++i) {
+    const MotionFrame& frame = sequence.frames[i];
+    out.print(F("demo motion cue t="));
+    out.print(relativeT0Ms);
+    out.print(F(" frame="));
+    out.print(i);
+    out.print(F(" left="));
+    out.print(wheelName(frame.left));
+    out.print(F(" right="));
+    out.print(wheelName(frame.right));
+    out.print(F(" duty="));
+    out.print(frame.duty);
+    out.print(F(" left_pwm="));
+    out.print(frame.leftDuty);
+    out.print(F(" right_pwm="));
+    out.print(frame.rightDuty);
+    out.print(F(" duration="));
+    out.println(frame.durationMs);
+  }
+}
+
+uint32_t ScenarioExecutor::lastAudioPlaybackStartedAtMs() const {
+  return audio_.lastPlaybackStartedAtMs();
 }
 
 }  // namespace tongdou

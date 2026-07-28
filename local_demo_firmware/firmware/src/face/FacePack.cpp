@@ -76,6 +76,10 @@ constexpr FaceFrame kConfused[] = {
     {FaceExpression::Innocent, 420},
 };
 
+constexpr FaceFrame kFirstSummonConfusedHold[] = {
+    {FaceExpression::Confused, 1200},
+};
+
 constexpr FaceFrame kAngry[] = {
     {FaceExpression::Awake, 100},
     {FaceExpression::Angry, 760},
@@ -107,6 +111,51 @@ constexpr FaceFrame kNervous[] = {
     {FaceExpression::Squint, 120},
     {FaceExpression::Nervous, 420},
     {FaceExpression::Wronged, 360},
+};
+
+constexpr FaceFrame kAccountantPause[] = {
+    {FaceExpression::AccountantPause, 900},
+};
+
+constexpr FaceFrame kAccountantRoundEyes[] = {
+    {FaceExpression::AccountantRoundEyes, 700},
+};
+
+constexpr FaceFrame kAccountantSuspiciousSquint[] = {
+    {FaceExpression::AccountantSuspiciousSquint, 1200},
+};
+
+constexpr FaceFrame kAccountantCalculating[] = {
+    {FaceExpression::AccountantCalculating, 900},
+};
+
+constexpr FaceFrame kAccountantLedgerSearch[] = {
+    {FaceExpression::AccountantLedgerSearchHigh, 180},
+    {FaceExpression::AccountantLedgerSearchLow, 180},
+    {FaceExpression::AccountantLedgerSearchHigh, 180},
+    {FaceExpression::AccountantLedgerSearchLow, 180},
+};
+
+constexpr FaceFrame kAccountantDebt3[] = {
+    {FaceExpression::AccountantDebt3, 900},
+};
+
+constexpr FaceFrame kAccountantDebtScratch[] = {
+    {FaceExpression::AccountantDebtScratchStart, 180},
+    {FaceExpression::AccountantDebtScratchMid, 220},
+    {FaceExpression::AccountantDebtScratchEnd, 280},
+};
+
+constexpr FaceFrame kAccountantDebt2[] = {
+    {FaceExpression::AccountantDebt2, 1000},
+};
+
+constexpr FaceFrame kAccountantDebtPi[] = {
+    {FaceExpression::AccountantDebtPi, 1300},
+};
+
+constexpr FaceFrame kAccountantSmugSquint[] = {
+    {FaceExpression::AccountantSmugSquint, 1200},
 };
 
 template <size_t N>
@@ -155,6 +204,28 @@ const FaceFrame* FacePack::frames(FaceAction action, size_t& count) const {
       return expose(kProud, count);
     case FaceAction::Nervous:
       return expose(kNervous, count);
+    case FaceAction::FirstSummonConfusedHold:
+      return expose(kFirstSummonConfusedHold, count);
+    case FaceAction::AccountantPause:
+      return expose(kAccountantPause, count);
+    case FaceAction::AccountantRoundEyes:
+      return expose(kAccountantRoundEyes, count);
+    case FaceAction::AccountantSuspiciousSquint:
+      return expose(kAccountantSuspiciousSquint, count);
+    case FaceAction::AccountantCalculating:
+      return expose(kAccountantCalculating, count);
+    case FaceAction::AccountantLedgerSearch:
+      return expose(kAccountantLedgerSearch, count);
+    case FaceAction::AccountantDebt3:
+      return expose(kAccountantDebt3, count);
+    case FaceAction::AccountantDebtScratch:
+      return expose(kAccountantDebtScratch, count);
+    case FaceAction::AccountantDebt2:
+      return expose(kAccountantDebt2, count);
+    case FaceAction::AccountantDebtPi:
+      return expose(kAccountantDebtPi, count);
+    case FaceAction::AccountantSmugSquint:
+      return expose(kAccountantSmugSquint, count);
     case FaceAction::None:
     default:
       return expose(kNone, count);

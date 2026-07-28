@@ -18,6 +18,13 @@ constexpr uint8_t kColorByteCount = 3;
 constexpr uint8_t kBitsPerByte = 8;
 constexpr uint8_t kWs2812BitCount = kColorByteCount * kBitsPerByte;
 
+uint8_t scaleChannelToFullBrightness(uint8_t value, uint8_t maxChannel) {
+  if (value == 0 || maxChannel == 0) {
+    return 0;
+  }
+  return static_cast<uint8_t>((static_cast<uint16_t>(value) * 255U) / maxChannel);
+}
+
 rmt_item32_t makeBit(bool enabled) {
   rmt_item32_t item = {};
   item.level0 = 1;
@@ -55,7 +62,14 @@ void LedPixel::show(const RgbColor& color) {
     return;
   }
 
-  const uint8_t bytes[kColorByteCount] = {color.green, color.red, color.blue};
+  const uint8_t maxChannel = max(color.red, max(color.green, color.blue));
+  const RgbColor fullBrightness = {
+      scaleChannelToFullBrightness(color.red, maxChannel),
+      scaleChannelToFullBrightness(color.green, maxChannel),
+      scaleChannelToFullBrightness(color.blue, maxChannel),
+  };
+  const uint8_t bytes[kColorByteCount] = {fullBrightness.green, fullBrightness.red,
+                                          fullBrightness.blue};
   rmt_item32_t items[kWs2812BitCount] = {};
   size_t itemIndex = 0;
 

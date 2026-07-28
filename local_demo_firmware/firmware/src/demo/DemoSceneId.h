@@ -11,13 +11,15 @@ enum class DemoSceneId : uint8_t {
   MorningWakeup = 3,
   EmailSilentNotice = 4,
   RealtimeEmailSummary = 5,
-  CheekyDanceGlobal = 6,
+  ConfusedAccountantGlobal = 6,
   CrowdfundingCallGlobal = 7,
   FirstSummonNightmare = 8,
 };
 
 const char* demoSceneSlug(DemoSceneId id);
+const char* demoSceneSlug(DemoSceneId id, uint8_t variant);
 const char* demoSceneTitle(DemoSceneId id);
+const char* demoSceneTitle(DemoSceneId id, uint8_t variant);
 DemoSceneId demoSceneFromNumber(uint8_t number);
 
 }  // namespace tongdou

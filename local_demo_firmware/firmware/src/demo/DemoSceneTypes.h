@@ -15,9 +15,11 @@ struct DemoSceneStep {
 
 struct DemoScene {
   DemoSceneId id = DemoSceneId::IdleStop;
+  uint8_t variant = 0;
   const DemoSceneStep* steps = nullptr;
   size_t stepCount = 0;
   bool startsRealtimeVoice = false;
+  bool syncToVoiceStart = false;
 };
 
 }  // namespace tongdou

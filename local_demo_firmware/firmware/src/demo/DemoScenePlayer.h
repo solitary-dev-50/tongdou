@@ -17,6 +17,7 @@ class DemoScenePlayer {
   void begin();
   void update();
   bool play(DemoSceneId id);
+  bool play(DemoSceneId id, uint8_t variant);
   bool playFirstSummonIfNeeded();
   void stop();
   bool handleSerialCommand(const String& command, Print& out);
@@ -25,6 +26,7 @@ class DemoScenePlayer {
  private:
   void executeIdle();
   void markFirstSummonPlayed();
+  void executeStep(const DemoSceneStep& step, unsigned long relativeMs);
 
   ScenarioExecutor& scenarioExecutor_;
   RealtimeVoiceService& realtimeVoiceService_;
@@ -32,10 +34,16 @@ class DemoScenePlayer {
   DemoSceneLibrary library_;
   DemoScene activeScene_;
   DemoSceneId currentId_ = DemoSceneId::IdleStop;
+  uint8_t currentVariant_ = 0;
   unsigned long startedMs_ = 0;
   size_t nextStepIndex_ = 0;
   bool playing_ = false;
   bool autoFirstSummonActive_ = false;
+  bool syncToVoiceStart_ = false;
+  bool voiceStepIssued_ = false;
+  bool audioTimebaseActive_ = false;
+  uint32_t audioStartWatchMs_ = 0;
+  uint32_t audioStartedMs_ = 0;
 };
 
 }  // namespace tongdou

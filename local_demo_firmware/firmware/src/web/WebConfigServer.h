@@ -40,6 +40,8 @@ class WebConfigServer {
   void handleRoot();
   void handleDemoPage();
   void handleMotorPage();
+  void handleMotorConfigGet();
+  void handleMotorConfigSave();
   void handleDemoScene();
   void handleDemoStatus();
   void handleWifiSave();

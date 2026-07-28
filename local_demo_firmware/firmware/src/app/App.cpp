@@ -69,9 +69,11 @@ void App::update() {
   demoScenePlayer_.update();
   handleStartupReport();
   handleSerialDiagnostics();
+  handleLogoTouchEvents();
   handleReminderEvents();
   handleRealtimeVoiceEvents();
   scenarioExecutor_.update();
+  logoWiggle_.update();
 }
 
 void App::handleReminderEvents() {
@@ -92,6 +94,45 @@ void App::handleRealtimeVoiceEvents() {
   const ScenarioPlan plan = scenarioEngine_.select(
       {ScenarioEventType::VoiceRecognitionFailed, 0}, scenarioContext_);
   scenarioExecutor_.execute(plan);
+}
+
+void App::handleLogoTouchEvents() {
+  const LogoTouchEvent event = hardware_.logoTouch().consumeEvent();
+  if (event == LogoTouchEvent::None) {
+    return;
+  }
+
+  logoWiggle_.stop();
+
+  ScenarioPlan plan;
+  plan.valid = true;
+  plan.face = FaceAction::Blink;
+  plan.light = LightAction::None;
+  plan.voice = VoiceLine::None;
+  plan.durationMs = 650;
+
+  if (event == LogoTouchEvent::LongPress) {
+    logoSleepMode_ = !logoSleepMode_;
+    plan.face = logoSleepMode_ ? FaceAction::Sleep : FaceAction::WakeUp;
+    plan.light = logoSleepMode_ ? LightAction::Off : LightAction::WeakBreath;
+    plan.motion = MotionAction::Stop;
+    plan.durationMs = logoSleepMode_ ? 800 : 1200;
+    Serial.println(logoSleepMode_ ? "logo action=long_press_sleep"
+                                  : "logo action=long_press_wake");
+  } else if (event == LogoTouchEvent::DoubleTap) {
+    plan.face = FaceAction::Proud;
+    plan.motion = MotionAction::None;
+    plan.durationMs = 1600;
+    Serial.println("logo action=double_tap_gyro_wiggle");
+  } else {
+    plan.motion = MotionAction::None;
+    Serial.println("logo action=single_tap_blink");
+  }
+
+  scenarioExecutor_.execute(plan);
+  if (event == LogoTouchEvent::DoubleTap) {
+    logoWiggle_.start();
+  }
 }
 
 void App::handleSerialDiagnostics() {

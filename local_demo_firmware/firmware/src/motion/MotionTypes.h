@@ -16,6 +16,9 @@ struct MotionFrame {
   WheelDrive left = WheelDrive::Stop;
   WheelDrive right = WheelDrive::Stop;
   uint16_t durationMs = 0;
+  uint8_t duty = 0;
+  uint8_t leftDuty = 0;
+  uint8_t rightDuty = 0;
 };
 
 struct MotionSequence {

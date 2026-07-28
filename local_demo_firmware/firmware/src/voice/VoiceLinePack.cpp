@@ -43,9 +43,21 @@ VoiceClip VoiceLinePack::clip(VoiceLine line) const {
     case VoiceLine::DemoRecordedEmailSummaryGlobal:
       return {118, "demo_05_email_summary.wav", "You got one supplier email. The key point is brass part sampling time. Nothing urgent, but worth checking after this take."};
     case VoiceLine::DemoFirstSummonNightmare:
-      return {119, "demo_00_first_summon.wav", "Did you... summon me from the void? Good. Foolish human. Your desktop nightmare... begins now! Gah-ha-ha-ha!"};
+      return {119, "/audio/demo_00_first_summon.pcm", "Did you... summon me from the void? Good. Foolish human. Your desktop nightmare... begins now! Gah-ha-ha-ha!"};
     case VoiceLine::DemoCrowdfundingCallGlobal:
       return {120, "demo_07_campaign_call.wav", "The campaign is live. Back me now, or no more dance shows."};
+    case VoiceLine::DemoConfusedAccountant:
+      return {122, "/audio/demo_06_confused_accountant.pcm", "Took you long enough. I was going to charge a late fee... but I'll let it slide. Wait... let me find my little ledger. Hmm... Found it! One debt cleared. Since you're here... care to settle the rest? Actually... You now owe me 3.1415 coffees. No. I don't round down."};
+    case VoiceLine::DemoAccountantClearDebt:
+      return {123, "/audio/demo_06_accountant_clear.pcm", "One debt cleared. Since you're here... care to settle the rest?"};
+    case VoiceLine::DemoAccountantEmotionalDamage:
+      return {124, "/audio/demo_06_accountant_extort.pcm", "Wait. Something's wrong. That touch caused emotional damage. One extra coffee has been added to your balance."};
+    case VoiceLine::DemoAccountantBribeAccepted:
+      return {125, "/audio/demo_06_accountant_bribe.pcm", "Oh... that was actually quite nice. Fine. I'll clear three debts. Don't let the auditors know."};
+    case VoiceLine::DemoAccountantSelectiveMemory:
+      return {126, "/audio/demo_06_accountant_forgetful.pcm", "Hmm... this page says three. I remember five. Let's call it five. Safer that way."};
+    case VoiceLine::DemoAccountantPiDebt:
+      return {127, "/audio/demo_06_accountant_pi.pcm", "Actually... You now owe me three point one four one five coffees. No. No. No. I don't round down."};
     case VoiceLine::None:
     default:
       return {};

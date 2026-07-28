@@ -17,9 +17,11 @@ main{max-width:720px;margin:auto;padding:18px}h1{margin:0;font-size:28px}p{color
 button{min-height:82px;border:1px solid var(--line);border-radius:8px;background:#222;color:var(--text);font-weight:700;font-size:15px}
 button strong{display:block;font-size:28px;color:var(--gold);margin-bottom:4px}
 button.stop{grid-column:span 3;background:#3a1c1c;border-color:#6b3030}
+.subgrid{display:grid;grid-column:1/-1;grid-template-columns:repeat(5,1fr);gap:8px}
+.subgrid button{min-height:66px;font-size:12px;background:#191919}
 button:active{transform:translateY(1px);filter:brightness(.8)}
 pre{white-space:pre-wrap;background:#050505;border:1px solid var(--line);border-radius:8px;padding:12px;min-height:96px}
-@media(max-width:520px){.grid{grid-template-columns:repeat(2,1fr)}button.stop{grid-column:span 2}}
+@media(max-width:520px){.grid{grid-template-columns:repeat(2,1fr)}button.stop{grid-column:span 2}.subgrid{grid-template-columns:repeat(2,1fr)}}
 </style></head><body><main>
 <h1>TongDou Demo</h1>
 <p>Internal overseas campaign controller. Phone stays off camera.</p>
@@ -33,7 +35,14 @@ pre{white-space:pre-wrap;background:#050505;border:1px solid var(--line);border-
 <button onclick="play(3)"><strong>3</strong>Morning wakeup</button>
 <button onclick="play(4)"><strong>4</strong>Email notice</button>
 <button onclick="play(5)"><strong>5</strong>Email summary</button>
-<button onclick="play(6)"><strong>6</strong>Cheeky dance</button>
+<button onclick="play(6,1)"><strong>6</strong>Accountant 6-1</button>
+<div class="subgrid" id="accountantVariants">
+<button onclick="play(6,1)"><strong>1</strong>Clear debt</button>
+<button onclick="play(6,2)"><strong>2</strong>Damage</button>
+<button onclick="play(6,3)"><strong>3</strong>Bribe</button>
+<button onclick="play(6,4)"><strong>4</strong>Memory</button>
+<button onclick="play(6,5)"><strong>5</strong>Pi debt</button>
+</div>
 <button onclick="play(7)"><strong>7</strong>Campaign call</button>
 <button onclick="play(8)"><strong>8</strong>Summon</button>
 <button class="stop" onclick="play(0)"><strong>0</strong>Stop and idle</button>
@@ -50,6 +59,16 @@ async function refresh(){
 async function play(id){
   $('log').textContent='Sending scene '+id+'...';
   const r=await fetch('/api/demo/scene',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'id='+id});
+  const t=await r.text();
+  $('log').textContent=t;
+  await refresh();
+}
+async function play(id,variant){
+  const label=variant?id+'-'+variant:id;
+  $('log').textContent='Sending scene '+label+'...';
+  let body='id='+id;
+  if(variant) body+='&variant='+variant;
+  const r=await fetch('/api/demo/scene',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});
   const t=await r.text();
   $('log').textContent=t;
   await refresh();

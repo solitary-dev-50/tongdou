@@ -44,6 +44,14 @@ class StringPrint : public Print {
   String value_;
 };
 
+uint8_t parseDutyArg(const String& value, uint8_t fallback) {
+  const int parsed = value.toInt();
+  if (parsed <= 0 || parsed > 255) {
+    return fallback;
+  }
+  return static_cast<uint8_t>(parsed);
+}
+
 }  // namespace
 
 WebConfigServer::WebConfigServer(ScenarioConfigApi& scenarioApi, WifiConfigStore& wifiStore,
@@ -140,6 +148,15 @@ void WebConfigServer::setupRoutes() {
   server_.on("/", HTTP_GET, [this]() { handleRoot(); });
   server_.on("/demo", HTTP_GET, [this]() { handleDemoPage(); });
   server_.on("/motor", HTTP_GET, [this]() { handleMotorPage(); });
+  server_.on("/api/motor/config", HTTP_GET, [this]() { handleMotorConfigGet(); });
+  server_.on("/api/motor/config", HTTP_POST, [this]() { handleMotorConfigSave(); });
+  server_.on("/generate_204", HTTP_GET, [this]() { handleNotFound(); });
+  server_.on("/gen_204", HTTP_GET, [this]() { handleNotFound(); });
+  server_.on("/hotspot-detect.html", HTTP_GET, [this]() { handleNotFound(); });
+  server_.on("/library/test/success.html", HTTP_GET, [this]() { handleNotFound(); });
+  server_.on("/connecttest.txt", HTTP_GET, [this]() { handleNotFound(); });
+  server_.on("/ncsi.txt", HTTP_GET, [this]() { handleNotFound(); });
+  server_.on("/favicon.ico", HTTP_GET, [this]() { sendText(204, "image/x-icon", ""); });
   server_.on("/api/demo/scene", HTTP_POST, [this]() { handleDemoScene(); });
   server_.on("/api/demo/status", HTTP_GET, [this]() { handleDemoStatus(); });
   server_.on("/api/status", HTTP_GET, [this]() { sendText(200, "application/json", statusJson()); });
@@ -170,61 +187,148 @@ void WebConfigServer::handleDemoPage() {
 
 void WebConfigServer::handleMotorPage() {
   String body;
-  body.reserve(6200);
+  body.reserve(6800);
   body += F(R"HTML(<!doctype html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TongDou Motor Cal</title>
+<title>TongDou Motor Test</title>
 <style>
 :root{color-scheme:dark;--bg:#101010;--panel:#1b1b1b;--line:#303030;--gold:#e5b55f;--text:#f4efe4;--muted:#aaa;--danger:#7a2e2e}
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
-body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,sans-serif;touch-action:none}
-main{max-width:620px;margin:auto;padding:18px}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{min-height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,sans-serif;touch-action:auto}
+main{max-width:620px;margin:auto;padding:18px 18px 84px}
 h1{margin:0 0 8px;font-size:26px}p{color:var(--muted);line-height:1.45}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px;margin:14px 0}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stack{display:grid;gap:10px}
 label{display:block;color:var(--muted);font-size:13px;margin-bottom:6px}
 input{width:100%;padding:13px;border-radius:8px;border:1px solid var(--line);background:#080808;color:var(--text);font-size:22px;text-align:center}
-button{width:100%;min-height:130px;border-radius:8px;border:1px solid var(--line);background:#242424;color:var(--text);font-size:22px;font-weight:800;touch-action:none}
+input[type=checkbox]{width:auto;transform:scale(1.4);margin-right:10px}
+button{width:100%;min-height:74px;border-radius:8px;border:1px solid var(--line);background:#242424;color:var(--text);font-size:20px;font-weight:800}
 button:active,button.active{background:var(--gold);color:#111;transform:translateY(1px)}
 button.stop{min-height:62px;background:var(--danger);border-color:#a94848}
+button.primary{background:#2f281b;border-color:#8c6b2f;color:#ffe0a3}
+button.secondary{background:#222}
+button.drive{touch-action:none}
 button.drive::before{content:"";display:block;width:0;height:0;margin:auto;border-left:30px solid transparent;border-right:30px solid transparent}
 button.forward::before{border-bottom:52px solid currentColor}
 button.reverse::before{border-top:52px solid currentColor}
 pre{white-space:pre-wrap;background:#050505;border:1px solid var(--line);border-radius:8px;padding:12px;min-height:120px}
 .small{font-size:13px;color:var(--muted)}
+.switch{display:flex;align-items:center;min-height:46px;color:var(--text);font-size:15px}
+.logbar{display:flex;gap:10px;align-items:center;margin:10px 0 6px}
+button.copy{width:auto;min-height:42px;padding:0 16px;font-size:15px}
+details{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px;margin:14px 0}
+summary{cursor:pointer;font-weight:800;font-size:18px}
+details .panel{border:0;background:transparent;padding:12px 0 0;margin:0}
 </style></head><body><main>
-<h1>TongDou Motor Cal</h1>
-<p>Hold a button to move. Release to stop. If WiFi drops, firmware stops the motors automatically.</p>
+<h1>TongDou Motor Check</h1>
+<p>Quick board check for wheel direction, manual movement, and QMI8658A gyro straight test.</p>
 <section class="panel">
 <div class="row">
-<div><label>Left PWM</label><input id="leftPwm" type="number" min="1" max="255" value="187"></div>
-<div><label>Right PWM</label><input id="rightPwm" type="number" min="1" max="255" value="170"></div>
+<label class="switch"><input id="leftInv" type="checkbox">Left wheel reversed</label>
+<label class="switch"><input id="rightInv" type="checkbox">Right wheel reversed</label>
 </div>
-<p class="small">Current straight-line baseline: left 187, right 170. If it turns left, lower the right PWM or raise the left PWM. If it turns right, do the opposite.</p>
+<button class="secondary" onclick="saveMotorConfig()">Save direction setup</button>
+<p class="small" id="motorConfigText">Loading motor direction...</p>
 </section>
 <section class="row">
 <button id="forward" class="drive forward" aria-label="forward"></button>
 <button id="reverse" class="drive reverse" aria-label="reverse"></button>
 </section>
-<section class="panel">
+<section class="stack">
 <button class="stop" onclick="stopMotor()">STOP</button>
+<button class="primary" onclick="autoTuneStraight()">GYRO AUTO STRAIGHT</button>
 </section>
+<details>
+<summary>Advanced debug</summary>
+<section class="panel">
+<div class="row">
+<div><label>Manual left PWM</label><input id="leftPwm" type="number" min="1" max="255" value="187"></div>
+<div><label>Manual right PWM</label><input id="rightPwm" type="number" min="1" max="255" value="170"></div>
+</div>
+<p class="small">Manual PWM is only for hold-to-move tests and direction setup. Gyro auto straight starts from equal base PWM and corrects in real time.</p>
+</section>
+<section class="panel">
+<div><label>Gyro auto straight base PWM</label><input id="gyroBasePwm" type="number" min="160" max="220" value="185"></div>
+</section>
+<section class="panel">
+<label>Volume <span id="volumeText">80%</span></label>
+<input id="volume" type="range" min="0" max="100" step="5" value="80" oninput="previewVolume()" onchange="saveVolume()">
+</section>
+<section class="panel">
+<button class="secondary" onclick="gyroRawTest()">GYRO RAW TEST</button>
+<p class="small">Keep still for the first second, then rotate left or right by hand.</p>
+</section>
+</details>
+<div class="logbar"><button class="copy" onclick="copyLog()">Copy log</button><span class="small" id="copyStatus"></span></div>
 <pre id="log">Ready</pre>
 <script>
 const $=id=>document.getElementById(id);
 let active='',timer=null,busy=false;
 function pwm(id){let v=Number($(id).value||170);return Math.max(1,Math.min(255,Math.round(v)))}
+function setLog(text){
+  $('log').textContent=text;
+  $('copyStatus').textContent='';
+}
 async function diag(command){
   const r=await fetch('/api/diagnostic',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'command='+encodeURIComponent(command)});
   const text=await r.text();
-  $('log').textContent=text;
+  setLog(text);
   return text;
+}
+async function copyLog(){
+  const text=$('log').textContent||'';
+  try{
+    if(navigator.clipboard&&window.isSecureContext){
+      await navigator.clipboard.writeText(text);
+    }else{
+      const area=document.createElement('textarea');
+      area.value=text;
+      area.setAttribute('readonly','');
+      area.style.position='fixed';
+      area.style.left='-9999px';
+      area.style.top='0';
+      document.body.appendChild(area);
+      area.focus();
+      area.setSelectionRange(0,area.value.length);
+      document.execCommand('copy');
+      document.body.removeChild(area);
+    }
+    $('copyStatus').textContent='Copied';
+  }catch(e){
+    $('copyStatus').textContent='Copy failed';
+  }
+}
+async function loadMotorConfig(){
+  const r=await fetch('/api/motor/config');
+  const j=await r.json();
+  if(j.leftPwm)$('leftPwm').value=j.leftPwm;
+  if(j.rightPwm)$('rightPwm').value=j.rightPwm;
+  if(j.audioVolumePercent!==undefined){$('volume').value=j.audioVolumePercent;previewVolume();}
+  $('leftInv').checked=!!j.leftInverted;
+  $('rightInv').checked=!!j.rightInverted;
+  $('motorConfigText').textContent='Saved direction setup: manual left PWM '+$('leftPwm').value+', manual right PWM '+$('rightPwm').value+', left reversed '+(j.leftInverted?'ON':'OFF')+', right reversed '+(j.rightInverted?'ON':'OFF');
+}
+function previewVolume(){
+  $('volumeText').textContent=String($('volume').value)+'%';
+}
+async function saveVolume(){
+  try{await diag('audio volume '+$('volume').value)}
+  catch(e){setLog('volume save failed: '+e)}
+}
+async function saveMotorConfig(){
+  await stopMotor();
+  const body='leftInverted='+($('leftInv').checked?1:0)+'&rightInverted='+($('rightInv').checked?1:0)+'&leftPwm='+pwm('leftPwm')+'&rightPwm='+pwm('rightPwm');
+  const r=await fetch('/api/motor/config',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});
+  setLog(await r.text());
+  await loadMotorConfig();
 }
 async function keepalive(){
   if(!active||busy)return;
   busy=true;
   try{await diag('motor manual '+active+' '+pwm('leftPwm')+' '+pwm('rightPwm'))}
-  catch(e){$('log').textContent='request failed: '+e}
+  catch(e){setLog('request failed: '+e)}
   finally{busy=false}
 }
 function begin(direction,button){
@@ -247,7 +351,24 @@ async function stopMotor(){
   if(timer){clearInterval(timer);timer=null}
   $('forward').classList.remove('active');
   $('reverse').classList.remove('active');
-  try{await diag('motor stop')}catch(e){$('log').textContent='stop failed: '+e}
+  try{await diag('motor stop')}catch(e){setLog('stop failed: '+e)}
+}
+async function autoTuneStraight(){
+  await stopMotor();
+  setLog('Gyro auto straight running. Keep TongDou on a clear flat table.');
+  await diag('motor auto forward '+pwm('gyroBasePwm'));
+  for(let i=0;i<18;i++){
+    await new Promise(r=>setTimeout(r,250));
+    const text=await diag('motor auto status');
+    if(text.includes('done=1')||text.includes('failed=1'))break;
+  }
+  await loadMotorConfig();
+}
+async function gyroRawTest(){
+  await stopMotor();
+  setLog('Gyro raw test running. Keep still for 1 second, then rotate left or right by hand.');
+  try{await diag('imu raw test')}
+  catch(e){setLog('gyro raw test failed: '+e)}
 }
 function bind(id,direction){
   const b=$(id);
@@ -261,12 +382,58 @@ bind('reverse','reverse');
 document.addEventListener('contextmenu',e=>e.preventDefault());
 window.addEventListener('blur',()=>end(true));
 window.addEventListener('beforeunload',()=>navigator.sendBeacon('/api/diagnostic','command=motor%20stop'));
+loadMotorConfig();
 </script></main></body></html>)HTML");
   sendText(200, "text/html; charset=utf-8", body);
 }
 
+void WebConfigServer::handleMotorConfigGet() {
+  String body;
+  body.reserve(120);
+  body += "{\"ok\":true,\"leftInverted\":";
+  body += hardwareSelfTest_.motorLeftInverted() ? "true" : "false";
+  body += ",\"rightInverted\":";
+  body += hardwareSelfTest_.motorRightInverted() ? "true" : "false";
+  body += ",\"leftPwm\":";
+  body += hardwareSelfTest_.motorLeftDefaultDuty();
+  body += ",\"rightPwm\":";
+  body += hardwareSelfTest_.motorRightDefaultDuty();
+  body += ",\"audioVolumePercent\":";
+  body += hardwareSelfTest_.audioVolumePercent();
+  body += "}";
+  sendText(200, "application/json", body);
+}
+
+void WebConfigServer::handleMotorConfigSave() {
+  const String left = server_.arg("leftInverted");
+  const String right = server_.arg("rightInverted");
+  const bool leftInverted = left == "1" || left == "true" || left == "on";
+  const bool rightInverted = right == "1" || right == "true" || right == "on";
+  const uint8_t leftDuty =
+      parseDutyArg(server_.arg("leftPwm"), hardwareSelfTest_.motorLeftDefaultDuty());
+  const uint8_t rightDuty =
+      parseDutyArg(server_.arg("rightPwm"), hardwareSelfTest_.motorRightDefaultDuty());
+
+  hardwareSelfTest_.saveMotorCalibration(leftInverted, rightInverted, leftDuty,
+                                         rightDuty);
+
+  String body;
+  body.reserve(140);
+  body += "{\"ok\":true,\"leftInverted\":";
+  body += leftInverted ? "true" : "false";
+  body += ",\"rightInverted\":";
+  body += rightInverted ? "true" : "false";
+  body += ",\"leftPwm\":";
+  body += leftDuty;
+  body += ",\"rightPwm\":";
+  body += rightDuty;
+  body += "}";
+  sendText(200, "application/json", body);
+}
+
 void WebConfigServer::handleDemoScene() {
   int id = server_.arg("id").toInt();
+  int variant = server_.arg("variant").toInt();
   if (server_.hasArg("plain") && server_.arg("plain").length() > 0) {
     const String plain = server_.arg("plain");
     const int key = plain.indexOf("\"id\"");
@@ -274,6 +441,13 @@ void WebConfigServer::handleDemoScene() {
       const int colon = plain.indexOf(':', key);
       if (colon >= 0) {
         id = plain.substring(colon + 1).toInt();
+      }
+    }
+    const int variantKey = plain.indexOf("\"variant\"");
+    if (variantKey >= 0) {
+      const int colon = plain.indexOf(':', variantKey);
+      if (colon >= 0) {
+        variant = plain.substring(colon + 1).toInt();
       }
     }
   }
@@ -284,7 +458,7 @@ void WebConfigServer::handleDemoScene() {
   }
 
   const DemoSceneId sceneId = demoSceneFromNumber(static_cast<uint8_t>(id));
-  if (!demoScenePlayer_.play(sceneId)) {
+  if (!demoScenePlayer_.play(sceneId, static_cast<uint8_t>(variant))) {
     sendText(404, "application/json", "{\"ok\":false,\"error\":\"unknown demo scene\"}");
     return;
   }

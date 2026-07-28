@@ -170,6 +170,95 @@ void FaceDisplay::drawEyePair(int16_t leftX, int16_t rightX, int16_t y, int16_t 
   fillRoundRect(rightX, y, w, h, radius);
 }
 
+void FaceDisplay::drawChar5x7(int16_t x, int16_t y, char value, uint8_t scale) {
+  uint8_t columns[5] = {};
+  switch (value) {
+    case 'B':
+      columns[0] = 0x7F; columns[1] = 0x49; columns[2] = 0x49; columns[3] = 0x49; columns[4] = 0x36;
+      break;
+    case 'C':
+      columns[0] = 0x3E; columns[1] = 0x41; columns[2] = 0x41; columns[3] = 0x41; columns[4] = 0x22;
+      break;
+    case 'D':
+      columns[0] = 0x7F; columns[1] = 0x41; columns[2] = 0x41; columns[3] = 0x22; columns[4] = 0x1C;
+      break;
+    case 'E':
+      columns[0] = 0x7F; columns[1] = 0x49; columns[2] = 0x49; columns[3] = 0x49; columns[4] = 0x41;
+      break;
+    case 'F':
+      columns[0] = 0x7F; columns[1] = 0x09; columns[2] = 0x09; columns[3] = 0x09; columns[4] = 0x01;
+      break;
+    case 'O':
+      columns[0] = 0x3E; columns[1] = 0x41; columns[2] = 0x41; columns[3] = 0x41; columns[4] = 0x3E;
+      break;
+    case 'S':
+      columns[0] = 0x26; columns[1] = 0x49; columns[2] = 0x49; columns[3] = 0x49; columns[4] = 0x32;
+      break;
+    case 'T':
+      columns[0] = 0x01; columns[1] = 0x01; columns[2] = 0x7F; columns[3] = 0x01; columns[4] = 0x01;
+      break;
+    case '1':
+      columns[0] = 0x00; columns[1] = 0x42; columns[2] = 0x7F; columns[3] = 0x40; columns[4] = 0x00;
+      break;
+    case '2':
+      columns[0] = 0x62; columns[1] = 0x51; columns[2] = 0x49; columns[3] = 0x49; columns[4] = 0x46;
+      break;
+    case '3':
+      columns[0] = 0x22; columns[1] = 0x41; columns[2] = 0x49; columns[3] = 0x49; columns[4] = 0x36;
+      break;
+    case '4':
+      columns[0] = 0x18; columns[1] = 0x14; columns[2] = 0x12; columns[3] = 0x7F; columns[4] = 0x10;
+      break;
+    case '5':
+      columns[0] = 0x27; columns[1] = 0x45; columns[2] = 0x45; columns[3] = 0x45; columns[4] = 0x39;
+      break;
+    case '.':
+      columns[0] = 0x00; columns[1] = 0x60; columns[2] = 0x60; columns[3] = 0x00; columns[4] = 0x00;
+      break;
+    case ':':
+      columns[0] = 0x00; columns[1] = 0x36; columns[2] = 0x36; columns[3] = 0x00; columns[4] = 0x00;
+      break;
+    case ' ':
+    default:
+      break;
+  }
+
+  const uint8_t drawScale = scale == 0 ? 1 : scale;
+  for (uint8_t col = 0; col < 5; ++col) {
+    for (uint8_t row = 0; row < 7; ++row) {
+      if ((columns[col] & (1U << row)) == 0) {
+        continue;
+      }
+      fillRect(x + col * drawScale, y + row * drawScale, drawScale, drawScale);
+    }
+  }
+}
+
+void FaceDisplay::drawText5x7(int16_t x, int16_t y, const char* text, uint8_t scale) {
+  if (text == nullptr) {
+    return;
+  }
+
+  const uint8_t drawScale = scale == 0 ? 1 : scale;
+  int16_t cursor = x;
+  while (*text != '\0') {
+    drawChar5x7(cursor, y, *text, drawScale);
+    cursor += static_cast<int16_t>(6 * drawScale);
+    ++text;
+  }
+}
+
+void FaceDisplay::drawCoffeeDebt(uint8_t cups) {
+  drawText5x7(35, 5, "COFFEE", 1);
+  drawText5x7(20, 22, "DEBT:", 1);
+  drawChar5x7(84, 20, cups == 2 ? '2' : '3', 3);
+}
+
+void FaceDisplay::drawDebtScratch(uint8_t scratchWidth) {
+  drawCoffeeDebt(3);
+  fillRect(77, 31, scratchWidth, 5);
+}
+
 void FaceDisplay::drawExpression(FaceExpression expression) {
   switch (expression) {
     case FaceExpression::Blank:
@@ -275,6 +364,71 @@ void FaceDisplay::drawExpression(FaceExpression expression) {
       fillRect(77, 32, 6, 6);
       line(99, 22, 104, 27);
       line(104, 27, 101, 33);
+      break;
+    case FaceExpression::AccountantPause:
+      line(30, 33, 56, 31);
+      line(72, 31, 98, 33);
+      break;
+    case FaceExpression::AccountantRoundEyes:
+      rect(30, 18, 28, 30);
+      rect(70, 18, 28, 30);
+      fillRect(41, 30, 7, 9);
+      fillRect(81, 30, 7, 9);
+      line(59, 54, 69, 54);
+      break;
+    case FaceExpression::AccountantSuspiciousSquint:
+      line(29, 29, 57, 36);
+      line(71, 36, 99, 29);
+      fillRect(35, 35, 12, 4);
+      fillRect(82, 35, 12, 4);
+      break;
+    case FaceExpression::AccountantCalculating:
+      rect(33, 27, 22, 16);
+      rect(73, 27, 22, 16);
+      fillRect(42, 37, 7, 5);
+      fillRect(82, 37, 7, 5);
+      line(50, 51, 78, 51);
+      break;
+    case FaceExpression::AccountantLedgerSearchHigh:
+      rect(30, 18, 28, 30);
+      rect(70, 18, 28, 30);
+      fillRect(40, 23, 8, 7);
+      fillRect(80, 23, 8, 7);
+      line(36, 53, 92, 53);
+      break;
+    case FaceExpression::AccountantLedgerSearchLow:
+      rect(30, 18, 28, 30);
+      rect(70, 18, 28, 30);
+      fillRect(40, 37, 8, 7);
+      fillRect(80, 37, 8, 7);
+      line(36, 53, 92, 53);
+      break;
+    case FaceExpression::AccountantDebt3:
+      drawCoffeeDebt(3);
+      break;
+    case FaceExpression::AccountantDebtScratchStart:
+      drawDebtScratch(16);
+      break;
+    case FaceExpression::AccountantDebtScratchMid:
+      drawDebtScratch(34);
+      break;
+    case FaceExpression::AccountantDebtScratchEnd:
+      drawDebtScratch(52);
+      break;
+    case FaceExpression::AccountantDebt2:
+      drawCoffeeDebt(2);
+      break;
+    case FaceExpression::AccountantDebtPi:
+      drawText5x7(43, 4, "COFFEES", 1);
+      drawText5x7(28, 24, "3.1415", 2);
+      break;
+    case FaceExpression::AccountantSmugSquint:
+      line(31, 30, 57, 35);
+      line(71, 35, 97, 30);
+      fillRect(38, 36, 14, 4);
+      fillRect(78, 36, 14, 4);
+      line(55, 49, 64, 53);
+      line(64, 53, 76, 47);
       break;
   }
 }

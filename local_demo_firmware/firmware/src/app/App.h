@@ -6,6 +6,7 @@
 #include "demo/DemoScenePlayer.h"
 #include "hardware/HardwareManager.h"
 #include "mcp/McpServer.h"
+#include "motion/GyroReturnWiggleController.h"
 #include "realtime/RealtimeVoiceService.h"
 #include "reminder/ReminderManager.h"
 #include "reminder/ReminderStore.h"
@@ -27,6 +28,7 @@ class App {
 
  private:
   void handleReminderEvents();
+  void handleLogoTouchEvents();
   void handleRealtimeVoiceEvents();
   void handleSerialDiagnostics();
   void handleStartupReport();
@@ -41,6 +43,7 @@ class App {
   ScenarioEngine scenarioEngine_{scenarioLibrary_};
   ScenarioExecutor scenarioExecutor_{hardware_.faceDisplay(), hardware_.led(),
                                     hardware_.motors(), hardware_.audioOutput()};
+  GyroReturnWiggleController logoWiggle_{hardware_.motors(), hardware_.imu()};
   ScenarioContext scenarioContext_;
   RealtimeVoiceService realtimeVoiceService_{hardware_.audioInput(),
                                             hardware_.audioOutput()};
@@ -55,6 +58,7 @@ class App {
                                    demoScenePlayer_};
   unsigned long bootMs_ = 0;
   uint8_t startupReportCount_ = 0;
+  bool logoSleepMode_ = false;
 };
 
 }  // namespace tongdou

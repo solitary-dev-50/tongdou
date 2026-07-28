@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Arduino.h>
+
 #include "face/FacePack.h"
 #include "hardware/AudioOutput.h"
 #include "hardware/FaceDisplay.h"
@@ -21,6 +23,8 @@ class ScenarioExecutor {
   void execute(const ScenarioPlan& plan);
   void stop();
   void update();
+  void printMotionDebug(MotionAction action, uint32_t relativeT0Ms, Print& out) const;
+  uint32_t lastAudioPlaybackStartedAtMs() const;
 
  private:
   void startLight(LightAction action, unsigned long nowMs);
