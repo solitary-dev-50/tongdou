@@ -2,11 +2,19 @@
 
 [![TongDou demo keyframes](media/images/tongdou-demo-keyframes.gif)](media/videos/tongdou-demo-devil-descends.mp4)
 
+> **Work in Progress**
+>
+> TongDou is being actively documented and open-sourced step by step.
+> Hardware test firmware, prototype photos, and selected hardware documents are
+> public now. Other design files, manufacturing documents, and build guides will
+> be released progressively.
+> Please see the [Roadmap](#roadmap) below for the current release plan.
+
 TongDou is a small desktop robot that has already been physically built and run. It is not a concept project.
 
 This repository is the official public project showcase and phased open-source entry point for TongDou.
 
-Official website: https://gettongdou.com  
+Official website: https://gettongdou.com
 Contact: hello@gettongdou.com
 
 Official TongDou products and crowdfunding campaigns will only be announced through https://gettongdou.com
@@ -33,15 +41,39 @@ Full video:
 
 [TongDou demo - Devil Descends](media/videos/tongdou-demo-devil-descends.mp4)
 
+## Hardware Test Firmware
+
+[Open the TongDou hardware test firmware](hardware_test_firmware/)
+
+This public package is intended for hardware bring-up and diagnostics. It is
+not the complete TongDou application firmware.
+
+## V8 and V9 PCB Revisions
+
+### V8 prototype PCB
+
+![TongDou V8 prototype PCB](media/images/pcb-revisions/tongdou-pcb-v8.jpg)
+
+### V9 prototype PCB
+
+![TongDou V9 prototype PCB](media/images/pcb-revisions/tongdou-pcb-v9.png)
+
+These are the real V8 and V9 prototype boards. V9 adds a capacitive touch logo
+and an onboard QMI8658A 6-axis IMU.
+
 ## Current Public Release
 
 This repository currently includes:
 
 - Project overview
-- Schematic PDF files
-- Real product photos and videos, when available
-- Open-source release plan
+- Hardware test and diagnostic firmware
+- V8 and V9 prototype PCB photos
+- Existing schematic PDF files
+- Existing project photos and videos
 - License and notice files
+- Open-source release plan
+
+The hardware test firmware is not the complete TongDou application firmware.
 
 Current schematic PDFs:
 
@@ -57,32 +89,73 @@ Current public video:
 
 - [TongDou demo - Devil Descends](media/videos/tongdou-demo-devil-descends.mp4)
 
-If a media folder only contains a README file, real media for that category has not been added to this public repository yet.
-
 ## What Is Not Included Yet
 
 This repository does not currently provide:
 
+- Complete TongDou application firmware
 - Editable PCB source files
 - Gerber files
-- BOM files
-- PNP, CPL, or pick-and-place files
-- Complete mechanical files
-- Soldering fixtures
-- Firmware
-- Official audio files
+- BOM and pick-and-place files
+- Mechanical source files
+- Production calibration and manufacturing files
+- Character behaviors
+- Official audio assets
+- Private data, keys, backend configuration, and service credentials
 - Complete manufacturing or assembly tutorials
 - Cost, supply-chain, or purchasing lists
 
-These materials are not permanently closed. The plan is to review and release more materials in phases after crowdfunding is completed and the first production batch has been delivered.
+These materials are not permanently closed. Complete project materials are
+planned to be released progressively after the crowdfunding campaign is complete
+and the first production batch has been delivered.
 
 No specific open-source release date is promised at this stage.
+
+## Roadmap
+
+### 1. Public project showcase
+
+Photos, videos, high-level project description, license information, and the
+public release route.
+
+### 2. Hardware test firmware
+
+The public hardware test firmware is available now for board bring-up and
+diagnostics. It is not the complete TongDou application firmware.
+
+### 3. Additional hardware design materials
+
+Existing schematic PDFs are available now. Editable PCB source files, Gerber
+files, BOM, pick-and-place files, mechanical source files, and production
+calibration and manufacturing files are not published yet.
+
+Further hardware notes and validation records will be added progressively.
+
+### 4. Assembly and validation records
+
+Brass-frame soldering, assembly, power-on checks, testing records, and
+troubleshooting material.
+
+## TongDou PCB v8
+
+The current electrical reference documents are available in:
+
+- [Main control schematic](hardware/schematic/tongdou-pcb-v8-schematic-main-control.pdf)
+- [Power schematic](hardware/schematic/tongdou-pcb-v8-schematic-power.pdf)
+
+TongDou as a whole is still being released in phases and is not yet a complete
+end-to-end manufacturing kit.
+
+V9 hardware bring-up is in progress. V9 adds the QMI8658A motion sensor, the
+TongDou logo touch input on IO4, and AT8833CT nFAULT feedback on IO37. The V8
+and V9 prototype PCB photos are now included. V9 files are not yet part of the
+published manufacturing package.
 
 ## Why The Release Is Phased
 
 TongDou is a real hardware product, not only a document package. Some files can be used to directly manufacture, clone, or misrepresent the product before the first official release is ready.
 
-For this stage, the public repository is intentionally limited to project presentation, schematic-level reference, real media, licensing boundaries, and the future open-source path.
+For this stage, the public repository is intentionally limited to project presentation, schematic-level reference, real media, hardware test firmware, licensing boundaries, and the future open-source path.
 
 ## License Scope
 
@@ -90,7 +163,7 @@ The root [LICENSE](LICENSE) file contains the CERN Open Hardware Licence Version
 
 At the current stage, that license only applies to schematic PDF files in this repository that are explicitly marked as open hardware materials.
 
-Photos, videos, README content, website content, the TongDou name, logo, character identity, official audio, promotional materials, packaging, firmware, PCB source files, Gerber files, BOM files, PNP files, mechanical files, and fixtures are not included in the open hardware license unless a future release clearly says otherwise.
+Photos, videos, README content, website content, the TongDou name, logo, character identity, official audio, promotional materials, packaging, complete application firmware, PCB source files, Gerber files, BOM files, PNP files, mechanical files, production calibration files, manufacturing files, and fixtures are not included in the open hardware license unless a future release clearly says otherwise.
 
 See [NOTICE.md](NOTICE.md) for the exact boundary.
 
@@ -102,8 +175,39 @@ Third parties must not claim official TongDou certification, approval, endorseme
 
 Official TongDou products and crowdfunding campaigns will only be announced through https://gettongdou.com
 
-## Contact
+## Repository Documents
 
-For project, media, licensing, or collaboration inquiries:
+- [Hardware Test Firmware](hardware_test_firmware/)
+- [License Scope and Attribution](NOTICE.md)
 
-hello@gettongdou.com
+## Inspiration & Acknowledgements
+
+TongDou's brass-and-PCB aesthetic and compact mechanical form were deeply
+inspired by the incredible craftsmanship of **Huy Vector** of
+**Huy Vector Lab**, particularly the desktop robot **Mo-chan**, as shown
+in [this original build video](https://www.youtube.com/watch?v=3hjvpyjxPsk).
+
+I'm a huge fan of Huy's work and highly recommend exploring the original
+projects and [Huy Vector on YouTube](https://www.youtube.com/@huyvector).
+
+Thank you, Huy, for inspiring TongDou and for showing how beautifully brass,
+PCBs, and mechanical structures can be brought to life.
+
+TongDou's electronics, PCB, brass frame, original soldering and alignment
+fixture, firmware, character design, and interaction system were independently
+developed for this project.
+
+## Community & Contact
+
+> **Note:** TongDou is currently a solo-maker project. To keep my focus on
+> hardware development, firmware polishing, documentation, and the early
+> tester program, GitHub Issues and Discussions are temporarily disabled.
+>
+> To follow project updates, join the waitlist, or apply for the early tester
+> program, please visit the [TongDou official website](https://gettongdou.com)
+> and read the [Tester Program & Agreement](https://gettongdou.com/tester-agreement.html).
+>
+> For essential project, media, licensing, or collaboration inquiries:
+> **[hello@gettongdou.com](mailto:hello@gettongdou.com)**
+>
+> Thank you for your patience while I build and document TongDou step by step.
