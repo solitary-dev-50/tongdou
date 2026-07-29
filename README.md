@@ -3,8 +3,9 @@
 > ⚠️ **Work in Progress**
 >
 > TongDou is being actively documented and open-sourced step by step.  
-> Hardware design files, original fixture files, manufacturing documents,
-> and build guides will be released progressively.  
+> Hardware test firmware, prototype photos, and selected hardware documents are
+> public now. Other design files, manufacturing documents, and build guides will
+> be released progressively.
 > Please see the [Roadmap](#roadmap) below for the current release plan.
 
 🌐 **Official website:** https://gettongdou.com
@@ -58,8 +59,28 @@ The V9 PCB is the current bring-up target. The public PCB package currently
 available in this repository is still the verified v8 package; V9 manufacturing
 files will be published after bring-up checks are complete.
 
-For the currently published design files, electrical details, and PCB assembly
-notes, see the [TongDou PCB v8 package](hardware/pcb/tongdou-pcb-v8/).
+For the currently published electrical reference documents, see the
+[TongDou PCB v8 package](hardware/pcb/tongdou-pcb-v8/).
+
+## Hardware Test Firmware
+
+[Open the TongDou hardware test firmware](hardware_test_firmware/)
+
+This public package is intended for hardware bring-up and diagnostics. It is
+not the complete TongDou application firmware.
+
+## V8 and V9 PCB Revisions
+
+### V8 prototype PCB
+
+![TongDou V8 prototype PCB](media/images/pcb-revisions/tongdou-pcb-v8.jpg)
+
+### V9 prototype PCB
+
+![TongDou V9 prototype PCB](media/images/pcb-revisions/tongdou-pcb-v9.png)
+
+These are the real V8 and V9 prototype boards. V9 adds a capacitive touch logo
+and an onboard QMI8658A 6-axis IMU.
 
 ## Open-Source Status
 
@@ -70,17 +91,26 @@ complete manufacturing package at this stage.
 
 - Project overview and hardware direction
 - Verified prototype status
-- [Hardware release package](hardware/)
-- [TongDou PCB v8 design package](hardware/pcb/tongdou-pcb-v8/)
-- [TongDou brass side-plate DXF](hardware/mechanical/TongDou_Brass_Frame_1mm_H62_RevA.dxf)
+- [Hardware test and diagnostic firmware](hardware_test_firmware/)
+- V8 and V9 prototype PCB photos
+- Existing schematic PDF files
+- Existing project photos and videos
 - License, attribution, and brand-use boundaries
 - Hardware and documentation release plan
 
+The hardware test firmware is not the complete TongDou application firmware.
+
 ### Not included
 
-- Internal demonstration firmware
+- Complete TongDou application firmware
+- Editable PCB source files
+- Gerber files
+- BOM and pick-and-place files
+- Mechanical source files
+- Production calibration and manufacturing files
+- Character behaviors
+- Official audio assets
 - Private data, keys, backend configuration, and service credentials
-- Any asset not explicitly marked as open hardware material
 
 ## Roadmap
 
@@ -91,9 +121,9 @@ license information, and the public release route.
 
 ### 2. Additional hardware design materials
 
-The verified TongDou PCB v8 package is available now. It includes editable PCB
-source files, schematic PDFs, Gerber manufacturing files, BOM, and
-pick-and-place data.
+Existing schematic PDFs are available now. Editable PCB source files, Gerber
+files, BOM, pick-and-place files, mechanical source files, and production
+calibration and manufacturing files are not published yet.
 
 Further hardware notes and validation records will be added progressively.
 
@@ -107,25 +137,23 @@ mechanical drawings, CNC notes, and fixture documentation.
 Brass-frame soldering, assembly, power-on checks, testing records, and
 troubleshooting material.
 
+Complete project materials are planned to be released progressively after the
+crowdfunding campaign is complete and the first batch has shipped.
+
 ## TongDou PCB v8
 
-The current verified PCB package is available in
+The current electrical reference documents are available in
 [hardware/pcb/tongdou-pcb-v8](hardware/pcb/tongdou-pcb-v8/):
 
-- Editable PCB source file
 - Main-control and power schematic PDFs
-- Gerber manufacturing archive
-- BOM with PCB, external-component, and assembly-material categories
-- Pick-and-place data
 
-This is a PCB design package. TongDou as a whole is still being released in
-phases and is not yet a complete end-to-end manufacturing kit.
+TongDou as a whole is still being released in phases and is not yet a complete
+end-to-end manufacturing kit.
 
 V9 hardware bring-up is in progress. V9 adds the QMI8658A motion sensor, the
 TongDou logo touch input on IO4, and AT8833CT nFAULT feedback on IO37. The
-QMI8658A has passed board-level bring-up and is used by the public board-test
-firmware's `/motor` diagnostic page for gyro-assisted straight-line testing;
-V9 files are not yet part of the published manufacturing package.
+V8 and V9 prototype PCB photos are now included. V9 files are not yet part of
+the published manufacturing package.
 
 ## License and Attribution
 
@@ -158,6 +186,7 @@ claim official certification or endorsement.
 
 - [Hardware Release Package](hardware/)
 - [TongDou PCB v8 Package](hardware/pcb/tongdou-pcb-v8/)
+- [Hardware Test Firmware](hardware_test_firmware/)
 - [License Scope and Attribution](NOTICE.md)
 
 ## Inspiration & Acknowledgements
