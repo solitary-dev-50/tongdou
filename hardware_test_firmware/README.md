@@ -35,6 +35,7 @@ hardware_test_firmware/
 ├── README.md
 ├── docs/
 │   ├── HARDWARE_TESTS.md
+│   ├── LD2412_RADAR_TEST.md
 │   └── PUBLIC_RELEASE_CHECKLIST.md
 ├── firmware/
 │   ├── platformio.ini

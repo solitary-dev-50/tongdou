@@ -81,14 +81,20 @@ p{margin:6px 0;color:#5f6368}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:8px}
 button{min-height:42px;border:1px solid #c9ced6;background:#fff;border-radius:8px;font-size:15px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 button:active{transform:translateY(1px)}
+button:disabled{opacity:.55;cursor:default;transform:none}
 .primary{background:#174ea6;color:#fff;border-color:#174ea6}
 .danger{background:#b3261e;color:#fff;border-color:#b3261e}
-.toolbar{display:flex;justify-content:flex-end;margin:8px 0 12px}
+.toolbar{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:8px 0 12px}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:center}
 label{display:flex;gap:8px;align-items:center;margin:8px 0}
 input[type=number],input[type=text]{width:100%;box-sizing:border-box;padding:9px;border:1px solid #c9ced6;border-radius:6px;font-size:15px}
-pre{white-space:pre-wrap;word-break:break-word;background:#111;color:#d9fdd3;border-radius:8px;padding:12px;min-height:160px}
+input[type=range]{width:100%;touch-action:pan-x}
+pre{white-space:pre-wrap;word-break:break-word;background:#111;color:#d9fdd3;border-radius:8px;padding:12px;min-height:110px;max-height:360px;overflow:auto}
 pre,input{-webkit-touch-callout:default;-webkit-user-select:text;user-select:text}
+.statusGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.statusItem{display:flex;justify-content:space-between;align-items:center;gap:8px;background:#fff;border:1px solid #d5d9df;border-radius:8px;padding:10px 12px}
+.statusValue{font-weight:700;color:#b3261e}
+.statusValue.ok{color:#188038}
 .radarCard{background:#fff;border:1px solid #d5d9df;border-radius:8px;padding:12px}
 .radarHead{display:flex;gap:12px;align-items:center;margin-bottom:10px}
 .radarDot{width:46px;height:46px;border-radius:50%;background:#9aa0a6;box-shadow:0 0 0 6px #eef0f2}
@@ -97,21 +103,39 @@ pre,input{-webkit-touch-callout:default;-webkit-user-select:text;user-select:tex
 .radarState{font-size:19px;font-weight:700}
 .kv{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;margin-top:10px}
 .kv div{background:#f6f7f8;border-radius:6px;padding:8px}
+.controlBand{background:#fff;border:1px solid #d5d9df;border-radius:8px;padding:12px}
+.rangeRow{display:grid;grid-template-columns:1fr 48px 112px;gap:10px;align-items:center}
+.rangeValue{text-align:center;font-weight:700}
+.sectionActions{display:flex;justify-content:flex-end;gap:8px;margin-bottom:8px}
+.sectionActions button{min-height:36px;font-size:13px}
+details{margin-top:22px}
+summary{font-size:17px;font-weight:700;cursor:pointer;padding:8px 0}
 .small{font-size:13px;color:#5f6368}
+@media(max-width:520px){
+  body{padding:12px}
+  .row,.statusGrid{grid-template-columns:1fr}
+  .rangeRow{grid-template-columns:1fr 44px}
+  .rangeRow button{grid-column:1/-1}
+}
 </style>
 </head>
 <body>
 <main>
 <h1 data-i18n="title">TongDou V9 Board Test</h1>
-<div class="toolbar"><button id="langToggle" onclick="toggleLanguage()">中文</button></div>
-<p>AP: TongDou-BoardTest · Page: 192.168.4.1/motor</p>
+<div class="toolbar">
+<p id="subtitle">AP: TongDou-BoardTest · Page: 192.168.4.1/motor</p>
+<button id="langToggle" onclick="toggleLanguage()">中文</button>
+</div>
 
 <h2 data-i18n="status">Status</h2>
-<div class="grid">
-<button onclick="refreshStatus()" data-i18n="refresh">Refresh</button>
-<button onclick="copyLog()" data-i18n="copyLog">Copy log</button>
+<div class="statusGrid">
+<div class="statusItem"><span data-i18n="display">Display</span><span id="displayStatus" class="statusValue">--</span></div>
+<div class="statusItem"><span data-i18n="led">LED</span><span id="ledStatus" class="statusValue">--</span></div>
+<div class="statusItem"><span data-i18n="mic">Microphone</span><span id="micStatus" class="statusValue">--</span></div>
+<div class="statusItem"><span data-i18n="speaker">Speaker</span><span id="speakerStatus" class="statusValue">--</span></div>
+<div class="statusItem"><span data-i18n="power">Power</span><span id="powerStatus" class="statusValue">--</span></div>
+<div class="statusItem"><span data-i18n="system">System</span><span id="systemStatus" class="statusValue">--</span></div>
 </div>
-<pre id="status">loading...</pre>
 
 <h2 data-i18n="quickChecks">Quick Checks</h2>
 <div class="grid">
@@ -121,8 +145,6 @@ pre,input{-webkit-touch-callout:default;-webkit-user-select:text;user-select:tex
 <button onclick="diag('speaker')" data-i18n="speaker">Speaker</button>
 <button onclick="diag('i2c scan')" data-i18n="i2cScan">I2C Scan</button>
 <button onclick="diag('imu')" data-i18n="imu">IMU</button>
-<button onclick="diag('imu raw test')" data-i18n="imuRawTest">IMU Raw Test</button>
-<button onclick="diag('radar')" data-i18n="radar">Radar</button>
 </div>
 <pre id="last" data-idle="1">Tap a test button to run it.</pre>
 
@@ -132,16 +154,13 @@ pre,input{-webkit-touch-callout:default;-webkit-user-select:text;user-select:tex
 <div id="radarDot" class="radarDot"></div>
 <div>
 <div id="radarState" class="radarState" data-i18n="radarNotTested">Not tested</div>
-<p id="radarHint" class="small" data-i18n="radarHint">Put your hand in front of the radar, then start live test.</p>
+<p id="radarHint" class="small" data-i18n="radarReady">Ready</p>
 </div>
 </div>
 <div class="grid">
-<button onclick="readRadarOnce()" data-i18n="radarOnce">Read once</button>
 <button class="primary" onclick="startRadarLive()" data-i18n="radarStart">Start live</button>
 <button onclick="stopRadarLive()" data-i18n="radarStop">Stop live</button>
-<button onclick="radarGuidedStart()" data-i18n="radarGuided">Guided test</button>
-<button onclick="radarBackgroundCalibrate()" data-i18n="radarCalibrate">Empty-scene calibration</button>
-<button onclick="radarDeskMode()" data-i18n="radarDesk">Desk mode</button>
+<button id="radarCalibrate" onclick="startRadarCalibration()" data-i18n="radarCalibrate">Calibrate empty</button>
 </div>
 <div class="kv">
 <div><span class="small" data-i18n="radarMotion">Motion target</span><br><strong id="radarMotion">-</strong></div>
@@ -151,8 +170,16 @@ pre,input{-webkit-touch-callout:default;-webkit-user-select:text;user-select:tex
 </div>
 </div>
 
-<h2>LED</h2>
-<div class="grid">
+<h2 data-i18n="soundLight">Sound And Light</h2>
+<div class="controlBand">
+<label for="volume" data-i18n="volume">Speaker volume</label>
+<div class="rangeRow">
+<input id="volume" type="range" min="0" max="100" value="60" oninput="showVolume()">
+<span id="volumeValue" class="rangeValue">60%</span>
+<button onclick="saveVolume()" data-i18n="applyVolume">Apply volume</button>
+</div>
+</div>
+<div class="grid" style="margin-top:8px">
 <button onclick="diag('led red')" data-i18n="red">Red</button>
 <button onclick="diag('led green')" data-i18n="green">Green</button>
 <button onclick="diag('led blue')" data-i18n="blue">Blue</button>
@@ -173,29 +200,45 @@ pre,input{-webkit-touch-callout:default;-webkit-user-select:text;user-select:tex
 </div>
 <p class="small" data-i18n="motorNote">Manual motor commands time out automatically. Use Stop before lifting the board.</p>
 
-<h2 data-i18n="serialCommand">Serial Style Command</h2>
-<div class="row">
-<input id="cmd" type="text" placeholder="example: audio volume 60">
-<button onclick="diag(document.getElementById('cmd').value)" data-i18n="run">Run</button>
+<details open>
+<summary data-i18n="log">Log</summary>
+<div class="sectionActions">
+<button onclick="copyLog()" data-i18n="copyLog">Copy log</button>
+<button onclick="clearLog()" data-i18n="clearLog">Clear log</button>
 </div>
-
-<h2 data-i18n="log">Log</h2>
 <pre id="log"></pre>
+</details>
 </main>
 <script>
 const $=id=>document.getElementById(id);
 let currentLanguage='en';
 let radarTimer=null;
 let radarBusy=false;
-let radarGuidedTimer=null;
+let radarCalibrationTimer=null;
+let calibrationInProgress=false;
+let lastStatus=null;
+let lastRadarData=null;
+let radarNoticeKey=null;
 const text={
   en:{
     title:'TongDou V9 Board Test',
     subtitle:'AP: TongDou-BoardTest · Page: 192.168.4.1/motor',
     langToggle:'中文',
     status:'Status',
-    refresh:'Refresh',
+    display:'Display',
+    led:'LED',
+    power:'Power',
+    system:'System',
+    ready:'Ready',
+    check:'Check',
+    usbPower:'USB power',
+    batteryPower:'Battery power',
+    charging:'Charging',
+    standby:'Standby',
+    healthy:'Healthy',
+    degraded:'Degraded',
     copyLog:'Copy log',
+    clearLog:'Clear log',
     quickChecks:'Quick Checks',
     selfTest:'Self Test',
     battery:'Battery',
@@ -203,20 +246,18 @@ const text={
     speaker:'Speaker',
     i2cScan:'I2C Scan',
     imu:'IMU',
-    imuRawTest:'IMU Raw Test',
-    radar:'Radar',
     lastIdle:'Tap a test button to run it.',
     running:'Running',
     requestFailed:'Request failed',
     radarPanel:'Radar Recognition',
     radarNotTested:'Not tested',
-    radarHint:'Put your hand in front of the radar, then start live test.',
-    radarOnce:'Read once',
+    radarReady:'Ready',
     radarStart:'Start live',
     radarStop:'Stop live',
-    radarGuided:'Guided test',
-    radarCalibrate:'Empty-scene calibration',
-    radarDesk:'Desk mode',
+    radarCalibrate:'Calibrate empty',
+    radarCalibrating:'Calibrating empty scene',
+    radarCalComplete:'Calibration complete',
+    radarCalFailed:'Calibration failed',
     radarSeen:'Target detected',
     radarClear:'No target',
     radarNoFrame:'No serial frame',
@@ -227,6 +268,9 @@ const text={
     yes:'yes',
     no:'no',
     cm:'cm',
+    soundLight:'Sound And Light',
+    volume:'Speaker volume',
+    applyVolume:'Apply volume',
     red:'Red',
     green:'Green',
     blue:'Blue',
@@ -240,18 +284,27 @@ const text={
     manualForward:'Manual forward',
     manualReverse:'Manual reverse',
     motorNote:'Manual motor commands time out automatically. Use Stop before lifting the board.',
-    serialCommand:'Serial Style Command',
-    run:'Run',
-    log:'Log',
-    cmdPlaceholder:'example: audio volume 60'
+    log:'Log'
   },
   zh:{
     title:'铜豆 V9 板测',
     subtitle:'热点：TongDou-BoardTest · 页面：192.168.4.1/motor',
     langToggle:'English',
     status:'状态',
-    refresh:'刷新',
+    display:'屏幕',
+    led:'灯珠',
+    power:'供电',
+    system:'系统',
+    ready:'正常',
+    check:'检查',
+    usbPower:'USB 供电',
+    batteryPower:'电池供电',
+    charging:'充电中',
+    standby:'已充满',
+    healthy:'正常',
+    degraded:'降级',
     copyLog:'复制日志',
+    clearLog:'清空日志',
     quickChecks:'快速检查',
     selfTest:'一键自检',
     battery:'电池',
@@ -259,24 +312,31 @@ const text={
     speaker:'喇叭',
     i2cScan:'I2C 扫描',
     imu:'陀螺仪',
-    imuRawTest:'陀螺仪原始测试',
-    radar:'雷达',
     lastIdle:'点击测试按钮后，这里会显示结果。',
     running:'正在执行',
     requestFailed:'请求失败',
     radarPanel:'雷达识别',
     radarNotTested:'未测试',
-    radarHint:'把手放到雷达前方，然后开始实时测试。',
-    radarOnce:'读取一次',
+    radarReady:'就绪',
     radarStart:'开始实时',
     radarStop:'停止实时',
-    radarDesk:'桌面模式',
+    radarCalibrate:'空场校准',
+    radarCalibrating:'正在校准空场',
+    radarCalComplete:'校准完成',
+    radarCalFailed:'校准失败',
     radarSeen:'识别到目标',
     radarClear:'没有目标',
     radarNoFrame:'没有串口数据',
+    radarMotion:'运动目标',
+    radarDistance:'最近距离',
+    radarValidFrames:'有效帧',
+    radarBadFrames:'坏帧',
     yes:'有',
     no:'无',
     cm:'厘米',
+    soundLight:'声音与灯光',
+    volume:'喇叭音量',
+    applyVolume:'应用音量',
     red:'红灯',
     green:'绿灯',
     blue:'蓝灯',
@@ -290,10 +350,7 @@ const text={
     manualForward:'手动前进',
     manualReverse:'手动后退',
     motorNote:'手动电机会自动超时。拿起板子前先点停止。',
-    serialCommand:'串口式命令',
-    run:'执行',
-    log:'日志',
-    cmdPlaceholder:'示例：audio volume 60'
+    log:'日志'
   }
 };
 function applyLanguage(language){
@@ -304,11 +361,19 @@ function applyLanguage(language){
     const key=el.dataset.i18n;
     if(dict[key])el.textContent=dict[key];
   });
-  const subtitle=document.querySelector('main>p');
-  if(subtitle)subtitle.textContent=dict.subtitle;
+  $('subtitle').textContent=dict.subtitle;
   $('langToggle').textContent=dict.langToggle;
-  $('cmd').placeholder=dict.cmdPlaceholder;
   if($('last').dataset.idle==='1')$('last').textContent=dict.lastIdle;
+  if(lastStatus)renderStatus(lastStatus);
+  if(calibrationInProgress){
+    $('radarState').textContent=dict.radarCalibrating;
+    $('radarHint').textContent=dict.radarCalibrating;
+  }else if(radarNoticeKey){
+    $('radarState').textContent=dict[radarNoticeKey];
+    $('radarHint').textContent=dict[radarNoticeKey];
+  }else if(lastRadarData){
+    updateRadarPanel(lastRadarData);
+  }
 }
 function toggleLanguage(){
   applyLanguage(currentLanguage==='en'?'zh':'en');
@@ -325,10 +390,13 @@ async function post(path, body){
   return await r.text();
 }
 function updateRadarPanel(data){
+  radarNoticeKey=null;
+  lastRadarData=data;
   const dict=text[currentLanguage];
   const seen=!!data.hasTarget;
   const moving=!!data.movingTarget;
   const frame=!!data.received;
+  const badFrames=data.badFrameCount||data.invalidFrameCount||0;
   if(!frame){
     $('radarDot').className='radarDot';
     $('radarState').textContent=dict.radarNoFrame;
@@ -336,17 +404,17 @@ function updateRadarPanel(data){
     $('radarMotion').textContent='-';
     $('radarDistance').textContent='-';
     $('radarValidFrames').textContent=data.validFrameCount||0;
-    $('radarBadFrames').textContent=data.badFrameCount||data.invalidFrameCount||0;
+    $('radarBadFrames').textContent=badFrames;
     return;
   }
   const distance=data.nearestDistanceCm||data.targetDistanceCm||0;
   $('radarDot').className='radarDot '+(seen?'seen':'waiting');
   $('radarState').textContent=seen?dict.radarSeen:dict.radarClear;
-  $('radarHint').textContent=(seen?dict.radarSeen:dict.radarClear)+' · '+dict.radarMotion+': '+(moving?dict.yes:dict.no)+' · '+dict.radarBadFrames+': '+(data.badFrameCount||data.invalidFrameCount||0);
+  $('radarHint').textContent=(seen?dict.radarSeen:dict.radarClear)+' · '+dict.radarMotion+': '+(moving?dict.yes:dict.no)+' · '+dict.radarBadFrames+': '+badFrames;
   $('radarMotion').textContent=moving?dict.yes:dict.no;
   $('radarDistance').textContent=distance>0?distance+' '+dict.cm:'-';
   $('radarValidFrames').textContent=data.validFrameCount||0;
-  $('radarBadFrames').textContent=data.badFrameCount||data.invalidFrameCount||0;
+  $('radarBadFrames').textContent=badFrames;
 }
 async function readRadarOnce(){
   if(radarBusy)return;
@@ -369,6 +437,7 @@ async function readRadarOnce(){
   }
 }
 function startRadarLive(){
+  if(calibrationInProgress)return;
   stopRadarLive();
   readRadarOnce();
   radarTimer=setInterval(readRadarOnce,400);
@@ -379,58 +448,67 @@ function stopRadarLive(){
     radarTimer=null;
   }
 }
-function stopRadarGuidedPoll(){
-  if(radarGuidedTimer){
-    clearInterval(radarGuidedTimer);
-    radarGuidedTimer=null;
+function stopRadarCalibrationPoll(){
+  if(radarCalibrationTimer){
+    clearInterval(radarCalibrationTimer);
+    radarCalibrationTimer=null;
   }
 }
-async function radarGuidedStatus(){
+function finishRadarCalibration(success,result){
+  stopRadarCalibrationPoll();
+  calibrationInProgress=false;
+  $('radarCalibrate').disabled=false;
+  const dict=text[currentLanguage];
+  radarNoticeKey=success?'radarCalComplete':'radarCalFailed';
+  $('radarDot').className='radarDot '+(success?'seen':'');
+  $('radarState').textContent=dict[radarNoticeKey];
+  $('radarHint').textContent=dict[radarNoticeKey];
+  append('$ radar calibrate status\n'+result);
+}
+async function pollRadarCalibration(){
   try{
-    const result=await post('/api/diagnostic','command=radar%20guided%20status');
-    $('last').textContent='$ radar guided status\n'+result;
-    append('$ radar guided status\n'+result);
-    if(result.includes('done=1'))stopRadarGuidedPoll();
+    const result=await post('/api/diagnostic','command=radar%20calibrate%20status');
+    if(!result.includes('received=1')||!result.includes('success=1')){
+      finishRadarCalibration(false,result);
+      return;
+    }
+    if(result.includes('running=0'))finishRadarCalibration(true,result);
   }catch(error){
-    stopRadarGuidedPoll();
-    const message=text[currentLanguage].requestFailed+': '+error;
-    $('last').textContent='$ radar guided status\n'+message;
-    append('$ radar guided status\n'+message);
+    finishRadarCalibration(false,text[currentLanguage].requestFailed+': '+error);
   }
 }
-async function radarGuidedStart(){
+async function startRadarCalibration(){
   stopRadarLive();
-  stopRadarGuidedPoll();
+  stopRadarCalibrationPoll();
+  calibrationInProgress=true;
+  lastRadarData=null;
+  radarNoticeKey=null;
+  $('radarCalibrate').disabled=true;
+  $('radarDot').className='radarDot waiting';
+  $('radarState').textContent=text[currentLanguage].radarCalibrating;
+  $('radarHint').textContent=text[currentLanguage].radarCalibrating;
   $('last').dataset.idle='0';
-  append('$ radar guided test\n'+text[currentLanguage].running+' ...');
+  $('last').textContent=text[currentLanguage].radarCalibrating+' ...';
   try{
-    const result=await post('/api/diagnostic','command=radar%20guided%20test');
-    $('last').textContent='$ radar guided test\n'+result;
-    append('$ radar guided test\n'+result);
-    radarGuidedTimer=setInterval(radarGuidedStatus,1000);
+    const result=await post('/api/diagnostic','command=radar%20calibrate');
+    $('last').textContent='$ radar calibrate\n'+result;
+    append('$ radar calibrate\n'+result);
+    if(!result.includes('received=1')||!result.includes('success=1')){
+      finishRadarCalibration(false,result);
+      return;
+    }
+    setTimeout(()=>{
+      if(!calibrationInProgress)return;
+      pollRadarCalibration();
+      radarCalibrationTimer=setInterval(pollRadarCalibration,5000);
+    },12000);
   }catch(error){
-    const message=text[currentLanguage].requestFailed+': '+error;
-    $('last').textContent='$ radar guided test\n'+message;
-    append('$ radar guided test\n'+message);
+    finishRadarCalibration(false,text[currentLanguage].requestFailed+': '+error);
   }
-}
-async function radarDeskMode(){
-  stopRadarLive();
-  stopRadarGuidedPoll();
-  await diag('radar desk');
-  setTimeout(()=>diag('radar resolution'),3200);
-  setTimeout(()=>diag('radar config'),3800);
-}
-async function radarBackgroundCalibrate(){
-  stopRadarLive();
-  stopRadarGuidedPoll();
-  await diag('radar calibrate');
-  setTimeout(()=>diag('radar calibrate status'),1200);
 }
 async function diag(command){
   if(!command)return;
   stopRadarLive();
-  stopRadarGuidedPoll();
   $('last').dataset.idle='0';
   $('last').textContent=text[currentLanguage].running+': '+command+' ...';
   append('$ '+command+'\n'+text[currentLanguage].running+' ...');
@@ -445,20 +523,60 @@ async function diag(command){
     append('$ '+command+'\n'+message);
   }
 }
+function setStatus(id,ok,label){
+  const element=$(id);
+  element.textContent=label;
+  element.className='statusValue'+(ok?' ok':'');
+}
+function renderStatus(data){
+  const dict=text[currentLanguage];
+  setStatus('displayStatus',data.faceReady,data.faceReady?dict.ready:dict.check);
+  setStatus('ledStatus',data.ledReady,data.ledReady?dict.ready:dict.check);
+  setStatus('micStatus',data.audioInputReady,data.audioInputReady?dict.ready:dict.check);
+  setStatus('speakerStatus',data.audioOutputReady,data.audioOutputReady?dict.ready:dict.check);
+  let power=dict.batteryPower;
+  if(data.usbPresent)power=data.charging?dict.charging:(data.standby?dict.standby:dict.usbPower);
+  setStatus('powerStatus',true,power);
+  setStatus('systemStatus',!data.degraded,data.degraded?dict.degraded:dict.healthy);
+  if(document.activeElement!==$('volume')){
+    $('volume').value=data.audioVolumePercent;
+    showVolume();
+  }
+}
 async function refreshStatus(){
-  const r=await fetch('/api/status');
-  const j=await r.json();
-  $('status').textContent=JSON.stringify(j,null,2);
-  if(!$('leftPwm').value)$('leftPwm').value=j.motorLeftPwm;
-  if(!$('rightPwm').value)$('rightPwm').value=j.motorRightPwm;
+  try{
+    const r=await fetch('/api/status',{cache:'no-store'});
+    lastStatus=await r.json();
+    renderStatus(lastStatus);
+    if(!$('leftPwm').value)$('leftPwm').value=lastStatus.motorLeftPwm;
+    if(!$('rightPwm').value)$('rightPwm').value=lastStatus.motorRightPwm;
+  }catch(error){
+    append(text[currentLanguage].requestFailed+': '+error);
+  }
+}
+function showVolume(){
+  $('volumeValue').textContent=$('volume').value+'%';
+}
+async function saveVolume(){
+  await diag('audio volume '+$('volume').value);
 }
 function manualMotor(direction){
   diag('motor manual '+direction+' '+$('leftPwm').value+' '+$('rightPwm').value);
 }
 async function copyLog(){
-  const text='STATUS\n'+$('status').textContent+'\n\nLOG\n'+$('log').textContent;
-  await navigator.clipboard.writeText(text);
+  const value='STATUS\n'+JSON.stringify(lastStatus||{},null,2)+'\n\nLOG\n'+$('log').textContent;
+  try{
+    await navigator.clipboard.writeText(value);
+  }catch(error){
+    const area=document.createElement('textarea');
+    area.value=value;
+    document.body.appendChild(area);
+    area.select();
+    document.execCommand('copy');
+    area.remove();
+  }
 }
+function clearLog(){$('log').textContent=''}
 window.addEventListener('beforeunload',()=>navigator.sendBeacon('/api/diagnostic','command=motor%20stop'));
 applyLanguage('en');
 refreshStatus();
@@ -503,45 +621,6 @@ void WebConfigServer::handleDiagnosticCommand() {
 void WebConfigServer::handleRadarStatus() {
   const RadarSnapshot pinSnapshot = hardwareSelfTest_.radarSnapshot();
   const RadarTargetSnapshot target = hardwareSelfTest_.radarTargetSnapshot();
-
-  Serial.print(F("radar live seq="));
-  Serial.print(target.sequence);
-  Serial.print(F(" occupied="));
-  Serial.print(pinSnapshot.occupied ? 1 : 0);
-  Serial.print(F(" rx="));
-  Serial.print(pinSnapshot.rxLevelHigh ? 1 : 0);
-  Serial.print(F(" received="));
-  Serial.print(target.received ? 1 : 0);
-  Serial.print(F(" target="));
-  Serial.print(target.hasTarget ? 1 : 0);
-  Serial.print(F(" moving_target="));
-  Serial.print((target.targetState & 0x01) != 0 ? 1 : 0);
-  Serial.print(F(" static_target="));
-  Serial.print((target.targetState & 0x02) != 0 ? 1 : 0);
-  Serial.print(F(" state_target="));
-  Serial.print(target.stateTarget ? 1 : 0);
-  Serial.print(F(" energy_target="));
-  Serial.print(target.energyTarget ? 1 : 0);
-  Serial.print(F(" confidence="));
-  Serial.print(target.targetConfidence);
-  Serial.print(F(" state="));
-  Serial.print(target.targetState);
-  Serial.print(F(" nearest_cm="));
-  Serial.print(target.targetDistanceCm);
-  Serial.print(F(" moving_cm="));
-  Serial.print(target.movingDistanceCm);
-  Serial.print(F(" moving_energy="));
-  Serial.print(target.movingEnergy);
-  Serial.print(F(" static_cm="));
-  Serial.print(target.staticDistanceCm);
-  Serial.print(F(" static_energy="));
-  Serial.print(target.staticEnergy);
-  Serial.print(F(" age_ms="));
-  Serial.print(target.frameAgeMs);
-  Serial.print(F(" valid_frames="));
-  Serial.print(target.validFrameCount);
-  Serial.print(F(" invalid_frames="));
-  Serial.println(target.invalidFrameCount);
 
   String body = "{";
   body += "\"sequence\":";

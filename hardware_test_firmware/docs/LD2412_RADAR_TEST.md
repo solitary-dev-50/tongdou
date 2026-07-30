@@ -27,8 +27,11 @@ The public firmware exposes:
 4. Open `http://192.168.4.1/motor`.
 5. Use the `Radar Recognition` panel.
 
-The panel can read the radar once, start live polling, run the guided test, and
-start empty-scene calibration.
+The panel can start live polling, stop live polling, and start empty-scene
+calibration.
+
+Raw parser checks, guided radar checks, configuration reads, and serial bridge
+mode are kept on the serial console only.
 
 ## Serial Commands
 

@@ -54,12 +54,16 @@ After connecting to it, open:
 http://192.168.4.1/motor
 ```
 
-The page exposes the same kind of checks as the serial commands: status,
-battery, microphone, speaker, I2C, IMU, radar, LED, and motor tests.
+The page exposes common hardware checks: six-item status, battery, microphone,
+speaker, I2C, IMU, radar, LED, speaker volume, and basic motor tests.
 
 The radar panel exposes `/api/radar`, live target / no-target status, motion
-target status, nearest reported distance, bad frame count, guided testing, and
-empty-scene background calibration.
+target status, nearest reported distance, valid frame count, bad frame count,
+and empty-scene background calibration.
+
+Advanced diagnostics such as `imu raw test`, `radar parser selftest`, `radar
+guided test`, `radar bridge`, and arbitrary command entry are intentionally
+kept on the serial console only.
 
 See [LD2412_RADAR_TEST.md](LD2412_RADAR_TEST.md) for the real-board radar test
 record and calibration notes.
