@@ -140,7 +140,14 @@ pre,input{-webkit-touch-callout:default;-webkit-user-select:text;user-select:tex
 <button class="primary" onclick="startRadarLive()" data-i18n="radarStart">Start live</button>
 <button onclick="stopRadarLive()" data-i18n="radarStop">Stop live</button>
 <button onclick="radarGuidedStart()" data-i18n="radarGuided">Guided test</button>
+<button onclick="radarBackgroundCalibrate()" data-i18n="radarCalibrate">Empty-scene calibration</button>
 <button onclick="radarDeskMode()" data-i18n="radarDesk">Desk mode</button>
+</div>
+<div class="kv">
+<div><span class="small" data-i18n="radarMotion">Motion target</span><br><strong id="radarMotion">-</strong></div>
+<div><span class="small" data-i18n="radarDistance">Nearest distance</span><br><strong id="radarDistance">-</strong></div>
+<div><span class="small" data-i18n="radarValidFrames">Valid frames</span><br><strong id="radarValidFrames">0</strong></div>
+<div><span class="small" data-i18n="radarBadFrames">Bad frames</span><br><strong id="radarBadFrames">0</strong></div>
 </div>
 </div>
 
@@ -208,10 +215,15 @@ const text={
     radarStart:'Start live',
     radarStop:'Stop live',
     radarGuided:'Guided test',
+    radarCalibrate:'Empty-scene calibration',
     radarDesk:'Desk mode',
     radarSeen:'Target detected',
     radarClear:'No target',
     radarNoFrame:'No serial frame',
+    radarMotion:'Motion target',
+    radarDistance:'Nearest distance',
+    radarValidFrames:'Valid frames',
+    radarBadFrames:'Bad frames',
     yes:'yes',
     no:'no',
     cm:'cm',
@@ -315,16 +327,26 @@ async function post(path, body){
 function updateRadarPanel(data){
   const dict=text[currentLanguage];
   const seen=!!data.hasTarget;
+  const moving=!!data.movingTarget;
   const frame=!!data.received;
   if(!frame){
     $('radarDot').className='radarDot';
     $('radarState').textContent=dict.radarNoFrame;
     $('radarHint').textContent=dict.radarNoFrame;
+    $('radarMotion').textContent='-';
+    $('radarDistance').textContent='-';
+    $('radarValidFrames').textContent=data.validFrameCount||0;
+    $('radarBadFrames').textContent=data.badFrameCount||data.invalidFrameCount||0;
     return;
   }
+  const distance=data.nearestDistanceCm||data.targetDistanceCm||0;
   $('radarDot').className='radarDot '+(seen?'seen':'waiting');
   $('radarState').textContent=seen?dict.radarSeen:dict.radarClear;
-  $('radarHint').textContent=seen?dict.radarSeen:dict.radarClear;
+  $('radarHint').textContent=(seen?dict.radarSeen:dict.radarClear)+' · '+dict.radarMotion+': '+(moving?dict.yes:dict.no)+' · '+dict.radarBadFrames+': '+(data.badFrameCount||data.invalidFrameCount||0);
+  $('radarMotion').textContent=moving?dict.yes:dict.no;
+  $('radarDistance').textContent=distance>0?distance+' '+dict.cm:'-';
+  $('radarValidFrames').textContent=data.validFrameCount||0;
+  $('radarBadFrames').textContent=data.badFrameCount||data.invalidFrameCount||0;
 }
 async function readRadarOnce(){
   if(radarBusy)return;
@@ -398,6 +420,12 @@ async function radarDeskMode(){
   await diag('radar desk');
   setTimeout(()=>diag('radar resolution'),3200);
   setTimeout(()=>diag('radar config'),3800);
+}
+async function radarBackgroundCalibrate(){
+  stopRadarLive();
+  stopRadarGuidedPoll();
+  await diag('radar calibrate');
+  setTimeout(()=>diag('radar calibrate status'),1200);
 }
 async function diag(command){
   if(!command)return;
@@ -486,6 +514,10 @@ void WebConfigServer::handleRadarStatus() {
   Serial.print(target.received ? 1 : 0);
   Serial.print(F(" target="));
   Serial.print(target.hasTarget ? 1 : 0);
+  Serial.print(F(" moving_target="));
+  Serial.print((target.targetState & 0x01) != 0 ? 1 : 0);
+  Serial.print(F(" static_target="));
+  Serial.print((target.targetState & 0x02) != 0 ? 1 : 0);
   Serial.print(F(" state_target="));
   Serial.print(target.stateTarget ? 1 : 0);
   Serial.print(F(" energy_target="));
@@ -494,6 +526,8 @@ void WebConfigServer::handleRadarStatus() {
   Serial.print(target.targetConfidence);
   Serial.print(F(" state="));
   Serial.print(target.targetState);
+  Serial.print(F(" nearest_cm="));
+  Serial.print(target.targetDistanceCm);
   Serial.print(F(" moving_cm="));
   Serial.print(target.movingDistanceCm);
   Serial.print(F(" moving_energy="));
@@ -520,6 +554,10 @@ void WebConfigServer::handleRadarStatus() {
   body += boolJson(target.received);
   body += ",\"hasTarget\":";
   body += boolJson(target.hasTarget);
+  body += ",\"movingTarget\":";
+  body += boolJson((target.targetState & 0x01) != 0);
+  body += ",\"staticTarget\":";
+  body += boolJson((target.targetState & 0x02) != 0);
   body += ",\"stateTarget\":";
   body += boolJson(target.stateTarget);
   body += ",\"energyTarget\":";
@@ -529,6 +567,8 @@ void WebConfigServer::handleRadarStatus() {
   body += ",\"state\":";
   body += target.targetState;
   body += ",\"targetDistanceCm\":";
+  body += target.targetDistanceCm;
+  body += ",\"nearestDistanceCm\":";
   body += target.targetDistanceCm;
   body += ",\"movingDistanceCm\":";
   body += target.movingDistanceCm;
@@ -543,6 +583,8 @@ void WebConfigServer::handleRadarStatus() {
   body += ",\"validFrameCount\":";
   body += target.validFrameCount;
   body += ",\"invalidFrameCount\":";
+  body += target.invalidFrameCount;
+  body += ",\"badFrameCount\":";
   body += target.invalidFrameCount;
   body += "}";
   sendText(200, "application/json", body);

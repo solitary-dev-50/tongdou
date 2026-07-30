@@ -10,15 +10,10 @@ namespace {
 HardwareSerial radarSerial(1);
 
 constexpr uint32_t kRadarBaud = 115200;
+constexpr size_t kRadarRxBufferSize = 1024;
 constexpr uint16_t kCommandTimeoutMs = 300;
 constexpr size_t kMaxFrameSize = 80;
-constexpr uint8_t kTargetConfirmFrames = 2;
-constexpr uint8_t kTargetClearFrames = 2;
 constexpr uint16_t kTargetFrameStaleMs = 1000;
-constexpr uint16_t kTargetMinDistanceCm = 20;
-constexpr uint16_t kTargetMaxDistanceCm = 260;
-constexpr uint8_t kMovingEnergyThreshold = 20;
-constexpr uint8_t kStaticEnergyThreshold = 25;
 constexpr uint8_t kReportHeader[] = {0xF4, 0xF3, 0xF2, 0xF1};
 constexpr uint8_t kReportFooter[] = {0xF8, 0xF7, 0xF6, 0xF5};
 
@@ -50,10 +45,10 @@ constexpr uint8_t kReadMotionSensitivityCommand[] = {
 constexpr uint8_t kReadStaticSensitivityCommand[] = {
     0xFD, 0xFC, 0xFB, 0xFA, 0x02, 0x00, 0x14, 0x00, 0x04, 0x03, 0x02, 0x01};
 constexpr uint8_t kNearDeskConfigCommand[] = {
-    0xFD, 0xFC, 0xFB, 0xFA, 0x07, 0x00, 0x02, 0x00, 0x01, 0x04, 0x05,
+    0xFD, 0xFC, 0xFB, 0xFA, 0x07, 0x00, 0x02, 0x00, 0x01, 0x05, 0x05,
     0x00, 0x00, 0x04, 0x03, 0x02, 0x01};
 constexpr uint8_t kDeskBasicConfigCommand[] = {
-    0xFD, 0xFC, 0xFB, 0xFA, 0x07, 0x00, 0x02, 0x00, 0x01, 0x0D, 0x05,
+    0xFD, 0xFC, 0xFB, 0xFA, 0x07, 0x00, 0x02, 0x00, 0x01, 0x0E, 0x05,
     0x00, 0x00, 0x04, 0x03, 0x02, 0x01};
 constexpr uint8_t kBackgroundCalibrationCommand[] = {
     0xFD, 0xFC, 0xFB, 0xFA, 0x02, 0x00, 0x0B, 0x00, 0x04, 0x03, 0x02, 0x01};
@@ -165,15 +160,12 @@ uint8_t gateCentimetersFromResolution(uint8_t value) {
   return 75;
 }
 
-bool distanceInTargetRange(uint16_t distanceCm) {
-  return distanceCm >= kTargetMinDistanceCm && distanceCm <= kTargetMaxDistanceCm;
-}
-
 }  // namespace
 
 void RadarSensor::begin() {
   pinMode(pins::RADAR_OUT, INPUT);
   pinMode(pins::RADAR_RX_FROM_MODULE_TX, INPUT);
+  radarSerial.setRxBufferSize(kRadarRxBufferSize);
   radarSerial.begin(kRadarBaud, SERIAL_8N1, static_cast<int>(pins::RADAR_RX_FROM_MODULE_TX),
                     static_cast<int>(pins::RADAR_TX_TO_MODULE_RX));
   resetReportParser();
@@ -181,9 +173,6 @@ void RadarSensor::begin() {
   lastValidFrameMs_ = 0;
   validFrameCount_ = 0;
   invalidFrameCount_ = 0;
-  presentStreak_ = 0;
-  clearStreak_ = 0;
-  stableHasTarget_ = false;
   clearRadarInput();
 }
 
@@ -272,34 +261,13 @@ void RadarSensor::parseReportPayload(const uint8_t* payload, size_t payloadLengt
   snapshot.rawPayloadLength = static_cast<uint8_t>(rawLength);
   memcpy(snapshot.rawPayload, payload, rawLength);
 
-  const bool rawTarget = snapshot.targetState >= 1 && snapshot.targetState <= 3;
-  snapshot.stateTarget = rawTarget;
-
-  const bool movingEnergyTarget =
-      distanceInTargetRange(snapshot.movingDistanceCm) &&
-      snapshot.movingEnergy >= kMovingEnergyThreshold;
-  const bool staticEnergyTarget =
-      distanceInTargetRange(snapshot.staticDistanceCm) &&
-      snapshot.staticEnergy >= kStaticEnergyThreshold;
-  snapshot.energyTarget = movingEnergyTarget || staticEnergyTarget;
-
-  if (rawTarget) {
-    presentStreak_ = min<uint8_t>(presentStreak_ + 1, kTargetConfirmFrames);
-    clearStreak_ = 0;
-    if (presentStreak_ >= kTargetConfirmFrames) {
-      stableHasTarget_ = true;
-    }
-  } else if (snapshot.targetState == 0) {
-    clearStreak_ = min<uint8_t>(clearStreak_ + 1, kTargetClearFrames);
-    presentStreak_ = 0;
-    if (clearStreak_ >= kTargetClearFrames) {
-      stableHasTarget_ = false;
-    }
-  }
-
-  snapshot.targetConfidence =
-      stableHasTarget_ ? kTargetConfirmFrames : presentStreak_;
-  snapshot.hasTarget = stableHasTarget_;
+  const bool moduleMovingTarget = (snapshot.targetState & 0x01) != 0;
+  const bool moduleStaticTarget = (snapshot.targetState & 0x02) != 0;
+  const bool moduleTarget = moduleMovingTarget || moduleStaticTarget;
+  snapshot.stateTarget = moduleTarget;
+  snapshot.energyTarget = false;
+  snapshot.targetConfidence = moduleTarget ? 1 : 0;
+  snapshot.hasTarget = moduleTarget;
 
   const bool hasMoving = (snapshot.targetState & 0x01) != 0;
   const bool hasStatic = (snapshot.targetState & 0x02) != 0;
@@ -583,23 +551,19 @@ RadarParserSelfTestResult RadarSensor::parserSelfTest() const {
       0x00, 0x00, 0x00, 0x00, 0x55, 0x00, 0xF8, 0xF7, 0xF6, 0xF5};
 
   RadarSensor parser;
-  for (uint8_t repeat = 0; repeat < kTargetConfirmFrames; ++repeat) {
-    for (uint8_t value : kOfficialStaticTargetFrame) {
-      parser.consumeReportByte(value);
-    }
+  for (uint8_t value : kOfficialStaticTargetFrame) {
+    parser.consumeReportByte(value);
   }
 
   RadarParserSelfTestResult result;
   RadarTargetSnapshot snapshot = parser.readTarget();
   result.normalFrameAccepted =
-      snapshot.received && snapshot.validFrameCount == kTargetConfirmFrames;
+      snapshot.received && snapshot.validFrameCount == 1;
   result.staticTargetAccepted =
       snapshot.targetState == 2 && snapshot.stateTarget && snapshot.hasTarget;
 
-  for (uint8_t repeat = 0; repeat < kTargetClearFrames; ++repeat) {
-    for (uint8_t value : kNoTargetFrame) {
-      parser.consumeReportByte(value);
-    }
+  for (uint8_t value : kNoTargetFrame) {
+    parser.consumeReportByte(value);
   }
   snapshot = parser.readTarget();
   result.clearFrameAccepted =

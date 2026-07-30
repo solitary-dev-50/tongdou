@@ -114,9 +114,6 @@ class RadarSensor {
   unsigned long lastValidFrameMs_ = 0;
   uint32_t validFrameCount_ = 0;
   uint32_t invalidFrameCount_ = 0;
-  uint8_t presentStreak_ = 0;
-  uint8_t clearStreak_ = 0;
-  bool stableHasTarget_ = false;
 };
 
 }  // namespace tongdou
