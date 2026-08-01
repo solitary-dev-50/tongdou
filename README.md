@@ -37,6 +37,12 @@ Official TongDou products and crowdfunding campaigns will only be announced thro
 
 ![TongDou side brass frame](media/images/tongdou-side-brass-frame.jpg)
 
+## Building the Brass Frame
+
+Before TongDou wakes up, the brass exoskeleton has to be aligned and soldered by hand. This video shows the real prototype process using two brass side plates, 1 mm brass rods, and a simple custom fixture.
+
+[**Watch TongDou's brass exoskeleton assembly on YouTube →**](https://youtu.be/Y9hkVVa-t_o)
+
 ## Watch TongDou Run
 
 Open the local showcase page:
@@ -93,9 +99,10 @@ Media folders:
 - [Images](media/images/)
 - [Videos](media/videos/)
 
-Current public video:
+Current public videos:
 
 - [TongDou demo - Devil Descends](media/videos/tongdou-demo-devil-descends.mp4)
+- [TongDou brass exoskeleton assembly](https://youtu.be/Y9hkVVa-t_o)
 
 ## What Is Not Included Yet
 
@@ -144,6 +151,9 @@ Further hardware notes and validation records will be added progressively.
 Brass-frame soldering, assembly, power-on checks, testing records, and
 troubleshooting material.
 
+The first public assembly record is available now:
+[watch the brass exoskeleton assembly video](https://youtu.be/Y9hkVVa-t_o).
+
 ## TongDou PCB v8
 
 The current electrical reference documents are available in:
@@ -154,7 +164,7 @@ The current electrical reference documents are available in:
 TongDou as a whole is still being released in phases and is not yet a complete
 end-to-end manufacturing kit.
 
-V9 hardware bring-up is in progress. V9 adds the QMI8658A motion sensor, the
+V9 is now the current working prototype. It adds the QMI8658A motion sensor, the
 TongDou logo touch input on IO4, and AT8833CT nFAULT feedback on IO37. The V8
 and V9 prototype PCB photos are now included. V9 files are not yet part of the
 published manufacturing package.
