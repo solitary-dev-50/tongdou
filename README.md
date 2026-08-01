@@ -2,6 +2,14 @@
 
 [![TongDou demo keyframes](media/images/tongdou-demo-keyframes.gif)](media/videos/tongdou-demo-devil-descends.mp4)
 
+## Featured on Hackaday
+
+TongDou was featured on Hackaday:
+
+**[Tiny Desktop Robot Has Radar →](https://hackaday.com/2026/07/31/tiny-desktop-robot-has-radar/)**
+
+Written by Zoe Skyforest · July 31, 2026
+
 > **Work in Progress**
 >
 > TongDou is being actively documented and open-sourced step by step.
