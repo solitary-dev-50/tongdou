@@ -36,6 +36,8 @@ class HardwareSelfTestService {
   void update();
   HardwareDiagnosticStatus status() const;
   BatterySnapshot batterySnapshot() const;
+  RadarSnapshot radarSnapshot() const;
+  RadarTargetSnapshot radarTargetSnapshot();
   bool motorLeftInverted() const;
   bool motorRightInverted() const;
   uint8_t motorLeftDefaultDuty() const;
@@ -54,11 +56,21 @@ class HardwareSelfTestService {
   void printRadar(Print& out) const;
   void printRadarTarget(Print& out);
   void printRadarSamples(Print& out);
+  void printRadarParserSelfTest(Print& out) const;
+  void runRadarGuidedTest(Print& out);
+  void startRadarGuidedTest(Print& out);
+  void printRadarGuidedStatus(Print& out) const;
   void printRadarConfig(Print& out);
   void printRadarResolution(Print& out);
+  void printRadarSensitivity(Print& out);
+  void setRadarEngineeringMode(bool enabled, Print& out);
   void applyRadarNearConfig(Print& out);
+  void applyRadarDeskMode(Print& out);
   void applyRadarResolution20cm(Print& out);
   void startRadarCalibration(Print& out);
+  void printRadarCalibrationStatus(Print& out);
+  void restoreRadarFactoryDefaults(Print& out);
+  void startRadarBridge(Print& out);
   void printMic(Print& out);
   void printI2cScan(Print& out);
   void printImu(Print& out);
@@ -72,6 +84,7 @@ class HardwareSelfTestService {
   void printAutoMotorCalibration(Print& out) const;
   void printAudioVolume(Print& out) const;
   void updateAutoMotorCalibration();
+  void updateRadarGuidedTest();
   void finishAutoMotorCalibration();
   void cancelAutoMotorCalibration();
   void sampleAutoMotorGyro(bool probePhase);
@@ -133,6 +146,24 @@ class HardwareSelfTestService {
   uint8_t motorCalibrationRightStartPwm_ = 210;
   uint8_t motorCalibrationLeftHoldPwm_ = 150;
   uint8_t motorCalibrationRightHoldPwm_ = 150;
+  bool radarGuidedActive_ = false;
+  bool radarGuidedDone_ = false;
+  uint8_t radarGuidedPhase_ = 0;
+  unsigned long radarGuidedPhaseStartMs_ = 0;
+  unsigned long radarGuidedNextSampleMs_ = 0;
+  uint32_t radarGuidedLastSequence_ = 0;
+  uint16_t radarGuidedSamples_[5] = {};
+  uint16_t radarGuidedReceivedFrames_[5] = {};
+  uint16_t radarGuidedTargetFrames_[5] = {};
+  uint16_t radarGuidedStateTargetFrames_[5] = {};
+  uint16_t radarGuidedEnergyTargetFrames_[5] = {};
+  uint16_t radarGuidedOutHighFrames_[5] = {};
+  uint16_t radarGuidedFirstTargetMs_[5] = {};
+  uint16_t radarGuidedMinTargetDistanceCm_[5] = {};
+  uint8_t radarGuidedMaxMovingEnergy_[5] = {};
+  uint8_t radarGuidedMaxStaticEnergy_[5] = {};
+  uint8_t radarGuidedMaxConfidence_[5] = {};
+  uint8_t radarGuidedLastState_[5] = {};
 };
 
 }  // namespace tongdou

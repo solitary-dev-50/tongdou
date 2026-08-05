@@ -26,6 +26,8 @@ Build system: PlatformIO, Arduino framework, ESP32-S3 target.
 - `radar near`: applies the current near-field LD2412 configuration.
 - `radar resolution`: reads LD2412 distance resolution.
 - `radar res20`: sets LD2412 distance resolution to 20 cm.
+- `radar calibrate`: starts LD2412 empty-scene background calibration.
+- `radar calibrate status`: reads LD2412 empty-scene calibration status.
 - `radar bridge`: bridges LD2412 serial traffic for external inspection.
 - `mic`: samples the PDM microphone and prints level statistics.
 - `i2c scan`: scans the OLED and QMI8658A shared I2C bus.
@@ -52,8 +54,19 @@ After connecting to it, open:
 http://192.168.4.1/motor
 ```
 
-The page exposes the same kind of checks as the serial commands: status,
-battery, microphone, speaker, I2C, IMU, radar, LED, and motor tests.
+The page exposes common hardware checks: six-item status, battery, microphone,
+speaker, I2C, IMU, radar, LED, speaker volume, and basic motor tests.
+
+The radar panel exposes `/api/radar`, live target / no-target status, motion
+target status, nearest reported distance, valid frame count, bad frame count,
+and empty-scene background calibration.
+
+Advanced diagnostics such as `imu raw test`, `radar parser selftest`, `radar
+guided test`, `radar bridge`, and arbitrary command entry are intentionally
+kept on the serial console only.
+
+See [LD2412_RADAR_TEST.md](LD2412_RADAR_TEST.md) for the real-board radar test
+record and calibration notes.
 
 ### Logo Touch
 

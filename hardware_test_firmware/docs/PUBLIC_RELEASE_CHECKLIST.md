@@ -23,6 +23,9 @@ repository or release archive.
 - [ ] No automatic motor learning algorithm is included.
 - [ ] No production calibration flow is included.
 
+Note: LD2412 empty-scene background calibration is allowed as a field diagnostic
+step. It must not be described as production calibration.
+
 ## Sensitive Data
 
 - [ ] No Wi-Fi password is present.

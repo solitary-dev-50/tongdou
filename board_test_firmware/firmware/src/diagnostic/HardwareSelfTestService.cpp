@@ -19,6 +19,10 @@ constexpr unsigned long kMotorAutoControlMs = 30;
 constexpr unsigned long kImuRawBiasMs = 800;
 constexpr unsigned long kImuRawMotionMs = 3200;
 constexpr unsigned long kImuRawSampleMs = 20;
+constexpr unsigned long kRadarGuidedBlockingPhaseMs = 5000;
+constexpr unsigned long kRadarGuidedEmptyPhaseMs = 7000;
+constexpr unsigned long kRadarGuidedTargetPhaseMs = 4000;
+constexpr unsigned long kRadarGuidedSamplePauseMs = 120;
 constexpr uint16_t kSpeakerTestHz = 880;
 constexpr uint16_t kSpeakerTestMs = 120;
 constexpr uint8_t kMotorCalibrationBrakePwm = 160;
@@ -51,6 +55,21 @@ struct ImuDebugFrame {
   int16_t tempRaw = 0;
   int16_t accelRaw[3] = {};
   int16_t gyroRaw[3] = {};
+};
+
+struct RadarGuidedPhaseStats {
+  uint16_t samples = 0;
+  uint16_t receivedFrames = 0;
+  uint16_t targetFrames = 0;
+  uint16_t stateTargetFrames = 0;
+  uint16_t energyTargetFrames = 0;
+  uint16_t occupiedFrames = 0;
+  uint16_t firstTargetMs = 0;
+  uint16_t minTargetDistanceCm = 0;
+  uint8_t maxMovingEnergy = 0;
+  uint8_t maxStaticEnergy = 0;
+  uint8_t maxConfidence = 0;
+  uint8_t lastState = 0;
 };
 
 void printBool(Print& out, const __FlashStringHelper* label, bool value) {
@@ -125,6 +144,31 @@ const __FlashStringHelper* axisName(uint8_t axis) {
   return F("Z");
 }
 
+const char* radarGuidedPhaseName(uint8_t phase) {
+  static const char* const kNames[] = {"empty_1", "wave_1", "empty_2", "wave_2", "empty_3"};
+  return phase < 5 ? kNames[phase] : "done";
+}
+
+const char* radarGuidedPhaseInstruction(uint8_t phase) {
+  static const char* const kInstructions[] = {
+      "keep the radar facing empty space",
+      "wave your hand in front of the radar",
+      "keep the radar facing empty space",
+      "wave your hand in front of the radar again",
+      "keep the radar facing empty space",
+  };
+  return phase < 5 ? kInstructions[phase] : "test done";
+}
+
+bool radarGuidedPhaseExpectTarget(uint8_t phase) {
+  return phase == 1 || phase == 3;
+}
+
+unsigned long radarGuidedPhaseDurationMs(uint8_t phase) {
+  return radarGuidedPhaseExpectTarget(phase) ? kRadarGuidedTargetPhaseMs
+                                             : kRadarGuidedEmptyPhaseMs;
+}
+
 int8_t signOf(int64_t value) {
   if (value > 0) {
     return 1;
@@ -192,9 +236,17 @@ void HardwareSelfTestService::begin() {
   autoMotorFailed_ = false;
   motorCalibrationNextMs_ = 0;
   motorCalibrationPhase_ = 0;
+  radarGuidedActive_ = false;
+  radarGuidedDone_ = false;
+  radarGuidedPhase_ = 0;
+  radarGuidedPhaseStartMs_ = 0;
+  radarGuidedNextSampleMs_ = 0;
+  radarGuidedLastSequence_ = 0;
 }
 
 void HardwareSelfTestService::update() {
+  radar_.update();
+  updateRadarGuidedTest();
   updateAutoMotorCalibration();
   if (autoMotorPhase_ != 0) {
     return;
@@ -249,6 +301,14 @@ BatterySnapshot HardwareSelfTestService::batterySnapshot() const {
   return battery_.read();
 }
 
+RadarSnapshot HardwareSelfTestService::radarSnapshot() const {
+  return radar_.read();
+}
+
+RadarTargetSnapshot HardwareSelfTestService::radarTargetSnapshot() {
+  return radar_.readTarget();
+}
+
 bool HardwareSelfTestService::motorLeftInverted() const {
   return motors_.leftInverted();
 }
@@ -270,9 +330,9 @@ uint8_t HardwareSelfTestService::audioVolumePercent() const {
 }
 
 void HardwareSelfTestService::saveMotorCalibration(bool leftInverted,
-                                                  bool rightInverted,
-                                                  uint8_t leftDuty,
-                                                  uint8_t rightDuty) {
+                                                   bool rightInverted,
+                                                   uint8_t leftDuty,
+                                                   uint8_t rightDuty) {
   motors_.saveCalibration(leftInverted, rightInverted, leftDuty, rightDuty);
 }
 
@@ -288,11 +348,21 @@ void HardwareSelfTestService::printHelp(Print& out) const {
   out.println(F("  radar"));
   out.println(F("  radar target"));
   out.println(F("  radar sample"));
+  out.println(F("  radar parser selftest"));
+  out.println(F("  radar guided test"));
+  out.println(F("  radar guided status"));
+  out.println(F("  radar guided blocking"));
   out.println(F("  radar config"));
+  out.println(F("  radar sensitivity"));
+  out.println(F("  radar engineering on|off"));
+  out.println(F("  radar desk"));
   out.println(F("  radar near"));
   out.println(F("  radar resolution"));
   out.println(F("  radar res20"));
   out.println(F("  radar calibrate"));
+  out.println(F("  radar calibrate status"));
+  out.println(F("  radar factory reset"));
+  out.println(F("  radar bridge"));
   out.println(F("  mic"));
   out.println(F("  i2c scan"));
   out.println(F("  imu"));
@@ -346,8 +416,41 @@ bool HardwareSelfTestService::handleCommand(const String& command, Print& out) {
     printRadarSamples(out);
     return true;
   }
+  if (cmd == F("radar parser selftest")) {
+    printRadarParserSelfTest(out);
+    return true;
+  }
+  if (cmd == F("radar guided test") || cmd == F("radar guided") ||
+      cmd == F("radar guided start")) {
+    startRadarGuidedTest(out);
+    return true;
+  }
+  if (cmd == F("radar guided status")) {
+    printRadarGuidedStatus(out);
+    return true;
+  }
+  if (cmd == F("radar guided blocking")) {
+    runRadarGuidedTest(out);
+    return true;
+  }
   if (cmd == F("radar config")) {
     printRadarConfig(out);
+    return true;
+  }
+  if (cmd == F("radar sensitivity")) {
+    printRadarSensitivity(out);
+    return true;
+  }
+  if (cmd == F("radar engineering on")) {
+    setRadarEngineeringMode(true, out);
+    return true;
+  }
+  if (cmd == F("radar engineering off")) {
+    setRadarEngineeringMode(false, out);
+    return true;
+  }
+  if (cmd == F("radar desk")) {
+    applyRadarDeskMode(out);
     return true;
   }
   if (cmd == F("radar near")) {
@@ -364,6 +467,18 @@ bool HardwareSelfTestService::handleCommand(const String& command, Print& out) {
   }
   if (cmd == F("radar calibrate")) {
     startRadarCalibration(out);
+    return true;
+  }
+  if (cmd == F("radar calibrate status") || cmd == F("radar calibration status")) {
+    printRadarCalibrationStatus(out);
+    return true;
+  }
+  if (cmd == F("radar factory reset")) {
+    restoreRadarFactoryDefaults(out);
+    return true;
+  }
+  if (cmd == F("radar bridge")) {
+    startRadarBridge(out);
     return true;
   }
   if (cmd == F("mic")) {
@@ -456,7 +571,6 @@ bool HardwareSelfTestService::handleCommand(const String& command, Print& out) {
     out.println(F("motor calibration stop"));
     return true;
   }
-
   return false;
 }
 
@@ -504,12 +618,19 @@ void HardwareSelfTestService::printRadarTarget(Print& out) {
   const RadarTargetSnapshot snapshot = radar_.readTarget();
   out.println(F("radar target:"));
   printBool(out, F("  received="), snapshot.received);
+  out.print(F("  frame_age_ms="));
+  out.println(snapshot.frameAgeMs);
+  out.print(F("  valid_frames="));
+  out.println(snapshot.validFrameCount);
+  out.print(F("  invalid_frames="));
+  out.println(snapshot.invalidFrameCount);
   if (!snapshot.received) {
     return;
   }
 
   out.print(F("  state="));
   out.println(snapshot.targetState);
+  printBool(out, F("  engineering_mode="), snapshot.engineeringMode);
   out.print(F("  raw_payload="));
   for (uint8_t i = 0; i < snapshot.rawPayloadLength; ++i) {
     if (i > 0) {
@@ -519,7 +640,12 @@ void HardwareSelfTestService::printRadarTarget(Print& out) {
   }
   out.println();
   printBool(out, F("  has_target="), snapshot.hasTarget);
-  out.println(F("  distance_note=raw_auxiliary_not_real_distance"));
+  printBool(out, F("  state_target="), snapshot.stateTarget);
+  printBool(out, F("  energy_target="), snapshot.energyTarget);
+  printBool(out, F("  moving_gate_target="), snapshot.movingGateTarget);
+  out.print(F("  target_confidence="));
+  out.println(snapshot.targetConfidence);
+  out.println(F("  distance_note=reported_cm_not_precision_ruler"));
   out.print(F("  target_distance_cm="));
   out.println(snapshot.targetDistanceCm);
   out.print(F("  moving_distance_cm="));
@@ -530,31 +656,394 @@ void HardwareSelfTestService::printRadarTarget(Print& out) {
   out.println(snapshot.staticDistanceCm);
   out.print(F("  static_energy="));
   out.println(snapshot.staticEnergy);
+  if (snapshot.engineeringMode) {
+    out.print(F("  moving_gate_energy="));
+    for (uint8_t gate = 0; gate < 14; ++gate) {
+      if (gate > 0) {
+        out.print(',');
+      }
+      out.print(snapshot.movingGateEnergy[gate]);
+    }
+    out.println();
+    out.print(F("  static_gate_energy="));
+    for (uint8_t gate = 0; gate < 14; ++gate) {
+      if (gate > 0) {
+        out.print(',');
+      }
+      out.print(snapshot.staticGateEnergy[gate]);
+    }
+    out.println();
+    out.print(F("  light_level="));
+    out.println(snapshot.lightLevel);
+  }
 }
 
 void HardwareSelfTestService::printRadarSamples(Print& out) {
-  out.println(F("radar sample:"));
-  out.println(F("  distance_note=raw_auxiliary_not_real_distance"));
-  for (uint8_t sample = 1; sample <= 8; ++sample) {
+  uint16_t samples = 0;
+  uint16_t noTargetFrames = 0;
+  uint16_t movingTargetFrames = 0;
+  uint16_t staticTargetFrames = 0;
+  uint16_t combinedTargetFrames = 0;
+  uint16_t minMovingDistanceCm = 0;
+  uint16_t maxMovingDistanceCm = 0;
+  uint16_t minStaticDistanceCm = 0;
+  uint16_t maxStaticDistanceCm = 0;
+  uint8_t maxMovingEnergy = 0;
+  uint8_t maxStaticEnergy = 0;
+  const RadarTargetSnapshot before = radar_.readTarget();
+  uint32_t lastSequence = radar_.readTarget().sequence;
+  const unsigned long deadlineMs = millis() + 3000;
+  while (static_cast<long>(millis() - deadlineMs) < 0) {
+    radar_.update();
     const RadarTargetSnapshot snapshot = radar_.readTarget();
-    out.print(F("  sample="));
-    out.print(sample);
-    printBool(out, F(" received="), snapshot.received);
-    if (snapshot.received) {
-      out.print(F("    state="));
-      out.print(snapshot.targetState);
-      out.print(F(" has_target="));
-      out.print(snapshot.hasTarget ? F("1") : F("0"));
-      out.print(F(" moving_cm="));
-      out.print(snapshot.movingDistanceCm);
-      out.print(F(" moving_energy="));
-      out.print(snapshot.movingEnergy);
-      out.print(F(" static_cm="));
-      out.print(snapshot.staticDistanceCm);
-      out.print(F(" static_energy="));
-      out.println(snapshot.staticEnergy);
+    if (!snapshot.received || snapshot.sequence == lastSequence) {
+      delay(5);
+      continue;
     }
-    delay(120);
+    lastSequence = snapshot.sequence;
+    ++samples;
+    if (snapshot.targetState == 0) {
+      ++noTargetFrames;
+    }
+    if ((snapshot.targetState & 0x01) != 0) {
+      ++movingTargetFrames;
+    }
+    if ((snapshot.targetState & 0x02) != 0) {
+      ++staticTargetFrames;
+    }
+    if ((snapshot.targetState & 0x03) == 0x03) {
+      ++combinedTargetFrames;
+    }
+
+    if (snapshot.movingDistanceCm > 0) {
+      if (minMovingDistanceCm == 0 || snapshot.movingDistanceCm < minMovingDistanceCm) {
+        minMovingDistanceCm = snapshot.movingDistanceCm;
+      }
+      maxMovingDistanceCm = max(maxMovingDistanceCm, snapshot.movingDistanceCm);
+    }
+    if (snapshot.staticDistanceCm > 0) {
+      if (minStaticDistanceCm == 0 || snapshot.staticDistanceCm < minStaticDistanceCm) {
+        minStaticDistanceCm = snapshot.staticDistanceCm;
+      }
+      maxStaticDistanceCm = max(maxStaticDistanceCm, snapshot.staticDistanceCm);
+    }
+    maxMovingEnergy = max(maxMovingEnergy, snapshot.movingEnergy);
+    maxStaticEnergy = max(maxStaticEnergy, snapshot.staticEnergy);
+  }
+
+  const RadarTargetSnapshot after = radar_.readTarget();
+  out.println(F("radar sample:"));
+  out.println(F("  duration_ms=3000"));
+  out.println(F("  distance_note=reported_cm_not_precision_ruler"));
+  out.print(F("  unique_frames="));
+  out.println(samples);
+  out.print(F("  no_target_frames="));
+  out.println(noTargetFrames);
+  out.print(F("  moving_target_frames="));
+  out.println(movingTargetFrames);
+  out.print(F("  static_target_frames="));
+  out.println(staticTargetFrames);
+  out.print(F("  combined_target_frames="));
+  out.println(combinedTargetFrames);
+  out.print(F("  moving_distance_cm_min="));
+  out.println(minMovingDistanceCm);
+  out.print(F("  moving_distance_cm_max="));
+  out.println(maxMovingDistanceCm);
+  out.print(F("  static_distance_cm_min="));
+  out.println(minStaticDistanceCm);
+  out.print(F("  static_distance_cm_max="));
+  out.println(maxStaticDistanceCm);
+  out.print(F("  max_moving_energy="));
+  out.println(maxMovingEnergy);
+  out.print(F("  max_static_energy="));
+  out.println(maxStaticEnergy);
+  out.print(F("  valid_frame_delta="));
+  out.println(after.validFrameCount - before.validFrameCount);
+  out.print(F("  invalid_frame_delta="));
+  out.println(after.invalidFrameCount - before.invalidFrameCount);
+}
+
+void HardwareSelfTestService::printRadarParserSelfTest(Print& out) const {
+  const RadarParserSelfTestResult result = radar_.parserSelfTest();
+  out.println(F("radar parser selftest:"));
+  printBool(out, F("  normal_frame_accepted="), result.normalFrameAccepted);
+  printBool(out, F("  static_target_accepted="), result.staticTargetAccepted);
+  printBool(out, F("  clear_frame_accepted="), result.clearFrameAccepted);
+  printBool(out, F("  corrupt_frame_rejected="), result.corruptFrameRejected);
+  printBool(out, F("  passed="), result.passed());
+}
+
+void HardwareSelfTestService::runRadarGuidedTest(Print& out) {
+  struct Phase {
+    const char* name;
+    const char* instruction;
+    bool expectTarget;
+  };
+
+  const Phase phases[] = {
+      {"empty_1", "keep the radar facing empty space", false},
+      {"wave_1", "wave your hand in front of the radar", true},
+      {"empty_2", "keep the radar facing empty space", false},
+      {"wave_2", "wave your hand in front of the radar again", true},
+      {"empty_3", "keep the radar facing empty space", false},
+  };
+
+  out.println(F("radar guided test:"));
+  out.println(F("  rule=follow each phase exactly when it starts"));
+  out.print(F("  phase_ms="));
+  out.println(kRadarGuidedBlockingPhaseMs);
+  out.println(F("  final_target_uses=serial_target_not_out_pin"));
+
+  for (uint8_t phaseIndex = 0; phaseIndex < sizeof(phases) / sizeof(phases[0]);
+       ++phaseIndex) {
+    const Phase& phase = phases[phaseIndex];
+    RadarGuidedPhaseStats stats;
+    const unsigned long phaseStartMs = millis();
+
+    out.print(F("phase_start name="));
+    out.print(phase.name);
+    out.print(F(" instruction=\""));
+    out.print(phase.instruction);
+    out.println(F("\""));
+
+    while (millis() - phaseStartMs < kRadarGuidedBlockingPhaseMs) {
+      radar_.update();
+      const RadarSnapshot pinSnapshot = radar_.read();
+      const RadarTargetSnapshot target = radar_.readTarget();
+      const uint16_t elapsedMs =
+          static_cast<uint16_t>(min(millis() - phaseStartMs, 65535UL));
+
+      ++stats.samples;
+      if (pinSnapshot.occupied) {
+        ++stats.occupiedFrames;
+      }
+      if (target.received) {
+        ++stats.receivedFrames;
+        stats.lastState = target.targetState;
+        stats.maxMovingEnergy = max(stats.maxMovingEnergy, target.movingEnergy);
+        stats.maxStaticEnergy = max(stats.maxStaticEnergy, target.staticEnergy);
+        stats.maxConfidence = max(stats.maxConfidence, target.targetConfidence);
+
+        if (target.stateTarget) {
+          ++stats.stateTargetFrames;
+        }
+        if (target.energyTarget) {
+          ++stats.energyTargetFrames;
+        }
+        if (target.hasTarget) {
+          ++stats.targetFrames;
+          if (stats.firstTargetMs == 0) {
+            stats.firstTargetMs = elapsedMs;
+          }
+          if (target.targetDistanceCm > 0 &&
+              (stats.minTargetDistanceCm == 0 ||
+               target.targetDistanceCm < stats.minTargetDistanceCm)) {
+            stats.minTargetDistanceCm = target.targetDistanceCm;
+          }
+        }
+      }
+
+      delay(kRadarGuidedSamplePauseMs);
+    }
+
+    out.print(F("phase_result name="));
+    out.print(phase.name);
+    out.print(F(" expected="));
+    out.print(phase.expectTarget ? F("target") : F("empty"));
+    out.print(F(" samples="));
+    out.print(stats.samples);
+    out.print(F(" received="));
+    out.print(stats.receivedFrames);
+    out.print(F(" target_frames="));
+    out.print(stats.targetFrames);
+    out.print(F(" state_target_frames="));
+    out.print(stats.stateTargetFrames);
+    out.print(F(" energy_target_frames="));
+    out.print(stats.energyTargetFrames);
+    out.print(F(" out_high_frames="));
+    out.print(stats.occupiedFrames);
+    out.print(F(" first_target_ms="));
+    out.print(stats.firstTargetMs);
+    out.print(F(" min_target_cm="));
+    out.print(stats.minTargetDistanceCm);
+    out.print(F(" max_moving_energy="));
+    out.print(stats.maxMovingEnergy);
+    out.print(F(" max_static_energy="));
+    out.print(stats.maxStaticEnergy);
+    out.print(F(" max_confidence="));
+    out.print(stats.maxConfidence);
+    out.print(F(" last_state="));
+    out.print(stats.lastState);
+    out.print(F(" result="));
+    if (phase.expectTarget) {
+      out.println(stats.targetFrames > 0 ? F("detected") : F("missed"));
+    } else {
+      out.println(stats.targetFrames == 0 ? F("clear") : F("false_positive"));
+    }
+  }
+
+  out.println(F("radar guided test done"));
+}
+
+void HardwareSelfTestService::startRadarGuidedTest(Print& out) {
+  memset(radarGuidedSamples_, 0, sizeof(radarGuidedSamples_));
+  memset(radarGuidedReceivedFrames_, 0, sizeof(radarGuidedReceivedFrames_));
+  memset(radarGuidedTargetFrames_, 0, sizeof(radarGuidedTargetFrames_));
+  memset(radarGuidedStateTargetFrames_, 0, sizeof(radarGuidedStateTargetFrames_));
+  memset(radarGuidedEnergyTargetFrames_, 0, sizeof(radarGuidedEnergyTargetFrames_));
+  memset(radarGuidedOutHighFrames_, 0, sizeof(radarGuidedOutHighFrames_));
+  memset(radarGuidedFirstTargetMs_, 0, sizeof(radarGuidedFirstTargetMs_));
+  memset(radarGuidedMinTargetDistanceCm_, 0, sizeof(radarGuidedMinTargetDistanceCm_));
+  memset(radarGuidedMaxMovingEnergy_, 0, sizeof(radarGuidedMaxMovingEnergy_));
+  memset(radarGuidedMaxStaticEnergy_, 0, sizeof(radarGuidedMaxStaticEnergy_));
+  memset(radarGuidedMaxConfidence_, 0, sizeof(radarGuidedMaxConfidence_));
+  memset(radarGuidedLastState_, 0, sizeof(radarGuidedLastState_));
+
+  radarGuidedActive_ = true;
+  radarGuidedDone_ = false;
+  radarGuidedPhase_ = 0;
+  radarGuidedPhaseStartMs_ = millis();
+  radarGuidedNextSampleMs_ = millis();
+  radarGuidedLastSequence_ = radar_.readTarget().sequence;
+
+  out.println(F("radar guided test started"));
+  out.println(F("  empty_phase_ms=7000"));
+  out.println(F("  target_phase_ms=4000"));
+  out.print(F("  current_phase="));
+  out.println(radarGuidedPhaseName(radarGuidedPhase_));
+  out.print(F("  instruction="));
+  out.println(radarGuidedPhaseInstruction(radarGuidedPhase_));
+}
+
+void HardwareSelfTestService::printRadarGuidedStatus(Print& out) const {
+  out.println(F("radar guided status:"));
+  printBool(out, F("  active="), radarGuidedActive_);
+  printBool(out, F("  done="), radarGuidedDone_);
+  out.print(F("  phase="));
+  out.println(radarGuidedPhaseName(radarGuidedPhase_));
+  if (radarGuidedActive_) {
+    out.print(F("  instruction="));
+    out.println(radarGuidedPhaseInstruction(radarGuidedPhase_));
+    out.print(F("  elapsed_ms="));
+    out.println(millis() - radarGuidedPhaseStartMs_);
+    out.print(F("  phase_duration_ms="));
+    out.println(radarGuidedPhaseDurationMs(radarGuidedPhase_));
+  }
+
+  const uint8_t phaseCount = radarGuidedDone_ ? 5 : min<uint8_t>(radarGuidedPhase_ + 1, 5);
+  for (uint8_t phase = 0; phase < phaseCount; ++phase) {
+    out.print(F("  phase_result name="));
+    out.print(radarGuidedPhaseName(phase));
+    out.print(F(" expected="));
+    out.print(radarGuidedPhaseExpectTarget(phase) ? F("target") : F("empty"));
+    out.print(F(" samples="));
+    out.print(radarGuidedSamples_[phase]);
+    out.print(F(" received="));
+    out.print(radarGuidedReceivedFrames_[phase]);
+    out.print(F(" target_frames="));
+    out.print(radarGuidedTargetFrames_[phase]);
+    out.print(F(" state_target_frames="));
+    out.print(radarGuidedStateTargetFrames_[phase]);
+    out.print(F(" energy_target_frames="));
+    out.print(radarGuidedEnergyTargetFrames_[phase]);
+    out.print(F(" out_high_frames="));
+    out.print(radarGuidedOutHighFrames_[phase]);
+    out.print(F(" first_target_ms="));
+    out.print(radarGuidedFirstTargetMs_[phase]);
+    out.print(F(" min_target_cm="));
+    out.print(radarGuidedMinTargetDistanceCm_[phase]);
+    out.print(F(" max_moving_energy="));
+    out.print(radarGuidedMaxMovingEnergy_[phase]);
+    out.print(F(" max_static_energy="));
+    out.print(radarGuidedMaxStaticEnergy_[phase]);
+    out.print(F(" max_confidence="));
+    out.print(radarGuidedMaxConfidence_[phase]);
+    out.print(F(" last_state="));
+    out.print(radarGuidedLastState_[phase]);
+    out.print(F(" result="));
+    if (radarGuidedReceivedFrames_[phase] == 0) {
+      out.println(F("no_data"));
+    } else if (radarGuidedPhaseExpectTarget(phase)) {
+      out.println(radarGuidedTargetFrames_[phase] > 0 ? F("detected") : F("missed"));
+    } else {
+      out.println(radarGuidedLastState_[phase] == 0 ? F("clear") : F("false_positive"));
+    }
+  }
+}
+
+void HardwareSelfTestService::updateRadarGuidedTest() {
+  if (!radarGuidedActive_ || radarGuidedPhase_ >= 5) {
+    return;
+  }
+
+  const unsigned long now = millis();
+  if (now - radarGuidedPhaseStartMs_ >= radarGuidedPhaseDurationMs(radarGuidedPhase_)) {
+    ++radarGuidedPhase_;
+    if (radarGuidedPhase_ >= 5) {
+      radarGuidedActive_ = false;
+      radarGuidedDone_ = true;
+      return;
+    }
+    radarGuidedPhaseStartMs_ = now;
+    radarGuidedNextSampleMs_ = now;
+    Serial.print(F("radar guided phase_start name="));
+    Serial.print(radarGuidedPhaseName(radarGuidedPhase_));
+    Serial.print(F(" instruction=\""));
+    Serial.print(radarGuidedPhaseInstruction(radarGuidedPhase_));
+    Serial.println(F("\""));
+    return;
+  }
+
+  if (static_cast<long>(now - radarGuidedNextSampleMs_) < 0) {
+    return;
+  }
+  radarGuidedNextSampleMs_ = now + kRadarGuidedSamplePauseMs;
+
+  const uint8_t phase = radarGuidedPhase_;
+  const RadarSnapshot pinSnapshot = radar_.read();
+  const RadarTargetSnapshot target = radar_.readTarget();
+  const uint16_t elapsedMs =
+      static_cast<uint16_t>(min(now - radarGuidedPhaseStartMs_, 65535UL));
+
+  ++radarGuidedSamples_[phase];
+  if (pinSnapshot.occupied) {
+    ++radarGuidedOutHighFrames_[phase];
+  }
+  if (!target.received) {
+    return;
+  }
+  if (target.sequence == radarGuidedLastSequence_) {
+    return;
+  }
+  radarGuidedLastSequence_ = target.sequence;
+
+  ++radarGuidedReceivedFrames_[phase];
+  radarGuidedLastState_[phase] = target.targetState;
+  radarGuidedMaxMovingEnergy_[phase] =
+      max(radarGuidedMaxMovingEnergy_[phase], target.movingEnergy);
+  radarGuidedMaxStaticEnergy_[phase] =
+      max(radarGuidedMaxStaticEnergy_[phase], target.staticEnergy);
+  radarGuidedMaxConfidence_[phase] =
+      max(radarGuidedMaxConfidence_[phase], target.targetConfidence);
+
+  if (target.stateTarget) {
+    ++radarGuidedStateTargetFrames_[phase];
+  }
+  if (target.energyTarget) {
+    ++radarGuidedEnergyTargetFrames_[phase];
+  }
+  if (!target.hasTarget) {
+    return;
+  }
+
+  ++radarGuidedTargetFrames_[phase];
+  if (radarGuidedFirstTargetMs_[phase] == 0) {
+    radarGuidedFirstTargetMs_[phase] = elapsedMs;
+  }
+  if (target.targetDistanceCm > 0 &&
+      (radarGuidedMinTargetDistanceCm_[phase] == 0 ||
+       target.targetDistanceCm < radarGuidedMinTargetDistanceCm_[phase])) {
+    radarGuidedMinTargetDistanceCm_[phase] = target.targetDistanceCm;
   }
 }
 
@@ -594,11 +1083,70 @@ void HardwareSelfTestService::printRadarResolution(Print& out) {
   out.println(config.gateCentimeters);
 }
 
+void HardwareSelfTestService::printRadarSensitivity(Print& out) {
+  const RadarSensitivityConfig motion = radar_.readMotionSensitivity();
+  const RadarSensitivityConfig still = radar_.readStaticSensitivity();
+  out.println(F("radar sensitivity:"));
+  printBool(out, F("  motion_received="), motion.received);
+  printBool(out, F("  motion_success="), motion.success);
+  printBool(out, F("  static_received="), still.received);
+  printBool(out, F("  static_success="), still.success);
+  if (!motion.success || !still.success) {
+    return;
+  }
+
+  out.print(F("  motion_gates="));
+  for (uint8_t gate = 0; gate < 14; ++gate) {
+    if (gate > 0) {
+      out.print(',');
+    }
+    out.print(motion.gates[gate]);
+  }
+  out.println();
+
+  out.print(F("  static_gates="));
+  for (uint8_t gate = 0; gate < 14; ++gate) {
+    if (gate > 0) {
+      out.print(',');
+    }
+    out.print(still.gates[gate]);
+  }
+  out.println();
+}
+
+void HardwareSelfTestService::setRadarEngineeringMode(bool enabled, Print& out) {
+  const RadarCommandResult result = radar_.setEngineeringMode(enabled);
+  out.println(F("radar engineering mode:"));
+  out.print(F("  requested="));
+  out.println(enabled ? F("on") : F("off"));
+  printBool(out, F("  received="), result.received);
+  printBool(out, F("  success="), result.success);
+}
+
 void HardwareSelfTestService::applyRadarNearConfig(Print& out) {
   const bool ok = radar_.applyNearDeskConfig();
   out.println(ok ? F("radar near config applied") : F("radar near config failed"));
   if (ok) {
     printRadarConfig(out);
+  }
+}
+
+void HardwareSelfTestService::applyRadarDeskMode(Print& out) {
+  const RadarDeskConfigResult result = radar_.applyDeskMode();
+  out.println(F("radar desk mode:"));
+  printBool(out, F("  resolution_received="), result.resolution.received);
+  printBool(out, F("  resolution_success="), result.resolution.success);
+  printBool(out, F("  basic_received="), result.basicConfig.received);
+  printBool(out, F("  basic_success="), result.basicConfig.success);
+  printBool(out, F("  reboot_received="), result.reboot.received);
+  printBool(out, F("  reboot_success="), result.reboot.success);
+  if (result.resolution.success && result.basicConfig.success) {
+    out.println(F("  expected_resolution=20cm_per_gate"));
+    out.println(F("  expected_min_gate=1"));
+    out.println(F("  expected_max_gate=13"));
+    out.println(F("  expected_absence_hold_s=5"));
+    out.println(F("  expected_out_meaning=occupied_high"));
+    out.println(F("  note=desk mode written, run radar config and radar resolution to verify"));
   }
 }
 
@@ -618,8 +1166,49 @@ void HardwareSelfTestService::startRadarCalibration(Print& out) {
   printBool(out, F("  received="), result.received);
   printBool(out, F("  success="), result.success);
   if (result.success) {
-    out.println(F("  note=keep the front empty for at least 10 seconds"));
+    out.println(F("  note=keep the radar facing empty space; wait 10 seconds, then query status"));
   }
+}
+
+void HardwareSelfTestService::printRadarCalibrationStatus(Print& out) {
+  const RadarCalibrationStatus status = radar_.readBackgroundCalibrationStatus();
+  out.println(F("radar calibrate status:"));
+  printBool(out, F("  received="), status.received);
+  printBool(out, F("  success="), status.success);
+  if (!status.received || !status.success) {
+    return;
+  }
+  printBool(out, F("  running="), status.running);
+  out.print(F("  raw_status="));
+  out.println(status.rawStatus);
+}
+
+void HardwareSelfTestService::restoreRadarFactoryDefaults(Print& out) {
+  const RadarCommandResult result = radar_.restoreFactoryDefaults();
+  out.println(F("radar factory reset:"));
+  printBool(out, F("  received="), result.received);
+  printBool(out, F("  success="), result.success);
+  if (result.success) {
+    out.println(F("  note=radar module rebooting with factory defaults"));
+    out.println(F("  next=wait 3 seconds, then run radar desk"));
+  }
+}
+
+void HardwareSelfTestService::startRadarBridge(Print& out) {
+  if (&out != static_cast<Print*>(&Serial)) {
+    out.println(F("radar bridge is serial-only"));
+    out.println(F("send 'radar bridge' from USB serial, then use the HLK tool on the same COM port"));
+    return;
+  }
+
+  motors_.stop();
+  led_.off();
+  out.println(F("radar bridge mode"));
+  out.println(F("close this serial monitor, open HLK tool on this COM port at 115200"));
+  out.println(F("press RESET to exit bridge mode"));
+  Serial.flush();
+  delay(300);
+  radar_.bridge(Serial);
 }
 
 void HardwareSelfTestService::printMic(Print& out) {
@@ -968,8 +1557,6 @@ void HardwareSelfTestService::testLed(const RgbColor& color, Print& out) {
 }
 
 void HardwareSelfTestService::testMotor(WheelDrive left, WheelDrive right, Print& out) {
-  motorCalibrationPhase_ = 0;
-  motorCalibrationNextMs_ = 0;
   manualMotorTimeoutMs_ = 0;
   motors_.drive(left, right);
   motorStopAtMs_ = millis() + kMotorPulseMs;
@@ -980,8 +1567,6 @@ void HardwareSelfTestService::startManualMotor(WheelDrive direction,
                                                const String& command,
                                                Print& out) {
   motorStopAtMs_ = 0;
-  motorCalibrationPhase_ = 0;
-  motorCalibrationNextMs_ = 0;
 
   uint8_t leftPwm = motors_.leftDefaultDuty();
   uint8_t rightPwm = motors_.rightDefaultDuty();

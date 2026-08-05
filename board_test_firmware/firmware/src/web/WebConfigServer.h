@@ -20,6 +20,7 @@ class WebConfigServer {
   void handleMotorConfigGet();
   void handleMotorConfigSave();
   void handleDiagnosticCommand();
+  void handleRadarStatus();
   void handleStatus();
   void handleNotFound();
   void sendText(int code, const char* type, const String& body);

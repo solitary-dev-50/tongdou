@@ -1,11 +1,19 @@
 # TongDou
 
+## Featured on Hackaday
+
+TongDou was featured on Hackaday:
+
+**[Tiny Desktop Robot Has Radar →](https://hackaday.com/2026/07/31/tiny-desktop-robot-has-radar/)**
+
+Written by Zoe Skyforest · July 31, 2026
+
 > ⚠️ **Work in Progress**
 >
-> TongDou is being actively documented and open-sourced step by step.  
+> TongDou is being open-sourced step by step.  
 > Hardware test firmware, prototype photos, and selected hardware documents are
-> public now. Other design files, manufacturing documents, and build guides will
-> be released progressively.
+> public now. More hardware files, firmware, BOM, mechanical files, and build
+> documentation will be released in phases.
 > Please see the [Roadmap](#roadmap) below for the current release plan.
 
 🌐 **Official website:** https://gettongdou.com
@@ -39,8 +47,9 @@ https://gettongdou.com
 - A compact brass-and-PCB mechanical form
 
 The current demonstration firmware is internal development and performance
-firmware. It is shown in videos, but it is not included in this repository and
-is not a promised future release.
+firmware. It is shown in videos, but it is not included in this repository.
+The full TongDou firmware is not public yet and will be released in a later
+open-source phase.
 
 ## Hardware Platform
 

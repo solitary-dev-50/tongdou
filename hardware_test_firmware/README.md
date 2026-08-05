@@ -35,6 +35,7 @@ hardware_test_firmware/
 ├── README.md
 ├── docs/
 │   ├── HARDWARE_TESTS.md
+│   ├── LD2412_RADAR_TEST.md
 │   └── PUBLIC_RELEASE_CHECKLIST.md
 ├── firmware/
 │   ├── platformio.ini
@@ -80,6 +81,8 @@ platformio run -t upload_chunked --upload-port <PORT>
    `motor reverse`, and `motor manual forward`.
 
 See [docs/HARDWARE_TESTS.md](docs/HARDWARE_TESTS.md) for the current test list.
+See [docs/LD2412_RADAR_TEST.md](docs/LD2412_RADAR_TEST.md) for the LD2412 radar
+diagnostic result and empty-scene background calibration notes.
 See [docs/PUBLIC_RELEASE_CHECKLIST.md](docs/PUBLIC_RELEASE_CHECKLIST.md) before
 publishing this package elsewhere.
 
