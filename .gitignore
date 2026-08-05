@@ -1,5 +1,6 @@
 # Local scratch files
 tmp/
+tmp_video_frames/
 outputs/
 *.log
 
