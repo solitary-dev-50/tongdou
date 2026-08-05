@@ -1,11 +1,17 @@
 #include "diagnostic/HardwareSelfTestService.h"
 
+#include <Wire.h>
+
 namespace tongdou {
 namespace {
 
 constexpr unsigned long kMotorPulseMs = 120;
+constexpr unsigned long kGyroMotorTestStopMs = 1200;
 constexpr uint16_t kSpeakerTestHz = 880;
 constexpr uint16_t kSpeakerTestMs = 120;
+constexpr uint8_t kQmiStatus0 = 0x2E;
+constexpr uint8_t kQmiTimestampL = 0x30;
+constexpr uint8_t kQmiTempL = 0x33;
 
 void printBool(Print& out, const __FlashStringHelper* label, bool value) {
   out.print(label);
@@ -19,6 +25,13 @@ void printHexByte(Print& out, uint8_t value) {
   out.print(value, HEX);
 }
 
+bool logoTouched(const LogoTouchInput& logoTouch) {
+  const int32_t delta = logoTouch.delta();
+  const uint32_t absDelta =
+      delta >= 0 ? static_cast<uint32_t>(delta) : static_cast<uint32_t>(-delta);
+  return absDelta >= logoTouch.threshold();
+}
+
 }  // namespace
 
 HardwareSelfTestService::HardwareSelfTestService(BatteryMonitor& battery,
@@ -27,20 +40,27 @@ HardwareSelfTestService::HardwareSelfTestService(BatteryMonitor& battery,
                                                  LedPixel& led,
                                                  MotorDriver& motors,
                                                  RadarSensor& radar,
-                                                 FaceDisplay& faceDisplay)
+                                                 FaceDisplay& faceDisplay,
+                                                 ImuSensor& imu,
+                                                 LogoTouchInput& logoTouch)
     : battery_(battery),
       audioInput_(audioInput),
       audioOutput_(audioOutput),
       led_(led),
       motors_(motors),
       radar_(radar),
-      faceDisplay_(faceDisplay) {}
+      faceDisplay_(faceDisplay),
+      imu_(imu),
+      logoTouch_(logoTouch),
+      gyroMotion_(motors_, imu_) {}
 
 void HardwareSelfTestService::begin() {
   motorStopAtMs_ = 0;
+  gyroMotion_.begin();
 }
 
 void HardwareSelfTestService::update() {
+  gyroMotion_.update();
   if (motorStopAtMs_ == 0 || millis() < motorStopAtMs_) {
     return;
   }
@@ -51,6 +71,8 @@ void HardwareSelfTestService::update() {
 HardwareDiagnosticStatus HardwareSelfTestService::status() const {
   HardwareDiagnosticStatus result;
   result.faceReady = faceDisplay_.ready();
+  result.imuReady = imu_.ready();
+  result.logoTouchReady = logoTouch_.ready();
   result.ledReady = led_.ready();
   result.audioInputReady = audioInput_.ready();
   result.audioOutputReady = audioOutput_.ready();
@@ -71,6 +93,9 @@ void HardwareSelfTestService::printHelp(Print& out) const {
   out.println(F("  selftest"));
   out.println(F("  status"));
   out.println(F("  battery"));
+  out.println(F("  i2c scan"));
+  out.println(F("  imu"));
+  out.println(F("  logo touch"));
   out.println(F("  radar"));
   out.println(F("  radar target"));
   out.println(F("  radar sample"));
@@ -82,7 +107,7 @@ void HardwareSelfTestService::printHelp(Print& out) const {
   out.println(F("  mic"));
   out.println(F("  speaker"));
   out.println(F("  led red|green|blue|off"));
-  out.println(F("  motor forward|reverse|stop"));
+  out.println(F("  motor forward|reverse|turn left|turn right|stop"));
 }
 
 bool HardwareSelfTestService::handleCommand(const String& command, Print& out) {
@@ -107,6 +132,18 @@ bool HardwareSelfTestService::handleCommand(const String& command, Print& out) {
   }
   if (cmd == F("battery")) {
     printBattery(out);
+    return true;
+  }
+  if (cmd == F("i2c scan")) {
+    printI2cScan(out);
+    return true;
+  }
+  if (cmd == F("imu")) {
+    printImu(out);
+    return true;
+  }
+  if (cmd == F("logo touch")) {
+    printLogoTouch(out);
     return true;
   }
   if (cmd == F("radar")) {
@@ -174,6 +211,14 @@ bool HardwareSelfTestService::handleCommand(const String& command, Print& out) {
     testMotor(WheelDrive::Reverse, WheelDrive::Reverse, out);
     return true;
   }
+  if (cmd == F("motor turn left")) {
+    testMotor(WheelDrive::Reverse, WheelDrive::Forward, out);
+    return true;
+  }
+  if (cmd == F("motor turn right")) {
+    testMotor(WheelDrive::Forward, WheelDrive::Reverse, out);
+    return true;
+  }
   if (cmd == F("motor stop")) {
     stopMotorPulse();
     out.println(F("motor stop"));
@@ -187,6 +232,9 @@ void HardwareSelfTestService::printReport(Print& out) {
   out.println(F("self-test report begin"));
   printStatus(out);
   printBattery(out);
+  printI2cScan(out);
+  printImu(out);
+  printLogoTouch(out);
   printRadar(out);
   printMic(out);
   out.println(F("self-test report end"));
@@ -196,6 +244,8 @@ void HardwareSelfTestService::printStatus(Print& out) const {
   const HardwareDiagnosticStatus snapshot = status();
   out.println(F("hardware:"));
   printBool(out, F("  face="), snapshot.faceReady);
+  printBool(out, F("  imu="), snapshot.imuReady);
+  printBool(out, F("  logo_touch="), snapshot.logoTouchReady);
   printBool(out, F("  led="), snapshot.ledReady);
   printBool(out, F("  audio_input="), snapshot.audioInputReady);
   printBool(out, F("  audio_output="), snapshot.audioOutputReady);
@@ -205,6 +255,94 @@ void HardwareSelfTestService::printStatus(Print& out) const {
   printBool(out, F("  visual_feedback_available="), snapshot.visualFeedbackAvailable);
   printBool(out, F("  sound_available="), snapshot.soundAvailable);
   printBool(out, F("  voice_input_available="), snapshot.voiceInputAvailable);
+}
+
+void HardwareSelfTestService::printI2cScan(Print& out) const {
+  out.println(F("i2c scan:"));
+  uint8_t count = 0;
+  for (uint8_t address = 1; address < 127; ++address) {
+    Wire.beginTransmission(address);
+    if (Wire.endTransmission() != 0) {
+      continue;
+    }
+
+    out.print(F("  found=0x"));
+    printHexByte(out, address);
+    if (address == 0x3C) {
+      out.print(F(" oled_candidate"));
+    } else if (address == 0x6A || address == 0x6B) {
+      out.print(F(" qmi8658a_candidate"));
+    }
+    out.println();
+    ++count;
+  }
+  out.print(F("  count="));
+  out.println(count);
+}
+
+void HardwareSelfTestService::printImu(Print& out) {
+  out.println(F("imu:"));
+  printBool(out, F("  ready="), imu_.ready());
+  if (!imu_.ready()) {
+    return;
+  }
+
+  out.print(F("  address=0x"));
+  out.println(imu_.address(), HEX);
+  out.print(F("  who=0x"));
+  out.println(imu_.whoAmI(), HEX);
+
+  const ImuGyroSnapshot gyro = imu_.readGyro();
+  printBool(out, F("  gyro_ready="), gyro.ready);
+  if (!gyro.ready) {
+    return;
+  }
+
+  out.print(F("  gyro_raw_x="));
+  out.println(gyro.xRaw);
+  out.print(F("  gyro_raw_y="));
+  out.println(gyro.yRaw);
+  out.print(F("  gyro_raw_z="));
+  out.println(gyro.zRaw);
+  out.print(F("  gyro_mdps_x="));
+  out.println(gyro.xMdegPerSec);
+  out.print(F("  gyro_mdps_y="));
+  out.println(gyro.yMdegPerSec);
+  out.print(F("  gyro_mdps_z="));
+  out.println(gyro.zMdegPerSec);
+
+  const uint8_t registers[] = {kQmiStatus0, kQmiTimestampL, kQmiTempL};
+  out.print(F("  debug="));
+  for (uint8_t i = 0; i < sizeof(registers); ++i) {
+    uint8_t value = 0;
+    if (i > 0) {
+      out.print(' ');
+    }
+    out.print(F("0x"));
+    printHexByte(out, registers[i]);
+    out.print('=');
+    if (imu_.readDebugRegister(registers[i], value)) {
+      out.print(F("0x"));
+      printHexByte(out, value);
+    } else {
+      out.print(F("read_failed"));
+    }
+  }
+  out.println();
+}
+
+void HardwareSelfTestService::printLogoTouch(Print& out) const {
+  out.println(F("logo touch:"));
+  printBool(out, F("  ready="), logoTouch_.ready());
+  out.print(F("  raw="));
+  out.println(logoTouch_.raw());
+  out.print(F("  baseline="));
+  out.println(logoTouch_.baseline());
+  out.print(F("  delta="));
+  out.println(logoTouch_.delta());
+  out.print(F("  threshold="));
+  out.println(logoTouch_.threshold());
+  printBool(out, F("  touched="), logoTouched(logoTouch_));
 }
 
 void HardwareSelfTestService::printBattery(Print& out) const {
@@ -376,13 +514,14 @@ void HardwareSelfTestService::testLed(const RgbColor& color, Print& out) {
 }
 
 void HardwareSelfTestService::testMotor(WheelDrive left, WheelDrive right, Print& out) {
-  motors_.drive(left, right);
-  motorStopAtMs_ = millis() + kMotorPulseMs;
-  out.println(F("motor pulse started"));
+  diagnosticMotionFrame_ = {left, right, kMotorPulseMs, 190};
+  gyroMotion_.start({&diagnosticMotionFrame_, 1});
+  motorStopAtMs_ = millis() + kGyroMotorTestStopMs;
+  out.println(F("gyro motor pulse started"));
 }
 
 void HardwareSelfTestService::stopMotorPulse() {
-  motors_.stop();
+  gyroMotion_.stop();
   motorStopAtMs_ = 0;
 }
 

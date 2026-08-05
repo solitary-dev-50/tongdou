@@ -63,9 +63,42 @@ void App::update() {
   realtimeVoiceService_.update();
   handleStartupReport();
   handleSerialDiagnostics();
+  handleLogoTouchEvents();
   handleReminderEvents();
   handleRealtimeVoiceEvents();
   scenarioExecutor_.update();
+}
+
+void App::handleLogoTouchEvents() {
+  const LogoTouchEvent touchEvent = hardware_.logoTouch().consumeEvent();
+  if (touchEvent == LogoTouchEvent::None) {
+    return;
+  }
+
+  ScenarioEventType scenarioEvent = ScenarioEventType::LogoSingleTapped;
+  const __FlashStringHelper* eventName = F("logo_single_tapped");
+  switch (touchEvent) {
+    case LogoTouchEvent::SingleTap:
+      scenarioEvent = ScenarioEventType::LogoSingleTapped;
+      eventName = F("logo_single_tapped");
+      break;
+    case LogoTouchEvent::DoubleTap:
+      scenarioEvent = ScenarioEventType::LogoDoubleTapped;
+      eventName = F("logo_double_tapped");
+      break;
+    case LogoTouchEvent::LongPress:
+      scenarioEvent = ScenarioEventType::LogoLongPressed;
+      eventName = F("logo_long_pressed");
+      break;
+    case LogoTouchEvent::None:
+    default:
+      return;
+  }
+
+  Serial.print(F("logo formal event "));
+  Serial.println(eventName);
+  const ScenarioPlan plan = scenarioEngine_.select({scenarioEvent, 0}, scenarioContext_);
+  scenarioExecutor_.execute(plan);
 }
 
 void App::handleReminderEvents() {

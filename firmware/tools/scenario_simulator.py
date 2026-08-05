@@ -30,6 +30,11 @@ class ScenarioEventType(IntEnum):
     CHARGING_STARTED = 9
     OVERTIME_REMINDER_DUE = 10
     VOICE_RECOGNITION_FAILED = 11
+    DANCE_SHOW_REQUESTED = 12
+    DANCE_SHOW_GLOBAL_REQUESTED = 13
+    LOGO_SINGLE_TAPPED = 14
+    LOGO_DOUBLE_TAPPED = 15
+    LOGO_LONG_PRESSED = 16
 
 
 class FaceAction(IntEnum):
@@ -72,6 +77,7 @@ class MotionAction(IntEnum):
     NUDGE_FORWARD = 4
     LEAN_FORWARD = 5
     SHRINK_BACK = 6
+    CHEEKY_DANCE = 7
 
 
 class VoiceLine(IntEnum):
@@ -88,6 +94,8 @@ class VoiceLine(IntEnum):
     LOW_BATTERY_WHINE = 10
     CHARGING_RELIEF = 11
     RECOGNITION_COFFEE_CHOKE = 12
+    DANCE_SHOW_DOMESTIC = 13
+    DANCE_SHOW_GLOBAL = 14
 
 
 @dataclass(frozen=True)
@@ -260,6 +268,76 @@ SCENARIO_RULES = (
             1800,
         ),
     ),
+    ScenarioRule(
+        ScenarioEventType.DANCE_SHOW_REQUESTED,
+        False,
+        False,
+        PersonalityStyle.DRAMATIC,
+        ScenarioPlan(
+            True,
+            FaceAction.PROUD,
+            LightAction.WEAK_BREATH,
+            MotionAction.CHEEKY_DANCE,
+            VoiceLine.DANCE_SHOW_DOMESTIC,
+            1800,
+        ),
+    ),
+    ScenarioRule(
+        ScenarioEventType.DANCE_SHOW_GLOBAL_REQUESTED,
+        False,
+        False,
+        PersonalityStyle.DRAMATIC,
+        ScenarioPlan(
+            True,
+            FaceAction.PROUD,
+            LightAction.WEAK_BREATH,
+            MotionAction.CHEEKY_DANCE,
+            VoiceLine.DANCE_SHOW_GLOBAL,
+            1800,
+        ),
+    ),
+    ScenarioRule(
+        ScenarioEventType.LOGO_SINGLE_TAPPED,
+        True,
+        True,
+        PersonalityStyle.GENTLE,
+        ScenarioPlan(
+            True,
+            FaceAction.BLINK,
+            LightAction.SOFT_WHITE,
+            MotionAction.NOD,
+            VoiceLine.NONE,
+            700,
+        ),
+    ),
+    ScenarioRule(
+        ScenarioEventType.LOGO_DOUBLE_TAPPED,
+        False,
+        False,
+        PersonalityStyle.BALANCED,
+        ScenarioPlan(
+            True,
+            FaceAction.PROUD,
+            LightAction.WEAK_BREATH,
+            MotionAction.CHEEKY_DANCE,
+            VoiceLine.DANCE_SHOW_DOMESTIC,
+            1400,
+        ),
+    ),
+    ScenarioRule(
+        ScenarioEventType.LOGO_LONG_PRESSED,
+        True,
+        True,
+        PersonalityStyle.GENTLE,
+        ScenarioPlan(
+            True,
+            FaceAction.SLEEP,
+            LightAction.OFF,
+            MotionAction.STOP,
+            VoiceLine.QUIET_REPLY,
+            900,
+        ),
+    ),
 )
 
 
@@ -376,6 +454,15 @@ MOTION_FRAMES = {
         (("reverse", "reverse"), 120),
         (("stop", "stop"), 0),
     ),
+    MotionAction.CHEEKY_DANCE: (
+        (("forward", "reverse"), 160),
+        (("stop", "stop"), 80),
+        (("reverse", "forward"), 160),
+        (("stop", "stop"), 80),
+        (("forward", "reverse"), 140),
+        (("reverse", "forward"), 140),
+        (("stop", "stop"), 0),
+    ),
 }
 
 
@@ -407,6 +494,14 @@ VOICE_CLIPS = {
     VoiceLine.RECOGNITION_COFFEE_CHOKE: (
         112,
         "咳……刚才被咖啡呛了一下。你再说一遍，我这次肯定认真听。",
+    ),
+    VoiceLine.DANCE_SHOW_DOMESTIC: (
+        113,
+        "左三下，右三下，铜豆扭扭不白忙。跳完了，拿表演费。",
+    ),
+    VoiceLine.DANCE_SHOW_GLOBAL: (
+        114,
+        "I'm not dancing... you're dancing. Done. Pay up.",
     ),
 }
 
@@ -557,6 +652,11 @@ def default_events() -> tuple[ScenarioEventType, ...]:
         ScenarioEventType.LOW_BATTERY,
         ScenarioEventType.CHARGING_STARTED,
         ScenarioEventType.VOICE_RECOGNITION_FAILED,
+        ScenarioEventType.DANCE_SHOW_REQUESTED,
+        ScenarioEventType.DANCE_SHOW_GLOBAL_REQUESTED,
+        ScenarioEventType.LOGO_SINGLE_TAPPED,
+        ScenarioEventType.LOGO_DOUBLE_TAPPED,
+        ScenarioEventType.LOGO_LONG_PRESSED,
     )
 
 

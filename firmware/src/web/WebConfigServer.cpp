@@ -227,6 +227,8 @@ small{color:#aaa}
 <button onclick="diag('led off')">关灯</button>
 <button onclick="diag('motor forward')">电机正转</button>
 <button onclick="diag('motor reverse')">电机反转</button>
+<button onclick="diag('motor turn left')">电机左扭</button>
+<button onclick="diag('motor turn right')">电机右扭</button>
 <button onclick="diag('motor stop')">电机停止</button>
 </div></section>
 
@@ -234,6 +236,9 @@ small{color:#aaa}
 <button onclick="diag('selftest')">完整自检</button>
 <button onclick="diag('status')">硬件状态</button>
 <button onclick="diag('battery')">电池/充电</button>
+<button onclick="diag('i2c scan')">I2C 扫描</button>
+<button onclick="diag('imu')">QMI8658A</button>
+<button onclick="diag('logo touch')">Logo 触摸</button>
 <button onclick="diag('radar')">雷达电平</button>
 <button onclick="diag('radar target')">雷达目标</button>
 <button onclick="diag('radar sample')">雷达连续采样</button>
@@ -243,6 +248,9 @@ small{color:#aaa}
 <section class="card"><h2>剧情测试</h2><div class="grid">
 <button onclick="mcpTool('play_scenario',{event:'boot_completed'})">开机场景</button>
 <button onclick="mcpTool('play_scenario',{event:'voice_recognition_failed'})">识别失败</button>
+<button onclick="mcpTool('play_scenario',{event:'logo_single_tapped'})">Logo 单击</button>
+<button onclick="mcpTool('play_scenario',{event:'logo_double_tapped'})">Logo 双击</button>
+<button onclick="mcpTool('play_scenario',{event:'logo_long_pressed'})">Logo 长按</button>
 <button onclick="mcpTool('voice_status',{})">语音状态</button>
 </div></section>
 
@@ -310,6 +318,9 @@ loadStatus();setInterval(loadStatus,5000);
   body += F("<button onclick=\"diag('selftest')\">完整自检</button>");
   body += F("<button onclick=\"diag('status')\">硬件状态</button>");
   body += F("<button onclick=\"diag('battery')\">电池/充电</button>");
+  body += F("<button onclick=\"diag('i2c scan')\">I2C 扫描</button>");
+  body += F("<button onclick=\"diag('imu')\">QMI8658A</button>");
+  body += F("<button onclick=\"diag('logo touch')\">Logo 触摸</button>");
   body += F("<button onclick=\"diag('radar')\">雷达</button>");
   body += F("<button onclick=\"diag('mic')\">麦克风</button>");
   body += F("<button onclick=\"startMicTest()\">开始麦克风测试</button>");
@@ -322,10 +333,15 @@ loadStatus();setInterval(loadStatus,5000);
   body += F("<button onclick=\"diag('led off')\">关灯</button>");
   body += F("<button onclick=\"diag('motor forward')\">电机正转</button>");
   body += F("<button onclick=\"diag('motor reverse')\">电机反转</button>");
+  body += F("<button onclick=\"diag('motor turn left')\">电机左扭</button>");
+  body += F("<button onclick=\"diag('motor turn right')\">电机右扭</button>");
   body += F("<button onclick=\"diag('motor stop')\">电机停止</button>");
   body += F("</div><h3>剧情测试</h3><div class='grid'>");
   body += F("<button onclick=\"mcpTool('play_scenario',{event:'boot_completed'})\">开机剧情</button>");
   body += F("<button onclick=\"mcpTool('play_scenario',{event:'voice_recognition_failed'})\">识别失败补救</button>");
+  body += F("<button onclick=\"mcpTool('play_scenario',{event:'logo_single_tapped'})\">Logo 单击</button>");
+  body += F("<button onclick=\"mcpTool('play_scenario',{event:'logo_double_tapped'})\">Logo 双击</button>");
+  body += F("<button onclick=\"mcpTool('play_scenario',{event:'logo_long_pressed'})\">Logo 长按</button>");
   body += F("<button onclick=\"mcpTool('voice_status',{})\">语音状态</button>");
   body += F("</div><pre id='diag'>等待诊断命令。</pre></div></details>");
   body += F("<div class='card'><h2>剧情配置</h2><div class='note'>剧情包编辑器后续接入。当前先用上方人格卡片和诊断区剧情测试。</div></div>");
@@ -681,6 +697,10 @@ String WebConfigServer::statusJson() const {
   body += systemMode;
   body += "\",\"hardware\":{\"face\":";
   body += hardware.faceReady ? "true" : "false";
+  body += ",\"imu\":";
+  body += hardware.imuReady ? "true" : "false";
+  body += ",\"logoTouch\":";
+  body += hardware.logoTouchReady ? "true" : "false";
   body += ",\"led\":";
   body += hardware.ledReady ? "true" : "false";
   body += ",\"audioInput\":";

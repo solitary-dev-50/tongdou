@@ -15,8 +15,10 @@ void HardwareManager::begin() {
   displayBus_.begin();
 
   faceDisplay_.begin();
+  imu_.begin();
 
   led_.begin();
+  logoTouch_.begin();
 
   radar_.begin();
 
@@ -26,6 +28,7 @@ void HardwareManager::begin() {
 }
 
 void HardwareManager::update() {
+  logoTouch_.update();
   audioInput_.update();
   selfTest_.update();
 }
@@ -45,7 +48,25 @@ void HardwareManager::printStartupReport(Print& out) const {
 
   out.println("  i2c ready");
   out.println(faceDisplay_.ready() ? "  display ready" : "  display failed");
+  if (imu_.ready()) {
+    out.print("  imu ready addr=0x");
+    out.print(imu_.address(), HEX);
+    out.print(" who=0x");
+    out.println(imu_.whoAmI(), HEX);
+  } else {
+    out.println("  imu failed");
+  }
   out.println(led_.ready() ? "  led off" : "  led failed");
+  out.print("  logo touch ");
+  out.print(logoTouch_.ready() ? "ready" : "failed");
+  out.print(" pin=");
+  out.print(static_cast<int>(pins::LOGO_TOUCH));
+  out.print(" raw=");
+  out.print(logoTouch_.raw());
+  out.print(" baseline=");
+  out.print(logoTouch_.baseline());
+  out.print(" threshold=");
+  out.println(logoTouch_.threshold());
   out.println("  radar ready");
 
   out.print("  mic ");
@@ -95,6 +116,14 @@ AudioInput& HardwareManager::audioInput() {
 
 AudioOutput& HardwareManager::audioOutput() {
   return audioOutput_;
+}
+
+ImuSensor& HardwareManager::imu() {
+  return imu_;
+}
+
+LogoTouchInput& HardwareManager::logoTouch() {
+  return logoTouch_;
 }
 
 HardwareSelfTestService& HardwareManager::selfTest() {

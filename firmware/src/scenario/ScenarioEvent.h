@@ -19,6 +19,9 @@ enum class ScenarioEventType : uint8_t {
   VoiceRecognitionFailed,
   DanceShowRequested,
   DanceShowGlobalRequested,
+  LogoSingleTapped,
+  LogoDoubleTapped,
+  LogoLongPressed,
 };
 
 struct ScenarioEvent {

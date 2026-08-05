@@ -22,6 +22,8 @@ constexpr gpio_num_t SPK_CTRL = GPIO_NUM_15;
 
 constexpr gpio_num_t WS2812_DATA = GPIO_NUM_9;
 
+constexpr gpio_num_t LOGO_TOUCH = GPIO_NUM_4;
+
 constexpr gpio_num_t MOTOR_AIN1 = GPIO_NUM_38;
 constexpr gpio_num_t MOTOR_AIN2 = GPIO_NUM_39;
 constexpr gpio_num_t MOTOR_BIN2 = GPIO_NUM_40;

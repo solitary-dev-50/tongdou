@@ -22,6 +22,11 @@ constexpr ScenarioEventType kEvents[] = {
     ScenarioEventType::ChargingStarted,
     ScenarioEventType::OvertimeReminderDue,
     ScenarioEventType::VoiceRecognitionFailed,
+    ScenarioEventType::DanceShowRequested,
+    ScenarioEventType::DanceShowGlobalRequested,
+    ScenarioEventType::LogoSingleTapped,
+    ScenarioEventType::LogoDoubleTapped,
+    ScenarioEventType::LogoLongPressed,
 };
 
 constexpr FaceAction kFaces[] = {
@@ -48,6 +53,7 @@ constexpr MotionAction kMotions[] = {
     MotionAction::NudgeForward,
     MotionAction::LeanForward,
     MotionAction::ShrinkBack,
+    MotionAction::CheekyDance,
 };
 
 constexpr VoiceLine kVoices[] = {
@@ -64,6 +70,8 @@ constexpr VoiceLine kVoices[] = {
     VoiceLine::LowBatteryWhine,
     VoiceLine::ChargingRelief,
     VoiceLine::RecognitionCoffeeChoke,
+    VoiceLine::DanceShowDomestic,
+    VoiceLine::DanceShowGlobal,
 };
 
 template <typename T, size_t N>

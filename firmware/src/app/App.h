@@ -26,6 +26,7 @@ class App {
 
  private:
   void handleReminderEvents();
+  void handleLogoTouchEvents();
   void handleRealtimeVoiceEvents();
   void handleSerialDiagnostics();
   void handleStartupReport();
@@ -39,7 +40,8 @@ class App {
   ScenarioLibrary scenarioLibrary_;
   ScenarioEngine scenarioEngine_{scenarioLibrary_};
   ScenarioExecutor scenarioExecutor_{hardware_.faceDisplay(), hardware_.led(),
-                                    hardware_.motors(), hardware_.audioOutput()};
+                                    hardware_.motors(), hardware_.audioOutput(),
+                                    hardware_.imu()};
   ScenarioContext scenarioContext_;
   RealtimeVoiceService realtimeVoiceService_{hardware_.audioInput(),
                                             hardware_.audioOutput()};

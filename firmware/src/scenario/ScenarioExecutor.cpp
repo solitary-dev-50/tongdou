@@ -5,8 +5,13 @@
 namespace tongdou {
 
 ScenarioExecutor::ScenarioExecutor(FaceDisplay& faceDisplay, LedPixel& led,
-                                   MotorDriver& motors, AudioOutput& audio)
-    : faceDisplay_(faceDisplay), led_(led), motors_(motors), audio_(audio) {}
+                                   MotorDriver& motors, AudioOutput& audio,
+                                   ImuSensor& imu)
+    : faceDisplay_(faceDisplay),
+      led_(led),
+      motors_(motors),
+      audio_(audio),
+      gyroMotion_(motors, imu) {}
 
 void ScenarioExecutor::begin() {
   activePlan_ = {};
@@ -20,10 +25,7 @@ void ScenarioExecutor::begin() {
   nextLightFrameMs_ = 0;
   lightRunning_ = false;
   motionSequence_ = {};
-  motionFrameIndex_ = 0;
-  nextMotionFrameMs_ = 0;
-  motionRunning_ = false;
-  motors_.stop();
+  gyroMotion_.begin();
 }
 
 void ScenarioExecutor::execute(const ScenarioPlan& plan) {
@@ -68,12 +70,8 @@ void ScenarioExecutor::startFace(FaceAction action, unsigned long nowMs) {
 }
 
 void ScenarioExecutor::startMotion(MotionAction action, unsigned long nowMs) {
-  motors_.stop();
   motionSequence_ = motionPack_.sequence(action);
-  motionFrameIndex_ = 0;
-  nextMotionFrameMs_ = nowMs;
-  motionRunning_ = motionSequence_.count > 0;
-  updateMotion(nowMs);
+  gyroMotion_.start(motionSequence_);
 }
 
 void ScenarioExecutor::startVoice(VoiceLine line) {
@@ -118,18 +116,7 @@ void ScenarioExecutor::updateFace(unsigned long nowMs) {
 }
 
 void ScenarioExecutor::updateMotion(unsigned long nowMs) {
-  while (motionRunning_ &&
-         static_cast<long>(nowMs - nextMotionFrameMs_) >= 0) {
-    const MotionFrame& frame = motionSequence_.frames[motionFrameIndex_];
-    motors_.drive(frame.left, frame.right);
-    ++motionFrameIndex_;
-    if (motionFrameIndex_ >= motionSequence_.count) {
-      motionRunning_ = false;
-      motors_.stop();
-      return;
-    }
-    nextMotionFrameMs_ = nowMs + frame.durationMs;
-  }
+  gyroMotion_.update();
 }
 
 void ScenarioExecutor::update() {

@@ -100,6 +100,30 @@ constexpr ScenarioRule kRules[] = {
         {true, FaceAction::Proud, LightAction::WeakBreath, MotionAction::CheekyDance,
          VoiceLine::DanceShowGlobal, 1800},
     },
+    {
+        ScenarioEventType::LogoSingleTapped,
+        true,
+        true,
+        PersonalityStyle::Gentle,
+        {true, FaceAction::Blink, LightAction::SoftWhite, MotionAction::Nod,
+         VoiceLine::None, 700},
+    },
+    {
+        ScenarioEventType::LogoDoubleTapped,
+        false,
+        false,
+        PersonalityStyle::Balanced,
+        {true, FaceAction::Proud, LightAction::WeakBreath, MotionAction::CheekyDance,
+         VoiceLine::DanceShowDomestic, 1400},
+    },
+    {
+        ScenarioEventType::LogoLongPressed,
+        true,
+        true,
+        PersonalityStyle::Gentle,
+        {true, FaceAction::Sleep, LightAction::Off, MotionAction::Stop,
+         VoiceLine::QuietReply, 900},
+    },
 };
 
 constexpr ScenarioPack kDefaultPack = {

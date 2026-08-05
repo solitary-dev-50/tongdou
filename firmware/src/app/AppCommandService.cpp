@@ -238,6 +238,12 @@ bool AppCommandService::parseEventName(String name, ScenarioEventType& eventType
     eventType = ScenarioEventType::DanceShowRequested;
   } else if (name == F("dance_show_global")) {
     eventType = ScenarioEventType::DanceShowGlobalRequested;
+  } else if (name == F("logo_single_tapped")) {
+    eventType = ScenarioEventType::LogoSingleTapped;
+  } else if (name == F("logo_double_tapped")) {
+    eventType = ScenarioEventType::LogoDoubleTapped;
+  } else if (name == F("logo_long_pressed")) {
+    eventType = ScenarioEventType::LogoLongPressed;
   } else {
     return false;
   }
