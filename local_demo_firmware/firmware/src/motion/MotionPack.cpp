@@ -258,39 +258,31 @@ constexpr MotionFrame kSummonLaughWiggle[] = {
     {WheelDrive::Stop, WheelDrive::Stop, 0},
 };
 constexpr MotionFrame kAccountantConfusedFidget[] = {
-    {WheelDrive::Forward, WheelDrive::Stop, 180, 180},
-    {WheelDrive::Stop, WheelDrive::Stop, 100},
-    {WheelDrive::Reverse, WheelDrive::Stop, 150, 175},
-    {WheelDrive::Stop, WheelDrive::Stop, 120},
-    {WheelDrive::Stop, WheelDrive::Forward, 180, 180},
-    {WheelDrive::Stop, WheelDrive::Stop, 100},
-    {WheelDrive::Stop, WheelDrive::Reverse, 150, 175},
+    {WheelDrive::Reverse, WheelDrive::Reverse, 170, 185},
+    {WheelDrive::Stop, WheelDrive::Stop, 180},
+    {WheelDrive::Forward, WheelDrive::Forward, 160, 185},
     {WheelDrive::Stop, WheelDrive::Stop, 0},
 };
 constexpr MotionFrame kAccountantExtortLean[] = {
-    {WheelDrive::Forward, WheelDrive::Forward, 110, 180},
-    {WheelDrive::Brake, WheelDrive::Brake, 80, 170},
-    {WheelDrive::Stop, WheelDrive::Stop, 160},
-    {WheelDrive::Reverse, WheelDrive::Reverse, 80, 170},
-    {WheelDrive::Brake, WheelDrive::Brake, 70, 165},
+    {WheelDrive::Forward, WheelDrive::Forward, 220, 190},
+    {WheelDrive::Stop, WheelDrive::Stop, 300},
+    {WheelDrive::Reverse, WheelDrive::Reverse, 180, 185},
     {WheelDrive::Stop, WheelDrive::Stop, 0},
 };
 constexpr MotionFrame kAccountantStubbornWiggle[] = {
-    {WheelDrive::Forward, WheelDrive::Stop, 210, 180},
-    {WheelDrive::Stop, WheelDrive::Stop, 100},
-    {WheelDrive::Stop, WheelDrive::Forward, 210, 180},
-    {WheelDrive::Stop, WheelDrive::Stop, 100},
-    {WheelDrive::Forward, WheelDrive::Stop, 180, 185},
-    {WheelDrive::Stop, WheelDrive::Forward, 180, 185},
-    {WheelDrive::Brake, WheelDrive::Brake, 90, 170},
+    {WheelDrive::Forward, WheelDrive::Reverse, 190, 185},
+    {WheelDrive::Stop, WheelDrive::Stop, 170},
+    {WheelDrive::Reverse, WheelDrive::Forward, 190, 185},
+    {WheelDrive::Stop, WheelDrive::Stop, 170},
+    {WheelDrive::Forward, WheelDrive::Reverse, 160, 185},
+    {WheelDrive::Stop, WheelDrive::Stop, 140},
+    {WheelDrive::Reverse, WheelDrive::Forward, 160, 185},
     {WheelDrive::Stop, WheelDrive::Stop, 0},
 };
 constexpr MotionFrame kTinySmugWiggle[] = {
-    {WheelDrive::Forward, WheelDrive::Stop, 220, 180},
-    {WheelDrive::Stop, WheelDrive::Stop, 110},
-    {WheelDrive::Stop, WheelDrive::Forward, 220, 180},
-    {WheelDrive::Stop, WheelDrive::Stop, 110},
-    {WheelDrive::Brake, WheelDrive::Brake, 90, 170},
+    {WheelDrive::Forward, WheelDrive::Reverse, 180, 185},
+    {WheelDrive::Stop, WheelDrive::Stop, 180},
+    {WheelDrive::Reverse, WheelDrive::Forward, 180, 185},
     {WheelDrive::Stop, WheelDrive::Stop, 0},
 };
 

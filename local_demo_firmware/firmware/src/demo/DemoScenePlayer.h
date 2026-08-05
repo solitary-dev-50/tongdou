@@ -37,6 +37,9 @@ class DemoScenePlayer {
   uint8_t currentVariant_ = 0;
   unsigned long startedMs_ = 0;
   size_t nextStepIndex_ = 0;
+  unsigned long preludeStartedMs_ = 0;
+  size_t nextPreludeStepIndex_ = 0;
+  bool preludeActive_ = false;
   bool playing_ = false;
   bool autoFirstSummonActive_ = false;
   bool syncToVoiceStart_ = false;

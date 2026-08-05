@@ -8,6 +8,27 @@ constexpr ScenarioPlan plan(FaceAction face, LightAction light, MotionAction mot
   return {true, face, light, motion, voice, durationMs};
 }
 
+constexpr DemoSceneStep kAccountantListeningPrelude[] = {
+    {0, plan(FaceAction::Awake, LightAction::Off, MotionAction::Stop,
+             VoiceLine::None, 1200)},
+    {1200, plan(FaceAction::Blink, LightAction::Off, MotionAction::None,
+                VoiceLine::None, 1400)},
+    {2600, plan(FaceAction::RollEyes, LightAction::Off, MotionAction::None,
+                VoiceLine::None, 1000)},
+    {3600, plan(FaceAction::Awake, LightAction::Off,
+                MotionAction::AccountantConfusedFidget, VoiceLine::None, 1600)},
+    {5200, plan(FaceAction::Blink, LightAction::Off, MotionAction::None,
+                VoiceLine::None, 1300)},
+    {6500, plan(FaceAction::RollEyes, LightAction::Off, MotionAction::None,
+                VoiceLine::None, 1000)},
+    {7500, plan(FaceAction::Awake, LightAction::Off,
+                MotionAction::TinySmugWiggle, VoiceLine::None, 1300)},
+    {8800, plan(FaceAction::Awake, LightAction::Off, MotionAction::None,
+                VoiceLine::None, 700)},
+    {9500, plan(FaceAction::Awake, LightAction::Off, MotionAction::Stop,
+                VoiceLine::None, 500)},
+};
+
 constexpr DemoSceneStep kLateNightDoghouseHook[] = {
     {0, plan(FaceAction::Squint, LightAction::DimWarm, MotionAction::None,
              VoiceLine::None, 300)},
@@ -125,31 +146,37 @@ constexpr DemoSceneStep kConfusedAccountantGlobal[] = {
 
 constexpr DemoSceneStep kAccountantClearDebt[] = {
     {0, plan(FaceAction::AccountantDebt3, LightAction::DimWarm,
-             MotionAction::None, VoiceLine::DemoAccountantClearDebt, 800)},
-    {800, plan(FaceAction::AccountantDebtScratch, LightAction::DimWarm,
-               MotionAction::AccountantConfusedFidget, VoiceLine::None, 1000)},
-    {1800, plan(FaceAction::AccountantDebt2, LightAction::DimWarm,
-                MotionAction::None, VoiceLine::None, 1600)},
-    {3400, plan(FaceAction::AccountantSuspiciousSquint, LightAction::WeakBreath,
-                MotionAction::AccountantExtortLean, VoiceLine::None, 1800)},
-    {5200, plan(FaceAction::AccountantSmugSquint, LightAction::WeakBreath,
-                MotionAction::TinySmugWiggle, VoiceLine::None, 800)},
-    {6000, plan(FaceAction::Awake, LightAction::Off,
+             MotionAction::None, VoiceLine::DemoAccountantClearDebt, 1700)},
+    {1700, plan(FaceAction::AccountantDebtScratch, LightAction::DimWarm,
+                MotionAction::AccountantConfusedFidget, VoiceLine::None, 2200)},
+    {3900, plan(FaceAction::AccountantDebt2, LightAction::DimWarm,
+                MotionAction::None, VoiceLine::None, 2700)},
+    {6600, plan(FaceAction::AccountantSuspiciousSquint, LightAction::WeakBreath,
+                MotionAction::AccountantExtortLean, VoiceLine::None, 4000)},
+    {10600, plan(FaceAction::AccountantCalculating, LightAction::WeakBreath,
+                 MotionAction::AccountantConfusedFidget, VoiceLine::None, 3400)},
+    {14000, plan(FaceAction::AccountantSmugSquint, LightAction::WeakBreath,
+                 MotionAction::TinySmugWiggle, VoiceLine::None, 3600)},
+    {17600, plan(FaceAction::Awake, LightAction::Off,
                 MotionAction::Stop, VoiceLine::None, 500)},
 };
 
 constexpr DemoSceneStep kAccountantEmotionalDamage[] = {
     {0, plan(FaceAction::AccountantRoundEyes, LightAction::DimWarm,
-             MotionAction::None, VoiceLine::DemoAccountantEmotionalDamage, 900)},
-    {900, plan(FaceAction::AccountantSuspiciousSquint, LightAction::DimWarm,
-               MotionAction::AccountantConfusedFidget, VoiceLine::None, 1500)},
-    {2400, plan(FaceAction::AccountantSmugSquint, LightAction::WeakBreath,
-                MotionAction::AccountantExtortLean, VoiceLine::None, 1800)},
-    {4200, plan(FaceAction::AccountantDebt3, LightAction::DimWarm,
-                MotionAction::None, VoiceLine::None, 1000)},
-    {5200, plan(FaceAction::AccountantSmugSquint, LightAction::WeakBreath,
-                MotionAction::TinySmugWiggle, VoiceLine::None, 900)},
-    {6100, plan(FaceAction::Awake, LightAction::Off,
+             MotionAction::None, VoiceLine::DemoAccountantEmotionalDamage, 800)},
+    {800, plan(FaceAction::AccountantSuspiciousSquint, LightAction::DimWarm,
+               MotionAction::AccountantConfusedFidget, VoiceLine::None, 2500)},
+    {3300, plan(FaceAction::AccountantSmugSquint, LightAction::WeakBreath,
+                MotionAction::AccountantExtortLean, VoiceLine::None, 2300)},
+    {5600, plan(FaceAction::AccountantCalculating, LightAction::WeakBreath,
+                MotionAction::AccountantConfusedFidget, VoiceLine::None, 1500)},
+    {7100, plan(FaceAction::AccountantDebt3, LightAction::DimWarm,
+                MotionAction::AccountantStubbornWiggle, VoiceLine::None, 3500)},
+    {10600, plan(FaceAction::AccountantSmugSquint, LightAction::WeakBreath,
+                 MotionAction::AccountantExtortLean, VoiceLine::None, 2500)},
+    {13100, plan(FaceAction::AccountantSmugSquint, LightAction::WeakBreath,
+                 MotionAction::TinySmugWiggle, VoiceLine::None, 1050)},
+    {14150, plan(FaceAction::Awake, LightAction::Off,
                 MotionAction::Stop, VoiceLine::None, 500)},
 };
 
@@ -157,45 +184,71 @@ constexpr DemoSceneStep kAccountantBribeAccepted[] = {
     {0, plan(FaceAction::AccountantRoundEyes, LightAction::DimWarm,
              MotionAction::None, VoiceLine::DemoAccountantBribeAccepted, 900)},
     {900, plan(FaceAction::AccountantCalculating, LightAction::WeakBreath,
-               MotionAction::None, VoiceLine::None, 1200)},
-    {2100, plan(FaceAction::AccountantDebt3, LightAction::DimWarm,
-                MotionAction::None, VoiceLine::None, 600)},
-    {2700, plan(FaceAction::AccountantDebtScratch, LightAction::DimWarm,
-                MotionAction::AccountantConfusedFidget, VoiceLine::None, 900)},
-    {3600, plan(FaceAction::AccountantDebt2, LightAction::DimWarm,
-                MotionAction::None, VoiceLine::None, 600)},
-    {4200, plan(FaceAction::AccountantDebtScratch, LightAction::DimWarm,
-                MotionAction::AccountantConfusedFidget, VoiceLine::None, 900)},
-    {5100, plan(FaceAction::AccountantSmugSquint, LightAction::WeakBreath,
-                MotionAction::TinySmugWiggle, VoiceLine::None, 1000)},
-    {6100, plan(FaceAction::Awake, LightAction::Off,
+               MotionAction::AccountantConfusedFidget, VoiceLine::None, 2050)},
+    {2950, plan(FaceAction::AccountantDebt3, LightAction::DimWarm,
+                MotionAction::None, VoiceLine::None, 850)},
+    {3800, plan(FaceAction::AccountantDebtScratch, LightAction::DimWarm,
+                MotionAction::AccountantConfusedFidget, VoiceLine::None, 1800)},
+    {5600, plan(FaceAction::AccountantDebt2, LightAction::DimWarm,
+                MotionAction::None, VoiceLine::None, 1000)},
+    {6600, plan(FaceAction::AccountantSmugSquint, LightAction::DimWarm,
+                MotionAction::AccountantExtortLean, VoiceLine::None, 1800)},
+    {8400, plan(FaceAction::AccountantSmugSquint, LightAction::WeakBreath,
+                MotionAction::TinySmugWiggle, VoiceLine::None, 1650)},
+    {10050, plan(FaceAction::Awake, LightAction::Off,
                 MotionAction::Stop, VoiceLine::None, 500)},
 };
 
 constexpr DemoSceneStep kAccountantSelectiveMemory[] = {
     {0, plan(FaceAction::AccountantLedgerSearch, LightAction::SoftWhite,
-             MotionAction::AccountantConfusedFidget, VoiceLine::DemoAccountantSelectiveMemory, 1800)},
-    {1800, plan(FaceAction::AccountantDebt3, LightAction::DimWarm,
-                MotionAction::None, VoiceLine::None, 1200)},
-    {3000, plan(FaceAction::AccountantCalculating, LightAction::WeakBreath,
-                MotionAction::AccountantConfusedFidget, VoiceLine::None, 1200)},
-    {4200, plan(FaceAction::AccountantSmugSquint, LightAction::DimWarm,
-                MotionAction::AccountantExtortLean, VoiceLine::None, 1400)},
-    {5600, plan(FaceAction::AccountantSmugSquint, LightAction::WeakBreath,
-                MotionAction::TinySmugWiggle, VoiceLine::None, 900)},
-    {6500, plan(FaceAction::Awake, LightAction::Off,
+             MotionAction::None, VoiceLine::DemoAccountantSelectiveMemory, 700)},
+    {700, plan(FaceAction::AccountantLedgerSearch, LightAction::SoftWhite,
+               MotionAction::AccountantConfusedFidget, VoiceLine::None, 2100)},
+    {2800, plan(FaceAction::AccountantDebt3, LightAction::DimWarm,
+                MotionAction::None, VoiceLine::None, 2300)},
+    {5100, plan(FaceAction::AccountantRoundEyes, LightAction::DimWarm,
+                MotionAction::AccountantConfusedFidget, VoiceLine::None, 2250)},
+    {7350, plan(FaceAction::AccountantCalculating, LightAction::WeakBreath,
+                MotionAction::AccountantStubbornWiggle, VoiceLine::None, 2200)},
+    {9550, plan(FaceAction::AccountantSmugSquint, LightAction::DimWarm,
+                MotionAction::AccountantExtortLean, VoiceLine::None, 800)},
+    {10350, plan(FaceAction::AccountantSmugSquint, LightAction::WeakBreath,
+                 MotionAction::TinySmugWiggle, VoiceLine::None, 900)},
+    {11250, plan(FaceAction::Awake, LightAction::Off,
                 MotionAction::Stop, VoiceLine::None, 500)},
 };
 
 constexpr DemoSceneStep kAccountantPiDebt[] = {
     {0, plan(FaceAction::AccountantCalculating, LightAction::WeakBreath,
-             MotionAction::AccountantConfusedFidget, VoiceLine::DemoAccountantPiDebt, 1400)},
-    {1400, plan(FaceAction::AccountantDebtPi, LightAction::DimWarm,
-                MotionAction::AccountantStubbornWiggle, VoiceLine::None, 3000)},
-    {4400, plan(FaceAction::AccountantSmugSquint, LightAction::WeakBreath,
-                MotionAction::TinySmugWiggle, VoiceLine::None, 1200)},
-    {5600, plan(FaceAction::Awake, LightAction::Off,
-                MotionAction::Stop, VoiceLine::None, 500)},
+             MotionAction::None, VoiceLine::DemoAccountantPiDebt, 700)},
+    {700, plan(FaceAction::AccountantCalculating, LightAction::WeakBreath,
+               MotionAction::AccountantConfusedFidget, VoiceLine::None, 1750)},
+    {2450, plan(FaceAction::AccountantDebtPi, LightAction::DimWarm,
+                MotionAction::None, VoiceLine::None, 4400)},
+    {6850, plan(FaceAction::AccountantDebtPi, LightAction::DimWarm,
+                MotionAction::AccountantStubbornWiggle, VoiceLine::None, 1950)},
+    {8800, plan(FaceAction::AccountantRoundEyes, LightAction::WeakBreath,
+                MotionAction::AccountantConfusedFidget, VoiceLine::None, 3900)},
+    {12700, plan(FaceAction::AccountantSmugSquint, LightAction::DimWarm,
+                 MotionAction::AccountantExtortLean, VoiceLine::None, 2200)},
+    {14900, plan(FaceAction::AccountantSmugSquint, LightAction::WeakBreath,
+                 MotionAction::TinySmugWiggle, VoiceLine::None, 2050)},
+    {16950, plan(FaceAction::AccountantSmugSquint, LightAction::Off,
+                 MotionAction::Stop, VoiceLine::None, 400)},
+    {17350, plan(FaceAction::Awake, LightAction::Off,
+                 MotionAction::Stop, VoiceLine::None, 1700)},
+    {19050, plan(FaceAction::Blink, LightAction::Off,
+                 MotionAction::None, VoiceLine::None, 1400)},
+    {20450, plan(FaceAction::RollEyes, LightAction::Off,
+                 MotionAction::None, VoiceLine::None, 1800)},
+    {22250, plan(FaceAction::Awake, LightAction::Off,
+                 MotionAction::None, VoiceLine::None, 1100)},
+    {23350, plan(FaceAction::AccountantSmugSquint, LightAction::WeakBreath,
+                 MotionAction::TinySmugWiggle, VoiceLine::None, 1400)},
+    {24750, plan(FaceAction::AccountantSmugSquint, LightAction::Off,
+                 MotionAction::Stop, VoiceLine::None, 1200)},
+    {25950, plan(FaceAction::Awake, LightAction::Off,
+                 MotionAction::Stop, VoiceLine::None, 500)},
 };
 
 constexpr DemoSceneStep kCrowdfundingCallGlobal[] = {
@@ -211,6 +264,15 @@ DemoScene makeScene(DemoSceneId id, const DemoSceneStep (&steps)[Count],
                     bool startsRealtimeVoice = false,
                     bool syncToVoiceStart = false) {
   return {id, variant, steps, Count, startsRealtimeVoice, syncToVoiceStart};
+}
+
+template <size_t Count, size_t PreludeCount>
+DemoScene makeSceneWithPrelude(
+    DemoSceneId id, const DemoSceneStep (&steps)[Count],
+    const DemoSceneStep (&preludeSteps)[PreludeCount], uint8_t variant,
+    bool syncToVoiceStart) {
+  return {id, variant, steps, Count, false, syncToVoiceStart, preludeSteps,
+          PreludeCount};
 }
 
 uint8_t normalizeAccountantVariant(uint8_t variant) {
@@ -330,16 +392,21 @@ DemoScene DemoSceneLibrary::scene(DemoSceneId id, uint8_t variant) const {
       const uint8_t selected = normalizeAccountantVariant(variant);
       switch (selected) {
         case 2:
-          return makeScene(id, kAccountantEmotionalDamage, selected);
+          return makeSceneWithPrelude(id, kAccountantEmotionalDamage,
+                                      kAccountantListeningPrelude, selected, true);
         case 3:
-          return makeScene(id, kAccountantBribeAccepted, selected);
+          return makeSceneWithPrelude(id, kAccountantBribeAccepted,
+                                      kAccountantListeningPrelude, selected, true);
         case 4:
-          return makeScene(id, kAccountantSelectiveMemory, selected);
+          return makeSceneWithPrelude(id, kAccountantSelectiveMemory,
+                                      kAccountantListeningPrelude, selected, true);
         case 5:
-          return makeScene(id, kAccountantPiDebt, selected);
+          return makeSceneWithPrelude(id, kAccountantPiDebt,
+                                      kAccountantListeningPrelude, selected, true);
         case 1:
         default:
-          return makeScene(id, kAccountantClearDebt, selected);
+          return makeSceneWithPrelude(id, kAccountantClearDebt,
+                                      kAccountantListeningPrelude, selected, true);
       }
     }
     case DemoSceneId::CrowdfundingCallGlobal:

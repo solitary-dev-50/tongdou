@@ -18,6 +18,32 @@ void DemoScenePlayer::update() {
   }
 
   const unsigned long now = millis();
+  if (preludeActive_) {
+    const unsigned long preludeElapsed = now - preludeStartedMs_;
+    while (nextPreludeStepIndex_ < activeScene_.preludeStepCount &&
+           preludeElapsed >=
+               activeScene_.preludeSteps[nextPreludeStepIndex_].atMs) {
+      executeStep(activeScene_.preludeSteps[nextPreludeStepIndex_],
+                  preludeElapsed);
+      ++nextPreludeStepIndex_;
+    }
+
+    const DemoSceneStep& lastPrelude =
+        activeScene_.preludeSteps[activeScene_.preludeStepCount - 1];
+    const unsigned long preludeEndMs =
+        static_cast<unsigned long>(lastPrelude.atMs) +
+        lastPrelude.plan.durationMs;
+    if (preludeElapsed < preludeEndMs) {
+      return;
+    }
+
+    preludeActive_ = false;
+    startedMs_ = now;
+    nextStepIndex_ = 0;
+    Serial.print(F("demo prelude complete scene="));
+    Serial.println(demoSceneSlug(currentId_, currentVariant_));
+  }
+
   if (syncToVoiceStart_ && voiceStepIssued_ && !audioTimebaseActive_) {
     const uint32_t t0 = scenarioExecutor_.lastAudioPlaybackStartedAtMs();
     if (t0 == 0 || static_cast<int32_t>(t0 - audioStartWatchMs_) < 0) {
@@ -88,6 +114,10 @@ bool DemoScenePlayer::play(DemoSceneId id, uint8_t variant) {
   currentVariant_ = scene.variant;
   startedMs_ = millis();
   nextStepIndex_ = 0;
+  preludeStartedMs_ = startedMs_;
+  nextPreludeStepIndex_ = 0;
+  preludeActive_ =
+      scene.preludeSteps != nullptr && scene.preludeStepCount > 0;
   playing_ = true;
   syncToVoiceStart_ = scene.syncToVoiceStart;
   voiceStepIssued_ = false;
@@ -140,6 +170,9 @@ void DemoScenePlayer::stop() {
   activeScene_ = {};
   startedMs_ = 0;
   nextStepIndex_ = 0;
+  preludeStartedMs_ = 0;
+  nextPreludeStepIndex_ = 0;
+  preludeActive_ = false;
   playing_ = false;
   autoFirstSummonActive_ = false;
   syncToVoiceStart_ = false;
@@ -152,6 +185,12 @@ void DemoScenePlayer::stop() {
 }
 
 bool DemoScenePlayer::handleSerialCommand(const String& command, Print& out) {
+  if (command == "0" || command == "stop" || command == "idle") {
+    stop();
+    out.println("demo scene 0 idle_stop");
+    return true;
+  }
+
   if (command == "6" || command == "6-1" || command == "accountant" ||
       command == "accountant 1") {
     play(DemoSceneId::ConfusedAccountantGlobal, 1);
@@ -242,7 +281,8 @@ void DemoScenePlayer::executeStep(const DemoSceneStep& step,
   Serial.print(F(" voice="));
   Serial.println(static_cast<int>(step.plan.voice));
 
-  if (currentId_ == DemoSceneId::FirstSummonNightmare &&
+  if ((currentId_ == DemoSceneId::FirstSummonNightmare ||
+       currentId_ == DemoSceneId::ConfusedAccountantGlobal) &&
       step.plan.motion != MotionAction::None) {
     scenarioExecutor_.printMotionDebug(step.plan.motion, cueTime, Serial);
   }

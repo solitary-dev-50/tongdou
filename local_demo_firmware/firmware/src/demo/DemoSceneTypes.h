@@ -20,6 +20,8 @@ struct DemoScene {
   size_t stepCount = 0;
   bool startsRealtimeVoice = false;
   bool syncToVoiceStart = false;
+  const DemoSceneStep* preludeSteps = nullptr;
+  size_t preludeStepCount = 0;
 };
 
 }  // namespace tongdou
