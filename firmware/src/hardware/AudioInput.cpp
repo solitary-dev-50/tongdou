@@ -38,17 +38,14 @@ void AudioInput::begin() {
 
   i2s_pin_config_t pins = {};
   pins.mck_io_num = I2S_PIN_NO_CHANGE;
-  pins.bck_io_num = tongdou::pins::PDM_MIC_CLK;
-  pins.ws_io_num = I2S_PIN_NO_CHANGE;
+  pins.bck_io_num = I2S_PIN_NO_CHANGE;
+  pins.ws_io_num = tongdou::pins::PDM_MIC_CLK;
   pins.data_out_num = I2S_PIN_NO_CHANGE;
   pins.data_in_num = tongdou::pins::PDM_MIC_DATA;
 
   esp_err_t err = i2s_driver_install(kMicPort, &config, 0, nullptr);
   if (err == ESP_OK) {
     err = i2s_set_pin(kMicPort, &pins);
-  }
-  if (err == ESP_OK) {
-    err = i2s_set_pdm_rx_down_sample(kMicPort, I2S_PDM_DSR_8S);
   }
 
   if (err == ESP_OK) {
@@ -70,7 +67,8 @@ AudioInputSnapshot AudioInput::readLevel() {
 
   int16_t samples[kSampleCount] = {};
   size_t bytesRead = 0;
-  const esp_err_t err = i2s_read(kMicPort, samples, sizeof(samples), &bytesRead, 0);
+  const esp_err_t err =
+      i2s_read(kMicPort, samples, sizeof(samples), &bytesRead, pdMS_TO_TICKS(20));
   if (err != ESP_OK || bytesRead == 0) {
     return snapshot;
   }
@@ -123,7 +121,8 @@ bool AudioInput::readPcm16(int16_t* buffer, size_t maxSamples, size_t& samplesRe
   size_t bytesRead = 0;
   const size_t samplesToRead = min(maxSamples, kSampleCount);
   const esp_err_t err =
-      i2s_read(kMicPort, samples, samplesToRead * sizeof(samples[0]), &bytesRead, 0);
+      i2s_read(kMicPort, samples, samplesToRead * sizeof(samples[0]), &bytesRead,
+               pdMS_TO_TICKS(20));
   if (err != ESP_OK || bytesRead == 0) {
     return false;
   }

@@ -29,6 +29,9 @@ void App::begin() {
   realtimeVoiceService_.begin();
   Serial.println("realtime voice ready");
 
+  deviceActivationService_.begin();
+  Serial.println("device activation ready");
+
   wifiConfigStore_.begin();
   Serial.println("wifi config ready");
 
@@ -61,6 +64,7 @@ void App::update() {
   webConfigServer_.update();
   hardware_.update();
   realtimeVoiceService_.update();
+  deviceActivationService_.update();
   handleStartupReport();
   handleSerialDiagnostics();
   handleLogoTouchEvents();
@@ -168,6 +172,7 @@ void App::printStartupReport(const char* title) {
   Serial.println("application begin");
   Serial.println("  scenario executor ready");
   Serial.println("  realtime voice ready");
+  Serial.println("  device activation ready");
   Serial.println("  wifi config ready");
   Serial.println("  time service started");
   Serial.println("  reminder store ready");

@@ -36,6 +36,11 @@ void GyroMotionController::start(MotionSequence sequence) {
     return;
   }
 
+  if (motors_.faultActive()) {
+    Serial.println(F("gyro motion skipped reason=motor_fault"));
+    return;
+  }
+
   if (!imu_.ready()) {
     Serial.println(F("gyro motion skipped reason=imu_not_ready"));
     return;
@@ -57,6 +62,11 @@ void GyroMotionController::start(MotionSequence sequence) {
 
 void GyroMotionController::update() {
   if (phase_ == Phase::Idle) {
+    return;
+  }
+
+  if (motors_.faultActive()) {
+    finish(F("motor_fault"));
     return;
   }
 

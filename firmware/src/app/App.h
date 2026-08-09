@@ -3,6 +3,7 @@
 #include <Arduino.h>
 
 #include "app/AppCommandService.h"
+#include "cloud/DeviceActivationService.h"
 #include "hardware/HardwareManager.h"
 #include "mcp/McpServer.h"
 #include "realtime/RealtimeVoiceService.h"
@@ -45,6 +46,8 @@ class App {
   ScenarioContext scenarioContext_;
   RealtimeVoiceService realtimeVoiceService_{hardware_.audioInput(),
                                             hardware_.audioOutput()};
+  DeviceActivationService deviceActivationService_{realtimeVoiceService_,
+                                                  hardware_.faceDisplay()};
   AppCommandService appCommandService_{scenarioEngine_, scenarioExecutor_, scenarioContext_,
                                       realtimeVoiceService_};
   McpServer mcpServer_{timeService_, reminderStore_, hardware_.selfTest(), appCommandService_};

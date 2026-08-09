@@ -35,7 +35,12 @@ void HardwareManager::update() {
 
 void HardwareManager::printStartupReport(Print& out) const {
   out.println("hardware begin");
-  out.println("  motor stop");
+  out.print("  motor stop fault=");
+  out.print(motors_.faultActive() ? "1" : "0");
+  out.print(" fault_pin_low=");
+  out.print(motors_.faultPinLow() ? "1" : "0");
+  out.print(" available=");
+  out.println(motors_.available() ? "1" : "0");
 
   out.print("  battery ready usb=");
   out.print(startupBattery_.usbPresent ? "1" : "0");

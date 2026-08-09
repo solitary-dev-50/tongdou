@@ -35,6 +35,7 @@ uint8_t normalizedDuty(uint8_t duty) {
 }  // namespace
 
 void MotorDriver::begin() {
+  pinMode(pins::MOTOR_FAULT, INPUT_PULLUP);
   prepareStoppedOutput(pins::MOTOR_SLEEP);
   preparePwmOutput(pins::MOTOR_AIN1, kMotorAin1Channel);
   preparePwmOutput(pins::MOTOR_AIN2, kMotorAin2Channel);
@@ -59,7 +60,19 @@ void MotorDriver::drive(WheelDrive left, WheelDrive right, uint8_t leftDuty,
     return;
   }
 
+  if (faultActive()) {
+    stop();
+    Serial.println(F("motor drive blocked reason=fault"));
+    return;
+  }
+
   wake();
+  if (faultActive()) {
+    stop();
+    Serial.println(F("motor drive stopped reason=fault_after_wake"));
+    return;
+  }
+
   driveLeft(left, normalizedDuty(leftDuty));
   driveRight(right, normalizedDuty(rightDuty));
 }
@@ -68,6 +81,32 @@ void MotorDriver::stop() {
   driveLeft(WheelDrive::Stop, 0);
   driveRight(WheelDrive::Stop, 0);
   sleep();
+}
+
+bool MotorDriver::faultActive() const {
+  return faultPinLow() || faultSimulated_;
+}
+
+bool MotorDriver::faultPinLow() const {
+  return digitalRead(pins::MOTOR_FAULT) == LOW;
+}
+
+bool MotorDriver::faultSimulated() const {
+  return faultSimulated_;
+}
+
+void MotorDriver::setFaultSimulation(bool active) {
+  faultSimulated_ = active;
+  if (faultSimulated_) {
+    stop();
+    Serial.println(F("motor fault simulation on"));
+  } else {
+    Serial.println(F("motor fault simulation off"));
+  }
+}
+
+bool MotorDriver::available() const {
+  return !faultActive();
 }
 
 void MotorDriver::wake() {

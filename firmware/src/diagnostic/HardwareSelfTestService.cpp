@@ -76,8 +76,11 @@ HardwareDiagnosticStatus HardwareSelfTestService::status() const {
   result.ledReady = led_.ready();
   result.audioInputReady = audioInput_.ready();
   result.audioOutputReady = audioOutput_.ready();
+  result.motorFaultActive = motors_.faultActive();
+  result.motorAvailable = motors_.available();
+  result.motorFaultSimulated = motors_.faultSimulated();
   result.degraded = !result.faceReady || !result.ledReady || !result.audioInputReady ||
-                    !result.audioOutputReady;
+                    !result.audioOutputReady || result.motorFaultActive;
   result.visualFeedbackAvailable = result.faceReady || result.ledReady;
   result.soundAvailable = result.audioOutputReady;
   result.voiceInputAvailable = result.audioInputReady;
@@ -107,6 +110,8 @@ void HardwareSelfTestService::printHelp(Print& out) const {
   out.println(F("  mic"));
   out.println(F("  speaker"));
   out.println(F("  led red|green|blue|off"));
+  out.println(F("  motor fault"));
+  out.println(F("  motor fault simulate on|off"));
   out.println(F("  motor forward|reverse|turn left|turn right|stop"));
 }
 
@@ -186,6 +191,18 @@ bool HardwareSelfTestService::handleCommand(const String& command, Print& out) {
     testSpeaker(out);
     return true;
   }
+  if (cmd == F("motor fault")) {
+    printMotorFault(out);
+    return true;
+  }
+  if (cmd == F("motor fault simulate on")) {
+    setMotorFaultSimulation(true, out);
+    return true;
+  }
+  if (cmd == F("motor fault simulate off")) {
+    setMotorFaultSimulation(false, out);
+    return true;
+  }
   if (cmd == F("led red")) {
     testLed({64, 0, 0}, out);
     return true;
@@ -249,6 +266,9 @@ void HardwareSelfTestService::printStatus(Print& out) const {
   printBool(out, F("  led="), snapshot.ledReady);
   printBool(out, F("  audio_input="), snapshot.audioInputReady);
   printBool(out, F("  audio_output="), snapshot.audioOutputReady);
+  printBool(out, F("  motor_fault="), snapshot.motorFaultActive);
+  printBool(out, F("  motor_fault_simulated="), snapshot.motorFaultSimulated);
+  printBool(out, F("  motor_available="), snapshot.motorAvailable);
   printBool(out, F("  degraded="), snapshot.degraded);
   printBool(out, F("  reminders_available="), snapshot.remindersAvailable);
   printBool(out, F("  web_available="), snapshot.webAvailable);
@@ -508,12 +528,33 @@ void HardwareSelfTestService::testSpeaker(Print& out) {
   out.println(F("speaker test tone done"));
 }
 
+void HardwareSelfTestService::printMotorFault(Print& out) const {
+  out.println(F("motor fault:"));
+  printBool(out, F("  fault_active="), motors_.faultActive());
+  printBool(out, F("  fault_pin_low="), motors_.faultPinLow());
+  printBool(out, F("  simulated="), motors_.faultSimulated());
+  printBool(out, F("  available="), motors_.available());
+}
+
+void HardwareSelfTestService::setMotorFaultSimulation(bool active, Print& out) {
+  motors_.setFaultSimulation(active);
+  out.println(active ? F("motor fault simulation on") : F("motor fault simulation off"));
+  printMotorFault(out);
+}
+
 void HardwareSelfTestService::testLed(const RgbColor& color, Print& out) {
   led_.show(color);
   out.println(F("led test color set"));
 }
 
 void HardwareSelfTestService::testMotor(WheelDrive left, WheelDrive right, Print& out) {
+  if (motors_.faultActive()) {
+    stopMotorPulse();
+    out.println(F("motor pulse blocked reason=fault"));
+    printMotorFault(out);
+    return;
+  }
+
   diagnosticMotionFrame_ = {left, right, kMotorPulseMs, 190};
   gyroMotion_.start({&diagnosticMotionFrame_, 1});
   motorStopAtMs_ = millis() + kGyroMotorTestStopMs;

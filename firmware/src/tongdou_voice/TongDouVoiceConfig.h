@@ -20,7 +20,7 @@ struct TongDouVoiceHelloConfig {
 
 struct TongDouVoiceConnectionConfig {
   String host;
-  uint16_t port = 8000;
+  uint16_t port = 8100;
   String path = "/xiaozhi/v1/";
   bool useTls = false;
   String authorization;

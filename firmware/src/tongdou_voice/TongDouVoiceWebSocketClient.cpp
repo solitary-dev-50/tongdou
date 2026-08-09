@@ -79,9 +79,11 @@ void TongDouVoiceWebSocketClient::handleEvent(WStype_t type, uint8_t* payload,
                                               size_t length) {
   switch (type) {
     case WStype_CONNECTED:
+      Serial.println("voice websocket connected");
       setState(TongDouVoiceWebSocketState::Connected);
       break;
     case WStype_DISCONNECTED:
+      Serial.println("voice websocket disconnected");
       setState(TongDouVoiceWebSocketState::Disconnected);
       break;
     case WStype_TEXT:
@@ -93,6 +95,10 @@ void TongDouVoiceWebSocketClient::handleEvent(WStype_t type, uint8_t* payload,
       if (binaryCallback_) {
         binaryCallback_(payload, length);
       }
+      break;
+    case WStype_ERROR:
+      Serial.print("voice websocket error=");
+      Serial.println(payload == nullptr ? "" : reinterpret_cast<const char*>(payload));
       break;
     default:
       break;
@@ -112,27 +118,29 @@ void TongDouVoiceWebSocketClient::setState(TongDouVoiceWebSocketState state) {
 
 void TongDouVoiceWebSocketClient::rebuildHeaders() {
   headers_ = "";
-  if (config_.authorization.length() > 0) {
-    headers_ += "Authorization: ";
-    if (!config_.authorization.startsWith("Bearer ")) {
-      headers_ += "Bearer ";
+  auto appendHeader = [this](const String& name, const String& value) {
+    if (value.length() == 0) {
+      return;
     }
-    headers_ += config_.authorization;
-    headers_ += "\r\n";
+    if (headers_.length() > 0) {
+      headers_ += "\r\n";
+    }
+    headers_ += name;
+    headers_ += ": ";
+    headers_ += value;
+  };
+
+  if (config_.authorization.length() > 0) {
+    String authorization;
+    if (!config_.authorization.startsWith("Bearer ")) {
+      authorization += "Bearer ";
+    }
+    authorization += config_.authorization;
+    appendHeader("Authorization", authorization);
   }
-  headers_ += "Protocol-Version: ";
-  headers_ += config_.protocolVersion;
-  headers_ += "\r\n";
-  if (config_.deviceId.length() > 0) {
-    headers_ += "Device-Id: ";
-    headers_ += config_.deviceId;
-    headers_ += "\r\n";
-  }
-  if (config_.clientId.length() > 0) {
-    headers_ += "Client-Id: ";
-    headers_ += config_.clientId;
-    headers_ += "\r\n";
-  }
+  appendHeader("Protocol-Version", String(config_.protocolVersion));
+  appendHeader("Device-Id", config_.deviceId);
+  appendHeader("Client-Id", config_.clientId);
 }
 
 const char* tongDouVoiceWebSocketStateName(TongDouVoiceWebSocketState state) {

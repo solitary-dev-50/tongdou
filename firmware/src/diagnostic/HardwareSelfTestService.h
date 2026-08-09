@@ -22,6 +22,9 @@ struct HardwareDiagnosticStatus {
   bool ledReady = false;
   bool audioInputReady = false;
   bool audioOutputReady = false;
+  bool motorFaultActive = false;
+  bool motorAvailable = true;
+  bool motorFaultSimulated = false;
   bool degraded = false;
   bool remindersAvailable = true;
   bool webAvailable = true;
@@ -60,6 +63,8 @@ class HardwareSelfTestService {
   void applyRadarResolution20cm(Print& out);
   void startRadarCalibration(Print& out);
   void printMic(Print& out);
+  void printMotorFault(Print& out) const;
+  void setMotorFaultSimulation(bool active, Print& out);
   void testSpeaker(Print& out);
   void testLed(const RgbColor& color, Print& out);
   void testMotor(WheelDrive left, WheelDrive right, Print& out);

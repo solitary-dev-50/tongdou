@@ -1,5 +1,6 @@
 #pragma once
 
+#include <Arduino.h>
 #include <stdint.h>
 
 #include "face/FaceExpression.h"
@@ -10,6 +11,7 @@ class FaceDisplay {
  public:
   void begin();
   void show(FaceExpression expression);
+  void showActivationCode(const String& code);
   bool ready() const;
 
  private:
@@ -28,6 +30,7 @@ class FaceDisplay {
   void rect(int16_t x, int16_t y, int16_t w, int16_t h, bool on = true);
   void line(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bool on = true);
   void drawEyePair(int16_t leftX, int16_t rightX, int16_t y, int16_t w, int16_t h);
+  void drawDigit(char digit, int16_t x, int16_t y, uint8_t scale);
   void drawExpression(FaceExpression expression);
 
   bool available_ = false;

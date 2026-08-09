@@ -321,7 +321,7 @@ McpToolResult McpServer::setPersonality(const McpToolArguments& arguments) {
 
 McpToolResult McpServer::configureVoiceBackend(const McpToolArguments& arguments) {
   const String host(arguments.getString("host").c_str());
-  const int port = arguments.getInt("port", 8000);
+  const int port = arguments.getInt("port", 8100);
   const String path(arguments.getString("path", "/xiaozhi/v1/").c_str());
   const String token(arguments.getString("token").c_str());
   const String deviceId(arguments.getString("deviceId").c_str());
@@ -429,6 +429,9 @@ std::string McpServer::statusJson() const {
   doc["hardware"]["led"] = hardware.ledReady;
   doc["hardware"]["audioInput"] = hardware.audioInputReady;
   doc["hardware"]["audioOutput"] = hardware.audioOutputReady;
+  doc["hardware"]["motorFault"] = hardware.motorFaultActive;
+  doc["hardware"]["motorFaultSimulated"] = hardware.motorFaultSimulated;
+  doc["hardware"]["motorAvailable"] = hardware.motorAvailable;
   doc["hardware"]["degraded"] = hardware.degraded;
   doc["capabilities"]["reminders"] = hardware.remindersAvailable;
   doc["capabilities"]["web"] = hardware.webAvailable;

@@ -34,6 +34,12 @@ void TongDouVoiceClient::update() {
   socket_.update();
   snapshot_.connected = socket_.connected();
   snapshot_.codecStats = audioCodec_.stats();
+
+  if (snapshot_.state == TongDouVoiceClientState::Handshaking &&
+      socket_.connected() &&
+      static_cast<long>(millis() - nextHelloRetryMs_) >= 0) {
+    sendHello();
+  }
 }
 
 void TongDouVoiceClient::disconnect() {
@@ -172,10 +178,8 @@ void TongDouVoiceClient::handleSocketState(TongDouVoiceWebSocketState state) {
   snapshot_.connected = state == TongDouVoiceWebSocketState::Connected;
   if (state == TongDouVoiceWebSocketState::Connected) {
     setState(TongDouVoiceClientState::Handshaking);
-    if (!sendText(protocol_.buildHello(helloConfig_))) {
-      snapshot_.lastError = "hello_send_failed";
-      setState(TongDouVoiceClientState::Failed);
-    }
+    nextHelloRetryMs_ = 0;
+    sendHello();
     return;
   }
   if (state == TongDouVoiceWebSocketState::Disconnected) {
@@ -207,6 +211,8 @@ void TongDouVoiceClient::handleTextMessage(const String& payload) {
   }
 
   if (message.type == TongDouVoiceMessageType::Hello) {
+    Serial.print("voice session=");
+    Serial.println(snapshot_.sessionId);
     snapshot_.ready = true;
     setState(TongDouVoiceClientState::Ready);
     return;
@@ -234,7 +240,24 @@ void TongDouVoiceClient::handleBinaryMessage(const uint8_t* payload, size_t leng
 }
 
 void TongDouVoiceClient::setState(TongDouVoiceClientState state) {
+  if (snapshot_.state == state) {
+    return;
+  }
   snapshot_.state = state;
+  Serial.print("voice client state=");
+  Serial.println(tongDouVoiceClientStateName(state));
+}
+
+bool TongDouVoiceClient::sendHello() {
+  if (!sendText(protocol_.buildHello(helloConfig_))) {
+    snapshot_.lastError = "hello_send_failed";
+    setState(TongDouVoiceClientState::Failed);
+    return false;
+  }
+
+  nextHelloRetryMs_ = millis() + kHelloRetryIntervalMs;
+  Serial.println("voice hello sent");
+  return true;
 }
 
 bool TongDouVoiceClient::sendText(const String& payload) {

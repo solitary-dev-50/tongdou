@@ -69,9 +69,11 @@ class TongDouVoiceClient {
   void handleTextMessage(const String& payload);
   void handleBinaryMessage(const uint8_t* payload, size_t length);
   void setState(TongDouVoiceClientState state);
+  bool sendHello();
   bool sendText(const String& payload);
 
   static constexpr size_t kMaxDecodedSamples = 2880;
+  static constexpr unsigned long kHelloRetryIntervalMs = 1500;
 
   TongDouVoiceProtocol protocol_;
   TongDouVoiceAudioCodec audioCodec_;
@@ -83,6 +85,7 @@ class TongDouVoiceClient {
   TongDouVoiceHelloConfig helloConfig_;
   TongDouVoiceClientSnapshot snapshot_;
   TongDouVoicePerfTracer perfTracer_;
+  unsigned long nextHelloRetryMs_ = 0;
 };
 
 const char* tongDouVoiceClientStateName(TongDouVoiceClientState state);

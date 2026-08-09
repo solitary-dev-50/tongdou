@@ -53,6 +53,29 @@ void FaceDisplay::show(FaceExpression expression) {
   flush();
 }
 
+void FaceDisplay::showActivationCode(const String& code) {
+  if (!available_) {
+    return;
+  }
+
+  clear();
+  rect(8, 8, 112, 48);
+  const uint8_t scale = 3;
+  const int16_t digitWidth = 5 * scale;
+  const int16_t spacing = 3;
+  const int16_t count = min<int16_t>(6, code.length());
+  const int16_t totalWidth = count * digitWidth + max<int16_t>(0, count - 1) * spacing;
+  int16_t x = static_cast<int16_t>((kWidth - totalWidth) / 2);
+  const int16_t y = 23;
+
+  for (int16_t i = 0; i < count; ++i) {
+    drawDigit(code[static_cast<unsigned int>(i)], x, y, scale);
+    x += digitWidth + spacing;
+  }
+
+  flush();
+}
+
 bool FaceDisplay::ready() const {
   return available_;
 }
@@ -168,6 +191,45 @@ void FaceDisplay::drawEyePair(int16_t leftX, int16_t rightX, int16_t y, int16_t 
   const int16_t radius = h > 8 ? 4 : 2;
   fillRoundRect(leftX, y, w, h, radius);
   fillRoundRect(rightX, y, w, h, radius);
+}
+
+void FaceDisplay::drawDigit(char digit, int16_t x, int16_t y, uint8_t scale) {
+  static constexpr uint8_t kSegments[10] = {
+      0b00111111, 0b00000110, 0b01011011, 0b01001111, 0b01100110,
+      0b01101101, 0b01111101, 0b00000111, 0b01111111, 0b01101111,
+  };
+
+  if (digit < '0' || digit > '9' || scale == 0) {
+    return;
+  }
+
+  const uint8_t mask = kSegments[digit - '0'];
+  const int16_t t = scale;
+  const int16_t w = 5 * scale;
+  const int16_t h = 9 * scale;
+  const int16_t mid = y + 4 * scale;
+
+  if (mask & 0b00000001) {
+    fillRect(x + t, y, w - 2 * t, t);
+  }
+  if (mask & 0b00000010) {
+    fillRect(x + w - t, y + t, t, 3 * scale);
+  }
+  if (mask & 0b00000100) {
+    fillRect(x + w - t, mid + t, t, 3 * scale);
+  }
+  if (mask & 0b00001000) {
+    fillRect(x + t, y + h - t, w - 2 * t, t);
+  }
+  if (mask & 0b00010000) {
+    fillRect(x, mid + t, t, 3 * scale);
+  }
+  if (mask & 0b00100000) {
+    fillRect(x, y + t, t, 3 * scale);
+  }
+  if (mask & 0b01000000) {
+    fillRect(x + t, mid, w - 2 * t, t);
+  }
 }
 
 void FaceDisplay::drawExpression(FaceExpression expression) {

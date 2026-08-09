@@ -225,6 +225,9 @@ small{color:#aaa}
 <button onclick="diag('led green')">绿灯</button>
 <button onclick="diag('led blue')">蓝灯</button>
 <button onclick="diag('led off')">关灯</button>
+<button onclick="diag('motor fault')">电机故障</button>
+<button onclick="diag('motor fault simulate on')">模拟电机故障</button>
+<button onclick="diag('motor fault simulate off')">取消模拟故障</button>
 <button onclick="diag('motor forward')">电机正转</button>
 <button onclick="diag('motor reverse')">电机反转</button>
 <button onclick="diag('motor turn left')">电机左扭</button>
@@ -259,7 +262,7 @@ small{color:#aaa}
 <script>
 const $=id=>document.getElementById(id);let micTimer=null,radarTimer=null;
 function capText(c){let a=[];if(c.reminders)a.push('提醒');if(c.web)a.push('网页');if(c.visual)a.push('视觉');if(c.sound)a.push('声音');if(c.voiceInput)a.push('麦克风');return a.join(' / ')||'无'}
-async function loadStatus(){try{let r=await fetch('/api/status');let j=await r.json();$('wifi').textContent=j.wifiConnected?'已连接':(j.portal?'配网模式':'连接中');$('ip').textContent=j.ip||'-';$('time').textContent=j.timeReady?j.now:'未校时';$('battery').textContent=`USB ${j.battery.usb?'有':'无'} / 充电 ${j.battery.charging?'是':'否'} / ADC ${j.battery.rawAdc}`;$('hardware').textContent=j.hardware.degraded?'降级':'正常';$('capability').textContent=capText(j.capabilities)}catch(e){$('wifi').textContent='读取失败'}}
+async function loadStatus(){try{let r=await fetch('/api/status');let j=await r.json();$('wifi').textContent=j.wifiConnected?'已连接':(j.portal?'配网模式':'连接中');$('ip').textContent=j.ip||'-';$('time').textContent=j.timeReady?j.now:'未校时';$('battery').textContent=`USB ${j.battery.usb?'有':'无'} / 充电 ${j.battery.charging?'是':'否'} / ADC ${j.battery.rawAdc}`;$('hardware').textContent=j.hardware.degraded?(j.hardware.motorFault?'电机故障':'降级'):'正常';$('capability').textContent=capText(j.capabilities)}catch(e){$('wifi').textContent='读取失败'}}
 async function syncTime(){let e=Math.floor(Date.now()/1000);let r=await fetch('/api/time/sync',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'epoch='+e});$('msg').textContent=await r.text();loadStatus()}
 async function diag(c){$('diag').textContent='执行中：'+c;let r=await fetch('/api/diagnostic',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'command='+encodeURIComponent(c)});let t=await r.text();$('diag').textContent=t;return t}
 function val(t,k){let m=t.match(new RegExp(k+'=([^\\n\\r]+)'));return m?m[1].trim():''}
@@ -331,6 +334,9 @@ loadStatus();setInterval(loadStatus,5000);
   body += F("<button onclick=\"diag('led green')\">绿灯</button>");
   body += F("<button onclick=\"diag('led blue')\">蓝灯</button>");
   body += F("<button onclick=\"diag('led off')\">关灯</button>");
+  body += F("<button onclick=\"diag('motor fault')\">电机故障</button>");
+  body += F("<button onclick=\"diag('motor fault simulate on')\">模拟电机故障</button>");
+  body += F("<button onclick=\"diag('motor fault simulate off')\">取消模拟故障</button>");
   body += F("<button onclick=\"diag('motor forward')\">电机正转</button>");
   body += F("<button onclick=\"diag('motor reverse')\">电机反转</button>");
   body += F("<button onclick=\"diag('motor turn left')\">电机左扭</button>");
@@ -348,7 +354,7 @@ loadStatus();setInterval(loadStatus,5000);
   body += F("<script>");
   body += F("function modeText(m){return {normal:'正常',portal:'配网',connecting:'联网中',degraded:'降级'}[m]||m;}");
   body += F("function capText(c){let a=[];if(c.reminders)a.push('提醒');if(c.web)a.push('网页');if(c.visual)a.push('视觉');if(c.sound)a.push('声音');if(c.voiceInput)a.push('语音输入');return a.join(' / ')||'无';}");
-  body += F("async function loadStatus(){try{let r=await fetch('/api/status');let j=await r.json();document.getElementById('wifi').textContent=j.wifiConnected?'已连接':(j.portal?'配网模式':'连接中');document.getElementById('mode').textContent=modeText(j.systemMode);document.getElementById('hardware').textContent=j.hardware.degraded?'降级':'正常';document.getElementById('capability').textContent=capText(j.capabilities);}catch(e){document.getElementById('wifi').textContent='读取失败';document.getElementById('mode').textContent='读取失败';document.getElementById('hardware').textContent='读取失败';document.getElementById('capability').textContent='读取失败';}}");
+  body += F("async function loadStatus(){try{let r=await fetch('/api/status');let j=await r.json();document.getElementById('wifi').textContent=j.wifiConnected?'已连接':(j.portal?'配网模式':'连接中');document.getElementById('mode').textContent=modeText(j.systemMode);document.getElementById('hardware').textContent=j.hardware.degraded?(j.hardware.motorFault?'电机故障':'降级'):'正常';document.getElementById('capability').textContent=capText(j.capabilities);}catch(e){document.getElementById('wifi').textContent='读取失败';document.getElementById('mode').textContent='读取失败';document.getElementById('hardware').textContent='读取失败';document.getElementById('capability').textContent='读取失败';}}");
   body += F("async function syncTime(){let e=Math.floor(Date.now()/1000);let r=await fetch('/api/time/sync',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'epoch='+e});document.getElementById('msg').textContent=await r.text();}");
   body += F("async function diag(c){let o=document.getElementById('diag');o.textContent='执行中：'+c;try{let r=await fetch('/api/diagnostic',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'command='+encodeURIComponent(c)});o.textContent=await r.text();}catch(e){o.textContent='诊断失败：'+e;}}");
   body += F("let micTimer=null;async function pollMic(){await diag('mic');}function startMicTest(){if(micTimer)return;pollMic();micTimer=setInterval(pollMic,300);}function stopMicTest(){if(!micTimer)return;clearInterval(micTimer);micTimer=null;}");
@@ -503,7 +509,7 @@ pre{white-space:pre-wrap;background:#050505;border:1px solid #333;border-radius:
 <h1>Tong Dou Voice</h1>
 <section>
 <label>Host</label><input id="host" placeholder="192.168.1.10">
-<div class="row"><div><label>Port</label><input id="port" value="8000"></div>
+<div class="row"><div><label>Port</label><input id="port" value="8100"></div>
 <div><label>Path</label><input id="path" value="/xiaozhi/v1/"></div></div>
 <label>Device Id</label><input id="deviceId" placeholder="empty = device mac">
 <label>Client Id</label><input id="clientId" value="tongdou-demo">
@@ -555,7 +561,7 @@ void WebConfigServer::handleVoiceBackendConfigure() {
     return;
   }
 
-  const int port = server_.arg("port").toInt() > 0 ? server_.arg("port").toInt() : 8000;
+  const int port = server_.arg("port").toInt() > 0 ? server_.arg("port").toInt() : 8100;
   String path = server_.arg("path");
   path.trim();
   if (path.length() == 0) {
@@ -671,7 +677,7 @@ String WebConfigServer::statusJson() const {
   const HardwareDiagnosticStatus hardware = hardwareSelfTest_.status();
   const BatterySnapshot battery = hardwareSelfTest_.batterySnapshot();
   String body;
-  body.reserve(760);
+  body.reserve(860);
   const char* systemMode = "normal";
   if (state_ == NetworkState::Portal) {
     systemMode = "portal";
@@ -707,6 +713,12 @@ String WebConfigServer::statusJson() const {
   body += hardware.audioInputReady ? "true" : "false";
   body += ",\"audioOutput\":";
   body += hardware.audioOutputReady ? "true" : "false";
+  body += ",\"motorFault\":";
+  body += hardware.motorFaultActive ? "true" : "false";
+  body += ",\"motorFaultSimulated\":";
+  body += hardware.motorFaultSimulated ? "true" : "false";
+  body += ",\"motorAvailable\":";
+  body += hardware.motorAvailable ? "true" : "false";
   body += ",\"degraded\":";
   body += hardware.degraded ? "true" : "false";
   body += "},\"battery\":{\"usb\":";

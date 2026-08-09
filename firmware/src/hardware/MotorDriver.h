@@ -11,6 +11,11 @@ class MotorDriver {
   void drive(WheelDrive left, WheelDrive right, uint8_t duty);
   void drive(WheelDrive left, WheelDrive right, uint8_t leftDuty, uint8_t rightDuty);
   void stop();
+  bool faultActive() const;
+  bool faultPinLow() const;
+  bool faultSimulated() const;
+  void setFaultSimulation(bool active);
+  bool available() const;
 
  private:
   void wake();
@@ -19,6 +24,7 @@ class MotorDriver {
   void driveRight(WheelDrive drive, uint8_t duty);
 
   bool awake_ = false;
+  bool faultSimulated_ = false;
 };
 
 }  // namespace tongdou

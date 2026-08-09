@@ -69,7 +69,7 @@ AppCommandResult AppCommandService::configureVoiceBackend(const String& host, in
 
   TongDouVoiceConnectionConfig config;
   config.host = safeHost;
-  config.port = port > 0 ? static_cast<uint16_t>(port) : 8000;
+  config.port = port > 0 ? static_cast<uint16_t>(port) : 8100;
   config.path = path.length() > 0 ? path : "/xiaozhi/v1/";
   config.authorization = token;
   config.deviceId = deviceId;

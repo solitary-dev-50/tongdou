@@ -10,13 +10,14 @@ namespace {
 
 constexpr rmt_channel_t kRmtChannel = RMT_CHANNEL_0;
 constexpr uint8_t kRmtClockDiv = 2;
-constexpr uint16_t kTick0High = 14;
-constexpr uint16_t kTick0Low = 32;
-constexpr uint16_t kTick1High = 28;
+constexpr uint16_t kTick0High = 12;
+constexpr uint16_t kTick0Low = 36;
+constexpr uint16_t kTick1High = 24;
 constexpr uint16_t kTick1Low = 24;
+constexpr uint16_t kResetDelayUs = 300;
 constexpr uint8_t kColorByteCount = 3;
 constexpr uint8_t kBitsPerByte = 8;
-constexpr uint8_t kWs2812BitCount = kColorByteCount * kBitsPerByte;
+constexpr uint8_t kLedBitCount = kColorByteCount * kBitsPerByte;
 
 rmt_item32_t makeBit(bool enabled) {
   rmt_item32_t item = {};
@@ -33,7 +34,7 @@ void LedPixel::begin() {
   rmt_config_t config = {};
   config.rmt_mode = RMT_MODE_TX;
   config.channel = kRmtChannel;
-  config.gpio_num = pins::WS2812_DATA;
+  config.gpio_num = pins::LED_DATA;
   config.mem_block_num = 1;
   config.clk_div = kRmtClockDiv;
   config.tx_config.loop_en = false;
@@ -45,7 +46,7 @@ void LedPixel::begin() {
   const esp_err_t installResult = rmt_driver_install(kRmtChannel, 0, 0);
   ready_ = (configResult == ESP_OK) && (installResult == ESP_OK);
   if (!ready_) {
-    pinMode(pins::WS2812_DATA, OUTPUT);
+    pinMode(pins::LED_DATA, OUTPUT);
   }
   off();
 }
@@ -56,7 +57,7 @@ void LedPixel::show(const RgbColor& color) {
   }
 
   const uint8_t bytes[kColorByteCount] = {color.green, color.red, color.blue};
-  rmt_item32_t items[kWs2812BitCount] = {};
+  rmt_item32_t items[kLedBitCount] = {};
   size_t itemIndex = 0;
 
   for (uint8_t byte : bytes) {
@@ -65,14 +66,14 @@ void LedPixel::show(const RgbColor& color) {
     }
   }
 
-  rmt_write_items(kRmtChannel, items, kWs2812BitCount, true);
+  rmt_write_items(kRmtChannel, items, kLedBitCount, true);
   rmt_wait_tx_done(kRmtChannel, pdMS_TO_TICKS(10));
-  delayMicroseconds(80);
+  delayMicroseconds(kResetDelayUs);
 }
 
 void LedPixel::off() {
   if (!ready_) {
-    digitalWrite(pins::WS2812_DATA, LOW);
+    digitalWrite(pins::LED_DATA, LOW);
     return;
   }
 
