@@ -25,8 +25,44 @@ firmware/vendor/
 !docs/**/*.pdf
 !firmware/web/README.md
 
-# Never commit local backend copies.
-xiaozhi-esp32-serve/
+# Track the xiaozhi server source and deployment files, but keep local runtime
+# data, caches, credentials, large models, and generated packages out of Git.
+xiaozhi-esp32-serve/**/__pycache__/
+xiaozhi-esp32-serve/**/*.py[cod]
+xiaozhi-esp32-serve/**/.pytest_cache/
+xiaozhi-esp32-serve/**/.mypy_cache/
+xiaozhi-esp32-serve/**/.cache/
+xiaozhi-esp32-serve/**/.venv/
+xiaozhi-esp32-serve/**/venv/
+xiaozhi-esp32-serve/**/node_modules/
+xiaozhi-esp32-serve/**/dist/
+xiaozhi-esp32-serve/**/build/
+xiaozhi-esp32-serve/**/target/
+xiaozhi-esp32-serve/**/unpackage/
+xiaozhi-esp32-serve/**/.env
+xiaozhi-esp32-serve/**/.env.*
+!xiaozhi-esp32-serve/**/.env.example
+!xiaozhi-esp32-serve/**/.env.template
+xiaozhi-esp32-serve/**/.config.yaml
+xiaozhi-esp32-serve/**/.secrets.yaml
+xiaozhi-esp32-serve/**/.private_config.yaml
+xiaozhi-esp32-serve/main/xiaozhi-server/config_from_api.yaml
+xiaozhi-esp32-serve/main/xiaozhi-server/data/
+xiaozhi-esp32-serve/main/xiaozhi-server/mysql/
+xiaozhi-esp32-serve/main/xiaozhi-server/backups/
+xiaozhi-esp32-serve/main/xiaozhi-server/uploadfile/
+xiaozhi-esp32-serve/main/xiaozhi-server/tmp/
+xiaozhi-esp32-serve/main/xiaozhi-server/audio_ref/
+xiaozhi-esp32-serve/main/xiaozhi-server/asr-models/
+xiaozhi-esp32-serve/main/xiaozhi-server/models/
+!xiaozhi-esp32-serve/main/xiaozhi-server/models/.gitkeep
+xiaozhi-esp32-serve/main/digital-human/wakeword_runtime/models/
+xiaozhi-esp32-serve/main/digital-human/wakeword_runtime/sherpa-onnx-kws-*/
+!xiaozhi-esp32-serve/**/*.png
+!xiaozhi-esp32-serve/**/*.jpg
+!xiaozhi-esp32-serve/**/*.jpeg
+!xiaozhi-esp32-serve/**/*.ico
+!xiaozhi-esp32-serve/**/*.svg
 
 # Never commit hardware reference, test, crowdfunding, site, or promo material.
 site/
@@ -69,3 +105,4 @@ docs/铜豆_开源发布方案_最终版.md
 docs/铜豆_魔头诞生视频拍摄与置顶评论.md
 docs/铜豆原理图/
 docs/验证记录.md
+hardware_test_firmware/docs/SYNC_FROM_BOARD_TEST.md
