@@ -38,7 +38,7 @@ https://gettongdou.com
 ## What TongDou Demonstrates
 
 - OLED expressions and status display
-- WS2812 light effects
+- SK6812-EC20 light effects
 - Dual-motor movement
 - Voice playback and scripted interactions
 - Logo touch interaction
@@ -57,7 +57,7 @@ open-source phase.
 - IM72D128V01XTMA1 PDM microphone
 - NS4168 I2S audio amplifier
 - 0.96-inch OLED display
-- WS2812B-2020 RGB LED
+- SK6812-EC20 RGB LED
 - AT8833CT dual-motor driver, with nFAULT connected to IO37
 - QMI8658A 6-axis IMU
 - TongDou logo touch input on IO4
