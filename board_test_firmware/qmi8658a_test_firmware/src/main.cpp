@@ -4,8 +4,8 @@
 
 namespace {
 
-constexpr int kI2cSda = 5;
-constexpr int kI2cScl = 6;
+constexpr int kI2cSda = 6;
+constexpr int kI2cScl = 7;
 constexpr int kLedPin = 9;
 constexpr int kPdmClockPin = 1;
 constexpr int kPdmDataPin = 2;
@@ -655,8 +655,8 @@ void runFullProbe() {
   Serial.print(" clock=");
   Serial.print(kI2cClockHz);
   Serial.println("Hz");
-  Serial.println("board no-load test: QMI8658A, WS2812, PDM mic, AT8833CT wake/output, NS4168 beep, battery/charge");
-  Serial.print("WS2812 test LED=IO");
+  Serial.println("board no-load test: QMI8658A, SK6812-EC20, PDM mic, AT8833CT wake/output, NS4168 beep, battery/charge");
+  Serial.print("SK6812-EC20 test LED=IO");
   Serial.println(kLedPin);
   Serial.print("PDM mic CLK=IO");
   Serial.print(kPdmClockPin);

@@ -8,6 +8,9 @@ class AudioOutput {
  public:
   void begin();
   void playTestTone(uint16_t frequencyHz = 880, uint16_t durationMs = 120);
+  bool writePcm16Mono(const int16_t* samples, size_t sampleCount,
+                      uint32_t sampleRate);
+  void stopStream();
   bool ready() const;
   uint8_t volumePercent() const;
   void setVolumePercent(uint8_t percent);

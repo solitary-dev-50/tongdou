@@ -38,10 +38,10 @@ Build system: PlatformIO, Arduino framework, ESP32-S3 target.
 - `imu raw test`: prints a short QMI8658A raw-data motion report.
 - `speaker`: plays a generated I2S test tone through NS4168.
 - `audio volume [0-100]`: sets the generated test-tone volume.
-- `led red`: turns the WS2812 LED red.
-- `led green`: turns the WS2812 LED green.
-- `led blue`: turns the WS2812 LED blue.
-- `led off`: turns the WS2812 LED off.
+- `led red`: turns the SK6812-EC20 LED red.
+- `led green`: turns the SK6812-EC20 LED green.
+- `led blue`: turns the SK6812-EC20 LED blue.
+- `led off`: turns the SK6812-EC20 LED off.
 - `motor forward`: runs a short forward pulse on both motors.
 - `motor reverse`: runs a short reverse pulse on both motors.
 - `motor stop`: stops both motors.
@@ -115,11 +115,13 @@ Build system: PlatformIO, Arduino framework, ESP32-S3 target.
 
 This is a short single-file bring-up program. It checks:
 
-- QMI8658A on I2C IO5/IO6.
-- WS2812 LED on IO9.
+- QMI8658A on I2C IO6/IO7.
+- SK6812-EC20 LED on IO9.
 - PDM microphone on IO1/IO2.
 - NS4168 amplifier control and I2S beep on IO15/IO12/IO13/IO14.
 - AT8833CT motor wake and short output pulses on IO42/IO38/IO39/IO40/IO41.
+- AT8833CT nFAULT input on IO37.
+- LD2412 radar OUT/TX/RX on IO5/IO10/IO11.
 - Battery voltage, USB detect, charge, and standby signals on IO8/IO17/IO35/IO48.
 
 ## Explicitly Out Of Scope

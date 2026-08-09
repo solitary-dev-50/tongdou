@@ -63,7 +63,7 @@ platformio run
 ## Manual Hardware Check
 
 - [ ] OLED shows the expected test face/status.
-- [ ] WS2812 shows red, green, blue, and off.
+- [ ] SK6812-EC20 shows red, green, blue, and off.
 - [ ] PDM microphone prints changing level statistics.
 - [ ] NS4168 plays only the generated test tone.
 - [ ] Left and right motors pass short forward/reverse/manual checks.

@@ -2,6 +2,8 @@
 
 #include <Wire.h>
 
+#include "tongdou/Pins.h"
+
 namespace tongdou {
 namespace {
 
@@ -224,7 +226,8 @@ HardwareSelfTestService::HardwareSelfTestService(BatteryMonitor& battery,
       motors_(motors),
       radar_(radar),
       faceDisplay_(faceDisplay),
-      imu_(imu) {}
+      imu_(imu),
+      audioLoopback_(audioInput, audioOutput) {}
 
 void HardwareSelfTestService::begin() {
   motorStopAtMs_ = 0;
@@ -246,6 +249,7 @@ void HardwareSelfTestService::begin() {
 
 void HardwareSelfTestService::update() {
   radar_.update();
+  audioLoopback_.update();
   updateRadarGuidedTest();
   updateAutoMotorCalibration();
   if (autoMotorPhase_ != 0) {
@@ -329,6 +333,26 @@ uint8_t HardwareSelfTestService::audioVolumePercent() const {
   return audioOutput_.volumePercent();
 }
 
+bool HardwareSelfTestService::audioRecordingAvailable() const {
+  return audioLoopback_.recordingAvailable();
+}
+
+uint32_t HardwareSelfTestService::audioRecordingSampleRateHz() const {
+  return audioLoopback_.sampleRateHz();
+}
+
+const int16_t* HardwareSelfTestService::audioRecordingSamples() const {
+  return audioLoopback_.recordedSamples();
+}
+
+size_t HardwareSelfTestService::audioRecordingSampleCount() const {
+  return audioLoopback_.recordedSampleCount();
+}
+
+size_t HardwareSelfTestService::audioRecordingByteCount() const {
+  return audioLoopback_.recordedByteCount();
+}
+
 void HardwareSelfTestService::saveMotorCalibration(bool leftInverted,
                                                    bool rightInverted,
                                                    uint8_t leftDuty,
@@ -364,12 +388,21 @@ void HardwareSelfTestService::printHelp(Print& out) const {
   out.println(F("  radar factory reset"));
   out.println(F("  radar bridge"));
   out.println(F("  mic"));
+  out.println(F("  mic mode"));
+  out.println(F("  mic mode [0-17]"));
+  out.println(F("  audio record"));
+  out.println(F("  audio record status"));
+  out.println(F("  audio record stop"));
+  out.println(F("  audio loopback"));
+  out.println(F("  audio loopback status"));
+  out.println(F("  audio loopback stop"));
   out.println(F("  i2c scan"));
   out.println(F("  imu"));
   out.println(F("  imu raw test"));
   out.println(F("  speaker"));
   out.println(F("  audio volume [0-100]"));
-  out.println(F("  led red|green|blue|off"));
+  out.println(F("  led red|green|blue|white|off"));
+  out.println(F("  led pin high|low|pulse"));
   out.println(F("  motor forward|reverse|stop"));
   out.println(F("  motor manual forward [leftPwm rightPwm]"));
   out.println(F("  motor manual reverse [leftPwm rightPwm]"));
@@ -485,6 +518,26 @@ bool HardwareSelfTestService::handleCommand(const String& command, Print& out) {
     printMic(out);
     return true;
   }
+  if (cmd == F("mic mode")) {
+    printMicMode(out);
+    return true;
+  }
+  if (cmd.startsWith(F("mic mode "))) {
+    setMicMode(cmd, out);
+    return true;
+  }
+  if (cmd == F("audio record") || cmd == F("audio loopback")) {
+    startAudioLoopback(out);
+    return true;
+  }
+  if (cmd == F("audio record status") || cmd == F("audio loopback status")) {
+    printAudioLoopbackStatus(out);
+    return true;
+  }
+  if (cmd == F("audio record stop") || cmd == F("audio loopback stop")) {
+    stopAudioLoopback(out);
+    return true;
+  }
   if (cmd == F("i2c scan")) {
     printI2cScan(out);
     return true;
@@ -501,7 +554,11 @@ bool HardwareSelfTestService::handleCommand(const String& command, Print& out) {
     testSpeaker(out);
     return true;
   }
-  if (cmd == F("audio volume") || cmd.startsWith(F("audio volume "))) {
+  if (cmd == F("audio volume")) {
+    printAudioVolume(out);
+    return true;
+  }
+  if (cmd.startsWith(F("audio volume "))) {
     const int space = cmd.lastIndexOf(' ');
     if (space > 0 && space < static_cast<int>(cmd.length() - 1)) {
       const int value = cmd.substring(space + 1).toInt();
@@ -513,20 +570,42 @@ bool HardwareSelfTestService::handleCommand(const String& command, Print& out) {
     return true;
   }
   if (cmd == F("led red")) {
-    testLed({64, 0, 0}, out);
+    testLed({255, 0, 0}, out);
     return true;
   }
   if (cmd == F("led green")) {
-    testLed({0, 64, 0}, out);
+    testLed({0, 255, 0}, out);
     return true;
   }
   if (cmd == F("led blue")) {
-    testLed({0, 0, 64}, out);
+    testLed({0, 0, 255}, out);
+    return true;
+  }
+  if (cmd == F("led white")) {
+    testLed({64, 64, 64}, out);
     return true;
   }
   if (cmd == F("led off")) {
     led_.off();
     out.println(F("led off"));
+    return true;
+  }
+  if (cmd == F("led pin high")) {
+    led_.off();
+    pinMode(pins::LED_DATA, OUTPUT);
+    digitalWrite(pins::LED_DATA, HIGH);
+    out.println(F("led data pin high"));
+    return true;
+  }
+  if (cmd == F("led pin low")) {
+    led_.off();
+    pinMode(pins::LED_DATA, OUTPUT);
+    digitalWrite(pins::LED_DATA, LOW);
+    out.println(F("led data pin low"));
+    return true;
+  }
+  if (cmd == F("led pin pulse")) {
+    pulseLedDataPin(out);
     return true;
   }
   if (cmd == F("motor forward")) {
@@ -1212,8 +1291,16 @@ void HardwareSelfTestService::startRadarBridge(Print& out) {
 }
 
 void HardwareSelfTestService::printMic(Print& out) {
+  if (audioLoopback_.active()) {
+    out.println(F("mic test unavailable while audio loopback is active"));
+    printAudioLoopbackStatus(out);
+    return;
+  }
+
   const AudioInputSnapshot snapshot = audioInput_.readLevel();
   out.println(F("mic:"));
+  out.print(F("  mode="));
+  out.println(audioInput_.modeIndex());
   printBool(out, F("  ready="), snapshot.ready);
   printBool(out, F("  has_samples="), snapshot.hasSamples);
   out.print(F("  samples="));
@@ -1228,6 +1315,47 @@ void HardwareSelfTestService::printMic(Print& out) {
   out.println(snapshot.peak);
   out.print(F("  avg_abs="));
   out.println(snapshot.averageAbs);
+}
+
+void HardwareSelfTestService::printMicMode(Print& out) const {
+  audioInput_.printMode(out);
+}
+
+void HardwareSelfTestService::setMicMode(const String& command, Print& out) {
+  if (audioLoopback_.active()) {
+    out.println(F("mic mode unavailable while audio record is active"));
+    printAudioLoopbackStatus(out);
+    return;
+  }
+
+  const int space = command.lastIndexOf(' ');
+  if (space <= 0 || space >= static_cast<int>(command.length() - 1)) {
+    printMicMode(out);
+    return;
+  }
+
+  const int value = command.substring(space + 1).toInt();
+  if (value < 0 || value >= audioInput_.modeCount()) {
+    out.print(F("mic mode invalid index="));
+    out.println(value);
+    out.print(F("valid_range=0-"));
+    out.println(audioInput_.modeCount() - 1);
+    return;
+  }
+
+  audioInput_.setMode(static_cast<uint8_t>(value), out);
+}
+
+void HardwareSelfTestService::startAudioLoopback(Print& out) {
+  audioLoopback_.start(out);
+}
+
+void HardwareSelfTestService::printAudioLoopbackStatus(Print& out) const {
+  audioLoopback_.printStatus(out);
+}
+
+void HardwareSelfTestService::stopAudioLoopback(Print& out) {
+  audioLoopback_.stop(out);
 }
 
 void HardwareSelfTestService::printI2cScan(Print& out) {
@@ -1554,6 +1682,21 @@ void HardwareSelfTestService::printAudioVolume(Print& out) const {
 void HardwareSelfTestService::testLed(const RgbColor& color, Print& out) {
   led_.show(color);
   out.println(F("led test color set"));
+}
+
+void HardwareSelfTestService::pulseLedDataPin(Print& out) {
+  led_.off();
+  pinMode(pins::LED_DATA, OUTPUT);
+  out.println(F("led data pin pulse start"));
+  out.print(F("  pin=IO"));
+  out.println(static_cast<int>(pins::LED_DATA));
+  for (uint8_t index = 0; index < 6; ++index) {
+    digitalWrite(pins::LED_DATA, HIGH);
+    delay(250);
+    digitalWrite(pins::LED_DATA, LOW);
+    delay(250);
+  }
+  out.println(F("led data pin pulse done"));
 }
 
 void HardwareSelfTestService::testMotor(WheelDrive left, WheelDrive right, Print& out) {

@@ -6,11 +6,13 @@ It is useful before full assembly when you want the shortest possible test progr
 
 ## Current Checks
 
-- QMI8658A on I2C IO5/IO6
-- WS2812 LED on IO9
+- QMI8658A on I2C IO6/IO7
+- SK6812-EC20 LED on IO9
 - PDM microphone on IO1/IO2
 - NS4168 amplifier control and I2S beep on IO15/IO12/IO13/IO14
 - AT8833CT motor driver wake and short output pulses on IO42/IO38/IO39/IO40/IO41
+- AT8833CT nFAULT input on IO37
+- LD2412 radar OUT/TX/RX on IO5/IO10/IO11
 - Battery voltage, USB detect, charge, and standby signals on IO8/IO17/IO35/IO48
 
 ## Serial Commands

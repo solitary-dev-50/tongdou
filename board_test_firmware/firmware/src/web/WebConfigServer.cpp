@@ -1,15 +1,25 @@
 #include "web/WebConfigServer.h"
 
 #include <WiFi.h>
+#include <math.h>
+#include <string.h>
 
 namespace tongdou {
 namespace {
 
 constexpr const char* kPortalSsid = "TongDou-BoardTest";
-constexpr uint16_t kDnsPort = 53;
+constexpr uint8_t kPortalChannel = 6;
+constexpr uint8_t kPortalMaxConnections = 4;
+constexpr unsigned long kApHealthLogIntervalMs = 15000;
+constexpr size_t kAudioWavHeaderBytes = 44;
+constexpr size_t kAudioExportChunkSamples = 128;
+constexpr int32_t kAudioHighPassAlphaQ15 = 31295;  // about 120 Hz at 16 kHz.
+constexpr float kAudioExportTargetRms = 2000.0F;
+constexpr float kAudioExportMaxGain = 40.0F;
 const IPAddress kPortalIp(192, 168, 4, 1);
 const IPAddress kPortalGateway(192, 168, 4, 1);
 const IPAddress kPortalSubnet(255, 255, 255, 0);
+const IPAddress kPortalDhcpStart(192, 168, 4, 2);
 
 uint8_t parseDutyArg(const String& value, uint8_t fallback) {
   if (value.length() == 0) {
@@ -29,27 +39,94 @@ String boolJson(bool value) {
   return value ? "true" : "false";
 }
 
+void writeLe16(uint8_t* output, uint16_t value) {
+  output[0] = static_cast<uint8_t>(value & 0xFF);
+  output[1] = static_cast<uint8_t>((value >> 8) & 0xFF);
+}
+
+void writeLe32(uint8_t* output, uint32_t value) {
+  output[0] = static_cast<uint8_t>(value & 0xFF);
+  output[1] = static_cast<uint8_t>((value >> 8) & 0xFF);
+  output[2] = static_cast<uint8_t>((value >> 16) & 0xFF);
+  output[3] = static_cast<uint8_t>((value >> 24) & 0xFF);
+}
+
+void buildWavHeader(uint8_t* header, uint32_t sampleRate, uint32_t sampleCount) {
+  const uint32_t dataBytes = sampleCount * sizeof(int16_t);
+  memcpy(header + 0, "RIFF", 4);
+  writeLe32(header + 4, 36U + dataBytes);
+  memcpy(header + 8, "WAVE", 4);
+  memcpy(header + 12, "fmt ", 4);
+  writeLe32(header + 16, 16);
+  writeLe16(header + 20, 1);
+  writeLe16(header + 22, 1);
+  writeLe32(header + 24, sampleRate);
+  writeLe32(header + 28, sampleRate * sizeof(int16_t));
+  writeLe16(header + 32, sizeof(int16_t));
+  writeLe16(header + 34, 16);
+  memcpy(header + 36, "data", 4);
+  writeLe32(header + 40, dataBytes);
+}
+
+int16_t clampPcm16(int32_t value) {
+  if (value > 32767) {
+    return 32767;
+  }
+  if (value < -32768) {
+    return -32768;
+  }
+  return static_cast<int16_t>(value);
+}
+
+int32_t highPassPcm16(int32_t sample, int32_t& previousInput,
+                      int32_t& previousOutput) {
+  const int32_t output =
+      (kAudioHighPassAlphaQ15 * (previousOutput + sample - previousInput)) >> 15;
+  previousInput = sample;
+  previousOutput = output;
+  return output;
+}
+
 }  // namespace
 
 WebConfigServer::WebConfigServer(HardwareSelfTestService& hardwareSelfTest)
     : hardwareSelfTest_(hardwareSelfTest) {}
 
 void WebConfigServer::begin() {
+  WiFi.persistent(false);
+  WiFi.mode(WIFI_OFF);
+  delay(100);
   WiFi.mode(WIFI_AP);
-  WiFi.softAPConfig(kPortalIp, kPortalGateway, kPortalSubnet);
-  WiFi.softAP(kPortalSsid);
+  WiFi.setSleep(false);
+  const bool configReady =
+      WiFi.softAPConfig(kPortalIp, kPortalGateway, kPortalSubnet,
+                        kPortalDhcpStart);
+  const bool apReady =
+      WiFi.softAP(kPortalSsid, nullptr, kPortalChannel, 0,
+                  kPortalMaxConnections);
 
-  dnsServer_.start(kDnsPort, "*", kPortalIp);
-  dnsStarted_ = true;
+  dnsStarted_ = false;
 
   setupRoutes();
   server_.begin();
   serverStarted_ = true;
 
-  Serial.print(F("board test ap ssid="));
+  Serial.print(F("board test ap config="));
+  Serial.print(configReady ? 1 : 0);
+  Serial.print(F(" start="));
+  Serial.print(apReady ? 1 : 0);
+  Serial.print(F(" ssid="));
   Serial.print(kPortalSsid);
+  Serial.print(F(" channel="));
+  Serial.print(kPortalChannel);
+  Serial.print(F(" max_clients="));
+  Serial.print(kPortalMaxConnections);
+  Serial.print(F(" dns="));
+  Serial.print(dnsStarted_ ? 1 : 0);
   Serial.print(F(" ip="));
-  Serial.println(WiFi.softAPIP());
+  Serial.print(WiFi.softAPIP());
+  Serial.print(F(" dhcp_start="));
+  Serial.println(kPortalDhcpStart);
 }
 
 void WebConfigServer::update() {
@@ -59,6 +136,20 @@ void WebConfigServer::update() {
   if (serverStarted_) {
     server_.handleClient();
   }
+
+  const uint8_t stationCount = WiFi.softAPgetStationNum();
+  if (stationCount != lastStationCount_) {
+    lastStationCount_ = stationCount;
+    Serial.print(F("board test ap clients="));
+    Serial.println(lastStationCount_);
+  }
+  if (millis() - lastApHealthLogMs_ >= kApHealthLogIntervalMs) {
+    lastApHealthLogMs_ = millis();
+    Serial.print(F("board test ap health ip="));
+    Serial.print(WiFi.softAPIP());
+    Serial.print(F(" clients="));
+    Serial.println(stationCount);
+  }
 }
 
 void WebConfigServer::setupRoutes() {
@@ -67,13 +158,22 @@ void WebConfigServer::setupRoutes() {
   server_.on("/api/status", HTTP_GET, [this]() { handleStatus(); });
   server_.on("/api/radar", HTTP_GET, [this]() { handleRadarStatus(); });
   server_.on("/api/diagnostic", HTTP_POST, [this]() { handleDiagnosticCommand(); });
+  server_.on("/api/audio/recording.wav", HTTP_GET,
+             [this]() { handleAudioRecordingDownload(); });
   server_.on("/api/motor/config", HTTP_GET, [this]() { handleMotorConfigGet(); });
   server_.on("/api/motor/config", HTTP_POST, [this]() { handleMotorConfigSave(); });
-  server_.on("/generate_204", HTTP_GET, [this]() { handleBoardTestPage(); });
-  server_.on("/gen_204", HTTP_GET, [this]() { handleBoardTestPage(); });
-  server_.on("/hotspot-detect.html", HTTP_GET, [this]() { handleBoardTestPage(); });
-  server_.on("/connecttest.txt", HTTP_GET, [this]() { handleBoardTestPage(); });
-  server_.on("/redirect", HTTP_GET, [this]() { handleBoardTestPage(); });
+  server_.on("/generate_204", HTTP_GET,
+             [this]() { sendText(204, "text/plain", ""); });
+  server_.on("/gen_204", HTTP_GET,
+             [this]() { sendText(204, "text/plain", ""); });
+  server_.on("/hotspot-detect.html", HTTP_GET,
+             [this]() { sendText(200, "text/html", "<HTML><BODY>Success</BODY></HTML>"); });
+  server_.on("/connecttest.txt", HTTP_GET,
+             [this]() { sendText(200, "text/plain", "Microsoft Connect Test"); });
+  server_.on("/redirect", HTTP_GET, [this]() {
+    server_.sendHeader("Location", "http://192.168.4.1/motor", true);
+    sendText(302, "text/plain", "");
+  });
   server_.on("/favicon.ico", HTTP_GET,
              [this]() { sendText(204, "image/x-icon", ""); });
   server_.onNotFound([this]() { handleNotFound(); });
@@ -100,6 +200,10 @@ button:active{transform:translateY(1px)}
 button:disabled{opacity:.55;cursor:default;transform:none}
 .primary{background:#174ea6;color:#fff;border-color:#174ea6}
 .danger{background:#b3261e;color:#fff;border-color:#b3261e}
+.downloadLink{display:none;min-height:40px;border:1px solid #188038;background:#e6f4ea;color:#188038;border-radius:8px;text-decoration:none;font-size:15px;font-weight:700;align-items:center;justify-content:center}
+.waveformCard{display:none;background:#fff;border:1px solid #d5d9df;border-radius:8px;padding:10px;margin:10px 0}
+.waveformCard canvas{display:block;width:100%;height:96px;background:#0b0f14;border-radius:6px}
+.waveformMeta{display:flex;justify-content:space-between;gap:8px;margin-top:6px;font-size:13px;color:#5f6368}
 .toolbar{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:8px 0 12px}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:center}
 label{display:flex;gap:8px;align-items:center;margin:8px 0}
@@ -157,10 +261,18 @@ summary{font-size:17px;font-weight:700;cursor:pointer;padding:8px 0}
 <button onclick="diag('battery')" data-i18n="battery">Battery</button>
 <button onclick="diag('mic')" data-i18n="mic">Mic</button>
 <button onclick="diag('speaker')" data-i18n="speaker">Speaker</button>
+<button id="audioLoopbackButton" class="primary" onclick="startAudioLoopback()" data-i18n="audioLoopback">Record Mic</button>
 <button onclick="diag('i2c scan')" data-i18n="i2cScan">I2C Scan</button>
 <button onclick="diag('imu')" data-i18n="imu">IMU</button>
 </div>
+<div id="audioDownloads" class="grid" style="display:none;margin-top:8px">
+<a class="downloadLink audioDownloadLink" href="/api/audio/recording.wav" download="tongdou_mic_recording.wav">Download WAV</a>
+</div>
 <pre id="last" data-idle="1">Tap a test button to run it.</pre>
+<div id="audioWaveformCard" class="waveformCard">
+<canvas id="audioWaveform" width="640" height="96"></canvas>
+<div class="waveformMeta"><span id="audioWaveformText">peak: 0</span><span data-i18n="waveform">Mic waveform</span></div>
+</div>
 
 <h2 data-i18n="radarPanel">Radar Recognition</h2>
 <div class="radarCard">
@@ -230,6 +342,9 @@ let radarTimer=null;
 let radarBusy=false;
 let radarCalibrationTimer=null;
 let calibrationInProgress=false;
+let audioLoopbackTimer=null;
+let audioLoopbackInProgress=false;
+let audioWaveform=[];
 let lastStatus=null;
 let lastRadarData=null;
 let radarNoticeKey=null;
@@ -258,6 +373,8 @@ const text={
     battery:'Battery',
     mic:'Mic',
     speaker:'Speaker',
+    audioLoopback:'Record Mic',
+    waveform:'Mic waveform',
     i2cScan:'I2C Scan',
     imu:'IMU',
     lastIdle:'Tap a test button to run it.',
@@ -321,6 +438,8 @@ const text={
     battery:'电池',
     mic:'麦克风',
     speaker:'喇叭',
+    audioLoopback:'录音',
+    waveform:'麦克风波形',
     i2cScan:'I2C 扫描',
     imu:'陀螺仪',
     lastIdle:'点击测试按钮后，这里会显示结果。',
@@ -396,6 +515,54 @@ function append(text){$('log').textContent=(text||'')+'\n\n'+$('log').textConten
 async function post(path, body){
   const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});
   return await r.text();
+}
+function readMetric(text,key){
+  const match=text.match(new RegExp('^\\s*'+key+'=(-?\\d+)','m'));
+  return match?Number(match[1]):0;
+}
+function resetAudioWaveform(){
+  audioWaveform=[];
+  $('audioWaveformCard').style.display='block';
+  $('audioWaveformText').textContent='peak: 0';
+  drawAudioWaveform();
+}
+function setAudioDownloadsVisible(visible){
+  $('audioDownloads').style.display=visible?'grid':'none';
+  document.querySelectorAll('.audioDownloadLink').forEach(link=>{
+    link.style.display=visible?'flex':'none';
+  });
+}
+function pushAudioWaveform(statusText){
+  const peak=readMetric(statusText,'live_peak')||readMetric(statusText,'peak');
+  if(audioWaveform.length>80)audioWaveform.shift();
+  audioWaveform.push(Math.max(0,Math.min(32767,peak)));
+  $('audioWaveformText').textContent='peak: '+peak+'  avg: '+readMetric(statusText,'live_avg_abs');
+  drawAudioWaveform();
+}
+function drawAudioWaveform(){
+  const canvas=$('audioWaveform');
+  const ctx=canvas.getContext('2d');
+  const w=canvas.width;
+  const h=canvas.height;
+  ctx.fillStyle='#0b0f14';
+  ctx.fillRect(0,0,w,h);
+  ctx.strokeStyle='#24313f';
+  ctx.beginPath();
+  ctx.moveTo(0,h/2);
+  ctx.lineTo(w,h/2);
+  ctx.stroke();
+  if(audioWaveform.length===0)return;
+  const barWidth=Math.max(3,Math.floor(w/80)-1);
+  const gap=2;
+  const start=Math.max(0,w-audioWaveform.length*(barWidth+gap));
+  for(let i=0;i<audioWaveform.length;i++){
+    const normalized=Math.min(1,audioWaveform[i]/12000);
+    const barHeight=Math.max(2,normalized*(h-12));
+    const x=start+i*(barWidth+gap);
+    const y=(h-barHeight)/2;
+    ctx.fillStyle=normalized>.75?'#f29900':'#20c997';
+    ctx.fillRect(x,y,barWidth,barHeight);
+  }
 }
 function updateRadarPanel(data){
   radarNoticeKey=null;
@@ -518,6 +685,60 @@ async function diag(command){
     const message=text[currentLanguage].requestFailed+': '+error;
     $('last').textContent='$ '+command+'\n'+message;
     append('$ '+command+'\n'+message);
+  }
+}
+function stopAudioLoopbackPoll(){
+  if(audioLoopbackTimer){
+    clearInterval(audioLoopbackTimer);
+    audioLoopbackTimer=null;
+  }
+}
+function finishAudioLoopback(result){
+  stopAudioLoopbackPoll();
+  audioLoopbackInProgress=false;
+  $('audioLoopbackButton').disabled=false;
+  pushAudioWaveform(result);
+  $('last').textContent='$ audio record status\n'+result;
+  append('$ audio record status\n'+result);
+  if(result.includes('done=1')&&result.includes('download_path=/api/audio/recording.wav')){
+    setAudioDownloadsVisible(true);
+  }
+  refreshStatus();
+}
+async function pollAudioLoopback(){
+  if(!audioLoopbackInProgress)return;
+  try{
+    const result=await post('/api/diagnostic','command=audio%20record%20status');
+    $('last').textContent='$ audio record status\n'+result;
+    pushAudioWaveform(result);
+    if(result.includes('done=1')||result.includes('failed=1')){
+      finishAudioLoopback(result);
+    }
+  }catch(error){
+    finishAudioLoopback(text[currentLanguage].requestFailed+': '+error);
+  }
+}
+async function startAudioLoopback(){
+  stopRadarLive();
+  stopAudioLoopbackPoll();
+  audioLoopbackInProgress=true;
+  $('audioLoopbackButton').disabled=true;
+  resetAudioWaveform();
+  setAudioDownloadsVisible(false);
+  $('last').dataset.idle='0';
+  $('last').textContent=text[currentLanguage].running+': Record Mic ...';
+  append('$ audio record\n'+text[currentLanguage].running+' ...');
+  try{
+    const result=await post('/api/diagnostic','command=audio%20record');
+    $('last').textContent='$ audio record\n'+result;
+    append('$ audio record\n'+result);
+    if(result.includes('failed=1')){
+      finishAudioLoopback(result);
+      return;
+    }
+    audioLoopbackTimer=setInterval(pollAudioLoopback,400);
+  }catch(error){
+    finishAudioLoopback(text[currentLanguage].requestFailed+': '+error);
   }
 }
 function setStatus(id,ok,label){
@@ -643,6 +864,9 @@ void WebConfigServer::handleDiagnosticCommand() {
     return;
   }
 
+  Serial.print(F("web diagnostic command="));
+  Serial.println(command);
+
   String output;
   class StringPrint : public Print {
    public:
@@ -660,6 +884,78 @@ void WebConfigServer::handleDiagnosticCommand() {
     output = "unknown command, run help";
   }
   sendText(200, "text/plain; charset=utf-8", output);
+}
+
+void WebConfigServer::handleAudioRecordingDownload() {
+  if (!hardwareSelfTest_.audioRecordingAvailable()) {
+    sendText(404, "text/plain; charset=utf-8", "no recording available");
+    return;
+  }
+
+  const int16_t* samples = hardwareSelfTest_.audioRecordingSamples();
+  const size_t sampleCount = hardwareSelfTest_.audioRecordingSampleCount();
+  if (samples == nullptr || sampleCount == 0) {
+    sendText(404, "text/plain; charset=utf-8", "empty recording");
+    return;
+  }
+
+  int64_t sum = 0;
+  for (size_t index = 0; index < sampleCount; ++index) {
+    sum += samples[index];
+  }
+  const int32_t mean = static_cast<int32_t>(sum / static_cast<int64_t>(sampleCount));
+
+  int64_t sumSquares = 0;
+  int32_t previousInput = 0;
+  int32_t previousOutput = 0;
+  for (size_t index = 0; index < sampleCount; ++index) {
+    const int32_t processed =
+        highPassPcm16(static_cast<int32_t>(samples[index]) - mean,
+                      previousInput, previousOutput);
+    sumSquares += static_cast<int64_t>(processed) * static_cast<int64_t>(processed);
+  }
+
+  float gain = 1.0F;
+  const float rms = sqrtf(static_cast<float>(sumSquares) /
+                         static_cast<float>(sampleCount));
+  if (rms > 1.0F) {
+    gain = kAudioExportTargetRms / rms;
+    if (gain < 1.0F) {
+      gain = 1.0F;
+    } else if (gain > kAudioExportMaxGain) {
+      gain = kAudioExportMaxGain;
+    }
+  }
+
+  uint8_t header[kAudioWavHeaderBytes] = {};
+  buildWavHeader(header, hardwareSelfTest_.audioRecordingSampleRateHz(),
+                 static_cast<uint32_t>(sampleCount));
+
+  server_.sendHeader("Cache-Control", "no-store");
+  server_.sendHeader("Content-Disposition",
+                     "attachment; filename=\"tongdou_mic_recording.wav\"");
+  server_.setContentLength(kAudioWavHeaderBytes + sampleCount * sizeof(int16_t));
+  server_.send(200, "audio/wav", "");
+
+  WiFiClient client = server_.client();
+  client.write(header, sizeof(header));
+
+  int16_t chunk[kAudioExportChunkSamples] = {};
+  previousInput = 0;
+  previousOutput = 0;
+  size_t offset = 0;
+  while (offset < sampleCount && client.connected()) {
+    const size_t count = min(kAudioExportChunkSamples, sampleCount - offset);
+    for (size_t index = 0; index < count; ++index) {
+      const int32_t processed =
+          highPassPcm16(static_cast<int32_t>(samples[offset + index]) - mean,
+                        previousInput, previousOutput);
+      chunk[index] = clampPcm16(static_cast<int32_t>(processed * gain));
+    }
+    client.write(reinterpret_cast<const uint8_t*>(chunk),
+                 count * sizeof(int16_t));
+    offset += count;
+  }
 }
 
 void WebConfigServer::handleRadarStatus() {
@@ -712,7 +1008,7 @@ void WebConfigServer::handleStatus() {
 }
 
 void WebConfigServer::handleNotFound() {
-  handleBoardTestPage();
+  sendText(404, "text/plain; charset=utf-8", "not found");
 }
 
 void WebConfigServer::sendText(int code, const char* type, const String& body) {

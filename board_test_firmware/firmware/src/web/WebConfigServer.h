@@ -20,6 +20,7 @@ class WebConfigServer {
   void handleMotorConfigGet();
   void handleMotorConfigSave();
   void handleDiagnosticCommand();
+  void handleAudioRecordingDownload();
   void handleRadarStatus();
   void handleStatus();
   void handleNotFound();
@@ -31,6 +32,8 @@ class WebConfigServer {
   DNSServer dnsServer_;
   bool serverStarted_ = false;
   bool dnsStarted_ = false;
+  uint8_t lastStationCount_ = 0;
+  unsigned long lastApHealthLogMs_ = 0;
 };
 
 }  // namespace tongdou

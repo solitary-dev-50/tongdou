@@ -109,6 +109,51 @@ void AudioOutput::playTestTone(uint16_t frequencyHz, uint16_t durationMs) {
   i2s_zero_dma_buffer(kSpeakerPort);
 }
 
+bool AudioOutput::writePcm16Mono(const int16_t* samples, size_t sampleCount,
+                                 uint32_t sampleRate) {
+  if (!ready_ || samples == nullptr || sampleCount == 0 || sampleRate == 0) {
+    return false;
+  }
+
+  if (currentSampleRate_ != sampleRate) {
+    const esp_err_t err = i2s_set_sample_rates(kSpeakerPort, sampleRate);
+    if (err != ESP_OK) {
+      return false;
+    }
+    currentSampleRate_ = sampleRate;
+  }
+
+  size_t offset = 0;
+  int16_t stereo[kFramesPerChunk * 2] = {};
+  while (offset < sampleCount) {
+    const size_t framesThisChunk = min(kFramesPerChunk, sampleCount - offset);
+    for (size_t frame = 0; frame < framesThisChunk; ++frame) {
+      const int16_t sample =
+          scaleSample(samples[offset + frame], volumePercent_);
+      stereo[frame * 2] = sample;
+      stereo[frame * 2 + 1] = sample;
+    }
+
+    size_t bytesWritten = 0;
+    const esp_err_t err =
+        i2s_write(kSpeakerPort, stereo, framesThisChunk * 2 * sizeof(stereo[0]),
+                  &bytesWritten, portMAX_DELAY);
+    if (err != ESP_OK ||
+        bytesWritten != framesThisChunk * 2 * sizeof(stereo[0])) {
+      return false;
+    }
+    offset += framesThisChunk;
+  }
+
+  return true;
+}
+
+void AudioOutput::stopStream() {
+  if (ready_) {
+    i2s_zero_dma_buffer(kSpeakerPort);
+  }
+}
+
 bool AudioOutput::ready() const {
   return ready_;
 }
