@@ -22,9 +22,18 @@ class AudioInput {
   AudioInputSnapshot readLevel();
   bool readPcm16(int16_t* buffer, size_t maxSamples, size_t& samplesRead);
   bool ready() const;
+  uint8_t modeIndex() const;
+  uint8_t modeCount() const;
+  bool setMode(uint8_t modeIndex, Print& out);
+  void printMode(Print& out) const;
 
  private:
+  bool installMode(uint8_t modeIndex, Print& out);
+  void uninstall();
+
   bool ready_ = false;
+  bool installed_ = false;
+  uint8_t modeIndex_ = 1;
 };
 
 }  // namespace tongdou

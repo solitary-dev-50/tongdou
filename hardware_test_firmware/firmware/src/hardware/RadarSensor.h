@@ -52,19 +52,26 @@ struct RadarSensitivityConfig {
 
 struct RadarTargetSnapshot {
   bool received = false;
+  bool engineeringMode = false;
   bool hasTarget = false;
   bool stateTarget = false;
   bool energyTarget = false;
+  bool movingGateTarget = false;
   uint8_t targetConfidence = 0;
   uint32_t sequence = 0;
   uint8_t rawPayloadLength = 0;
-  uint8_t rawPayload[16] = {};
+  uint8_t rawPayload[48] = {};
   uint8_t targetState = 0;
   uint16_t targetDistanceCm = 0;
   uint8_t movingEnergy = 0;
   uint16_t movingDistanceCm = 0;
   uint8_t staticEnergy = 0;
   uint16_t staticDistanceCm = 0;
+  uint8_t maxMovingGate = 0;
+  uint8_t maxStaticGate = 0;
+  uint8_t movingGateEnergy[14] = {};
+  uint8_t staticGateEnergy[14] = {};
+  uint8_t lightLevel = 0;
   uint32_t frameAgeMs = 0;
   uint32_t validFrameCount = 0;
   uint32_t invalidFrameCount = 0;
@@ -93,9 +100,11 @@ class RadarSensor {
   RadarDeskConfigResult applyDeskMode();
   RadarCommandResult applyResolution20cm();
   RadarCommandResult startBackgroundCalibration();
+  RadarCommandResult restoreFactoryDefaults();
   RadarCalibrationStatus readBackgroundCalibrationStatus();
   RadarSensitivityConfig readMotionSensitivity();
   RadarSensitivityConfig readStaticSensitivity();
+  RadarCommandResult setEngineeringMode(bool enabled);
   RadarTargetSnapshot readTarget() const;
   RadarParserSelfTestResult parserSelfTest() const;
   void bridge(Stream& host);
@@ -114,6 +123,9 @@ class RadarSensor {
   unsigned long lastValidFrameMs_ = 0;
   uint32_t validFrameCount_ = 0;
   uint32_t invalidFrameCount_ = 0;
+  unsigned long nextEngineeringModeAttemptMs_ = 0;
+  bool engineeringModeWanted_ = true;
+  bool engineeringModeEnabled_ = false;
 };
 
 }  // namespace tongdou

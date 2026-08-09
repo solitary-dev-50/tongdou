@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 
+#include "diagnostic/AudioLoopbackTest.h"
 #include "hardware/AudioInput.h"
 #include "hardware/AudioOutput.h"
 #include "hardware/BatteryMonitor.h"
@@ -43,6 +44,11 @@ class HardwareSelfTestService {
   uint8_t motorLeftDefaultDuty() const;
   uint8_t motorRightDefaultDuty() const;
   uint8_t audioVolumePercent() const;
+  bool audioRecordingAvailable() const;
+  uint32_t audioRecordingSampleRateHz() const;
+  const int16_t* audioRecordingSamples() const;
+  size_t audioRecordingSampleCount() const;
+  size_t audioRecordingByteCount() const;
   void saveAudioVolumePercent(uint8_t percent);
   void printHelp(Print& out) const;
   bool handleCommand(const String& command, Print& out);
@@ -68,6 +74,9 @@ class HardwareSelfTestService {
   void printRadarCalibrationStatus(Print& out);
   void startRadarBridge(Print& out);
   void printMic(Print& out);
+  void startAudioLoopback(Print& out);
+  void printAudioLoopbackStatus(Print& out) const;
+  void stopAudioLoopback(Print& out);
   void printI2cScan(Print& out);
   void printImu(Print& out);
   void printImuRawTest(Print& out);
@@ -88,6 +97,7 @@ class HardwareSelfTestService {
   RadarSensor& radar_;
   FaceDisplay& faceDisplay_;
   ImuSensor& imu_;
+  AudioLoopbackTest audioLoopback_;
   unsigned long motorStopAtMs_ = 0;
   unsigned long manualMotorTimeoutMs_ = 0;
   bool radarGuidedActive_ = false;

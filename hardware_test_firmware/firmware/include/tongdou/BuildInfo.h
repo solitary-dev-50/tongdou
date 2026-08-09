@@ -3,6 +3,6 @@
 namespace tongdou {
 
 constexpr const char* kProjectName = "Tong Dou";
-constexpr const char* kFirmwareStage = "public-v9-hardware-test";
+constexpr const char* kFirmwareStage = "internal-v9-board-test";
 
 }  // namespace tongdou

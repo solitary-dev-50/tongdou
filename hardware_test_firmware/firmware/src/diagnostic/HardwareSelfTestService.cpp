@@ -156,7 +156,8 @@ HardwareSelfTestService::HardwareSelfTestService(BatteryMonitor& battery,
       motors_(motors),
       radar_(radar),
       faceDisplay_(faceDisplay),
-      imu_(imu) {}
+      imu_(imu),
+      audioLoopback_(audioInput, audioOutput) {}
 
 void HardwareSelfTestService::begin() {
   motorStopAtMs_ = 0;
@@ -171,6 +172,7 @@ void HardwareSelfTestService::begin() {
 
 void HardwareSelfTestService::update() {
   radar_.update();
+  audioLoopback_.update();
   updateRadarGuidedTest();
 
   if (motorStopAtMs_ == 0 || millis() < motorStopAtMs_) {
@@ -228,6 +230,26 @@ uint8_t HardwareSelfTestService::audioVolumePercent() const {
   return audioOutput_.volumePercent();
 }
 
+bool HardwareSelfTestService::audioRecordingAvailable() const {
+  return audioLoopback_.recordingAvailable();
+}
+
+uint32_t HardwareSelfTestService::audioRecordingSampleRateHz() const {
+  return audioLoopback_.sampleRateHz();
+}
+
+const int16_t* HardwareSelfTestService::audioRecordingSamples() const {
+  return audioLoopback_.recordedSamples();
+}
+
+size_t HardwareSelfTestService::audioRecordingSampleCount() const {
+  return audioLoopback_.recordedSampleCount();
+}
+
+size_t HardwareSelfTestService::audioRecordingByteCount() const {
+  return audioLoopback_.recordedByteCount();
+}
+
 void HardwareSelfTestService::saveAudioVolumePercent(uint8_t percent) {
   audioOutput_.setVolumePercent(percent);
 }
@@ -258,6 +280,9 @@ void HardwareSelfTestService::printHelp(Print& out) const {
   out.println(F("  imu"));
   out.println(F("  imu raw test"));
   out.println(F("  speaker"));
+  out.println(F("  audio record"));
+  out.println(F("  audio record status"));
+  out.println(F("  audio record stop"));
   out.println(F("  audio volume [0-100]"));
   out.println(F("  led red|green|blue|off"));
   out.println(F("  motor forward|reverse|stop"));
@@ -372,6 +397,18 @@ bool HardwareSelfTestService::handleCommand(const String& command, Print& out) {
   }
   if (cmd == F("speaker")) {
     testSpeaker(out);
+    return true;
+  }
+  if (cmd == F("audio record") || cmd == F("audio loopback")) {
+    startAudioLoopback(out);
+    return true;
+  }
+  if (cmd == F("audio record status") || cmd == F("audio loopback status")) {
+    printAudioLoopbackStatus(out);
+    return true;
+  }
+  if (cmd == F("audio record stop") || cmd == F("audio loopback stop")) {
+    stopAudioLoopback(out);
     return true;
   }
   if (cmd == F("audio volume") || cmd.startsWith(F("audio volume "))) {
@@ -980,6 +1017,12 @@ void HardwareSelfTestService::startRadarBridge(Print& out) {
 }
 
 void HardwareSelfTestService::printMic(Print& out) {
+  if (audioLoopback_.active()) {
+    out.println(F("mic test unavailable while audio record is active"));
+    printAudioLoopbackStatus(out);
+    return;
+  }
+
   const AudioInputSnapshot snapshot = audioInput_.readLevel();
   out.println(F("mic:"));
   printBool(out, F("  ready="), snapshot.ready);
@@ -996,6 +1039,18 @@ void HardwareSelfTestService::printMic(Print& out) {
   out.println(snapshot.peak);
   out.print(F("  avg_abs="));
   out.println(snapshot.averageAbs);
+}
+
+void HardwareSelfTestService::startAudioLoopback(Print& out) {
+  audioLoopback_.start(out);
+}
+
+void HardwareSelfTestService::printAudioLoopbackStatus(Print& out) const {
+  audioLoopback_.printStatus(out);
+}
+
+void HardwareSelfTestService::stopAudioLoopback(Print& out) {
+  audioLoopback_.stop(out);
 }
 
 void HardwareSelfTestService::printI2cScan(Print& out) {

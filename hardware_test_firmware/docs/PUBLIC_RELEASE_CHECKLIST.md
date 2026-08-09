@@ -1,11 +1,11 @@
 # Public Release Checklist
 
-Use this checklist before copying `hardware_test_firmware/` into a public GitHub
+Use this checklist before copying `board_test_firmware/` into a public GitHub
 repository or release archive.
 
 ## Source Boundary
 
-- [ ] The package contains only `hardware_test_firmware/` files.
+- [ ] The package contains only `board_test_firmware/` files.
 - [ ] The full firmware under `firmware/` is not included.
 - [ ] The internal demo firmware under `local_demo_firmware/` is not included.
 - [ ] Website files under `site/` are not included.
@@ -22,9 +22,6 @@ repository or release archive.
 - [ ] No gyro closed-loop straight-line correction is included.
 - [ ] No automatic motor learning algorithm is included.
 - [ ] No production calibration flow is included.
-
-Note: LD2412 empty-scene background calibration is allowed as a field diagnostic
-step. It must not be described as production calibration.
 
 ## Sensitive Data
 
@@ -52,21 +49,21 @@ Expected notes:
 Run:
 
 ```bash
-cd hardware_test_firmware/firmware
+cd board_test_firmware/firmware
 platformio run
 ```
 
 Optional short smoke test:
 
 ```bash
-cd hardware_test_firmware/qmi8658a_test_firmware
+cd board_test_firmware/qmi8658a_test_firmware
 platformio run
 ```
 
 ## Manual Hardware Check
 
 - [ ] OLED shows the expected test face/status.
-- [ ] WS2812 shows red, green, blue, and off.
+- [ ] SK6812-EC20 shows red, green, blue, and off.
 - [ ] PDM microphone prints changing level statistics.
 - [ ] NS4168 plays only the generated test tone.
 - [ ] Left and right motors pass short forward/reverse/manual checks.

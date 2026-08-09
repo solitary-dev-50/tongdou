@@ -12,8 +12,11 @@ HardwareSerial radarSerial(1);
 constexpr uint32_t kRadarBaud = 115200;
 constexpr size_t kRadarRxBufferSize = 1024;
 constexpr uint16_t kCommandTimeoutMs = 300;
+constexpr uint16_t kFactoryResetTimeoutMs = 1000;
 constexpr size_t kMaxFrameSize = 80;
 constexpr uint16_t kTargetFrameStaleMs = 1000;
+constexpr uint16_t kEngineeringModeStartupDelayMs = 2500;
+constexpr uint16_t kEngineeringModeRetryMs = 5000;
 constexpr uint8_t kReportHeader[] = {0xF4, 0xF3, 0xF2, 0xF1};
 constexpr uint8_t kReportFooter[] = {0xF8, 0xF7, 0xF6, 0xF5};
 
@@ -24,9 +27,12 @@ constexpr uint16_t kSetResolutionAck = 0x0101;
 constexpr uint16_t kReadBasicConfigAck = 0x0112;
 constexpr uint16_t kReadMotionSensitivityAck = 0x0113;
 constexpr uint16_t kReadStaticSensitivityAck = 0x0114;
+constexpr uint16_t kEnableEngineeringModeAck = 0x0162;
+constexpr uint16_t kDisableEngineeringModeAck = 0x0163;
 constexpr uint16_t kSetBasicConfigAck = 0x0102;
 constexpr uint16_t kBackgroundCalibrationAck = 0x010B;
 constexpr uint16_t kReadBackgroundCalibrationStatusAck = 0x011B;
+constexpr uint16_t kFactoryResetAck = 0x01A2;
 constexpr uint16_t kRebootAck = 0x01A3;
 
 constexpr uint8_t kEnableConfigCommand[] = {
@@ -44,6 +50,10 @@ constexpr uint8_t kReadMotionSensitivityCommand[] = {
     0xFD, 0xFC, 0xFB, 0xFA, 0x02, 0x00, 0x13, 0x00, 0x04, 0x03, 0x02, 0x01};
 constexpr uint8_t kReadStaticSensitivityCommand[] = {
     0xFD, 0xFC, 0xFB, 0xFA, 0x02, 0x00, 0x14, 0x00, 0x04, 0x03, 0x02, 0x01};
+constexpr uint8_t kEnableEngineeringModeCommand[] = {
+    0xFD, 0xFC, 0xFB, 0xFA, 0x02, 0x00, 0x62, 0x00, 0x04, 0x03, 0x02, 0x01};
+constexpr uint8_t kDisableEngineeringModeCommand[] = {
+    0xFD, 0xFC, 0xFB, 0xFA, 0x02, 0x00, 0x63, 0x00, 0x04, 0x03, 0x02, 0x01};
 constexpr uint8_t kNearDeskConfigCommand[] = {
     0xFD, 0xFC, 0xFB, 0xFA, 0x07, 0x00, 0x02, 0x00, 0x01, 0x05, 0x05,
     0x00, 0x00, 0x04, 0x03, 0x02, 0x01};
@@ -54,6 +64,8 @@ constexpr uint8_t kBackgroundCalibrationCommand[] = {
     0xFD, 0xFC, 0xFB, 0xFA, 0x02, 0x00, 0x0B, 0x00, 0x04, 0x03, 0x02, 0x01};
 constexpr uint8_t kReadBackgroundCalibrationStatusCommand[] = {
     0xFD, 0xFC, 0xFB, 0xFA, 0x02, 0x00, 0x1B, 0x00, 0x04, 0x03, 0x02, 0x01};
+constexpr uint8_t kFactoryResetCommand[] = {
+    0xFD, 0xFC, 0xFB, 0xFA, 0x02, 0x00, 0xA2, 0x00, 0x04, 0x03, 0x02, 0x01};
 constexpr uint8_t kRebootCommand[] = {
     0xFD, 0xFC, 0xFB, 0xFA, 0x02, 0x00, 0xA3, 0x00, 0x04, 0x03, 0x02, 0x01};
 
@@ -135,13 +147,14 @@ bool sendAndWaitAck(const uint8_t* command, size_t length, uint16_t ackCommand) 
 }
 
 RadarCommandResult sendAndReadAckStatus(const uint8_t* command, size_t length,
-                                        uint16_t ackCommand) {
+                                        uint16_t ackCommand,
+                                        uint16_t timeoutMs = kCommandTimeoutMs) {
   RadarCommandResult result;
   uint8_t payload[16] = {};
   size_t payloadLength = 0;
   sendRadarCommand(command, length);
   result.received =
-      readRadarFrame(ackCommand, payload, sizeof(payload), payloadLength, kCommandTimeoutMs);
+      readRadarFrame(ackCommand, payload, sizeof(payload), payloadLength, timeoutMs);
   if (result.received && payloadLength >= 2) {
     const uint16_t ackStatus = static_cast<uint16_t>(payload[0]) |
                                (static_cast<uint16_t>(payload[1]) << 8);
@@ -173,6 +186,9 @@ void RadarSensor::begin() {
   lastValidFrameMs_ = 0;
   validFrameCount_ = 0;
   invalidFrameCount_ = 0;
+  nextEngineeringModeAttemptMs_ = millis() + kEngineeringModeStartupDelayMs;
+  engineeringModeWanted_ = true;
+  engineeringModeEnabled_ = false;
   clearRadarInput();
 }
 
@@ -181,6 +197,18 @@ void RadarSensor::update() {
   while (radarSerial.available() > 0 && byteBudget > 0) {
     consumeReportByte(static_cast<uint8_t>(radarSerial.read()));
     --byteBudget;
+  }
+
+  const unsigned long now = millis();
+  if (engineeringModeWanted_ && !engineeringModeEnabled_ &&
+      static_cast<long>(now - nextEngineeringModeAttemptMs_) >= 0) {
+    const RadarCommandResult result = setEngineeringMode(true);
+    engineeringModeEnabled_ = result.success;
+    nextEngineeringModeAttemptMs_ = millis() + kEngineeringModeRetryMs;
+    Serial.print(F("radar engineering auto received="));
+    Serial.print(result.received ? F("1") : F("0"));
+    Serial.print(F(" success="));
+    Serial.println(result.success ? F("1") : F("0"));
   }
 }
 
@@ -238,14 +266,14 @@ void RadarSensor::consumeReportByte(uint8_t value) {
 void RadarSensor::parseReportPayload(const uint8_t* payload, size_t payloadLength) {
   if (payload == nullptr || payloadLength < 11 ||
       (payload[0] != 0x01 && payload[0] != 0x02) ||
-      payload[1] != 0xAA || payload[payloadLength - 2] != 0x55 ||
-      payload[payloadLength - 1] != 0x00) {
+      payload[1] != 0xAA || payload[payloadLength - 2] != 0x55) {
     ++invalidFrameCount_;
     return;
   }
 
   RadarTargetSnapshot snapshot;
   snapshot.received = true;
+  snapshot.engineeringMode = payload[0] == 0x01;
   snapshot.sequence = ++validFrameCount_;
   snapshot.validFrameCount = validFrameCount_;
   snapshot.invalidFrameCount = invalidFrameCount_;
@@ -257,6 +285,17 @@ void RadarSensor::parseReportPayload(const uint8_t* payload, size_t payloadLengt
                               (static_cast<uint16_t>(payload[7]) << 8);
   snapshot.staticEnergy = payload[8];
 
+  if (snapshot.engineeringMode && payloadLength >= 41) {
+    engineeringModeEnabled_ = true;
+    snapshot.maxMovingGate = payload[9];
+    snapshot.maxStaticGate = payload[10];
+    memcpy(snapshot.movingGateEnergy, payload + 11,
+           sizeof(snapshot.movingGateEnergy));
+    memcpy(snapshot.staticGateEnergy, payload + 25,
+           sizeof(snapshot.staticGateEnergy));
+    snapshot.lightLevel = payload[39];
+  }
+
   const size_t rawLength = min(payloadLength, sizeof(snapshot.rawPayload));
   snapshot.rawPayloadLength = static_cast<uint8_t>(rawLength);
   memcpy(snapshot.rawPayload, payload, rawLength);
@@ -266,6 +305,7 @@ void RadarSensor::parseReportPayload(const uint8_t* payload, size_t payloadLengt
   const bool moduleTarget = moduleMovingTarget || moduleStaticTarget;
   snapshot.stateTarget = moduleTarget;
   snapshot.energyTarget = false;
+  snapshot.movingGateTarget = false;
   snapshot.targetConfidence = moduleTarget ? 1 : 0;
   snapshot.hasTarget = moduleTarget;
 
@@ -321,7 +361,7 @@ RadarBasicConfig RadarSensor::readBasicConfig() {
                                (static_cast<uint16_t>(payload[1]) << 8);
     config.success = (ackStatus == 0);
     config.minGate = payload[2];
-    config.maxGate = payload[3];
+    config.maxGate = payload[3] > 0 ? payload[3] - 1 : 0;
     config.absenceHoldSeconds = static_cast<uint16_t>(payload[4]) |
                                 (static_cast<uint16_t>(payload[5]) << 8);
     config.outputPolarity = payload[6];
@@ -393,6 +433,8 @@ RadarDeskConfigResult RadarSensor::applyDeskMode() {
   if (!result.reboot.success) {
     return result;
   }
+  engineeringModeEnabled_ = false;
+  nextEngineeringModeAttemptMs_ = millis() + kEngineeringModeStartupDelayMs;
 
   delay(2500);
   resetReportParser();
@@ -421,6 +463,8 @@ RadarCommandResult RadarSensor::applyResolution20cm() {
                            kSetResolutionAck);
   if (result.success) {
     sendAndReadAckStatus(kRebootCommand, sizeof(kRebootCommand), kRebootAck);
+    engineeringModeEnabled_ = false;
+    nextEngineeringModeAttemptMs_ = millis() + kEngineeringModeStartupDelayMs;
   } else {
     sendAndWaitAck(kEndConfigCommand, sizeof(kEndConfigCommand), kEndConfigAck);
   }
@@ -439,6 +483,43 @@ RadarCommandResult RadarSensor::startBackgroundCalibration() {
       sendAndReadAckStatus(kBackgroundCalibrationCommand, sizeof(kBackgroundCalibrationCommand),
                            kBackgroundCalibrationAck);
   sendAndWaitAck(kEndConfigCommand, sizeof(kEndConfigCommand), kEndConfigAck);
+  return result;
+}
+
+RadarCommandResult RadarSensor::restoreFactoryDefaults() {
+  resetReportParser();
+  clearRadarInput();
+
+  if (!sendAndWaitAck(kEnableConfigCommand, sizeof(kEnableConfigCommand),
+                      kEnableConfigAck)) {
+    return {};
+  }
+
+  const RadarCommandResult reset =
+      sendAndReadAckStatus(kFactoryResetCommand, sizeof(kFactoryResetCommand),
+                           kFactoryResetAck, kFactoryResetTimeoutMs);
+  if (!reset.success) {
+    sendAndWaitAck(kEndConfigCommand, sizeof(kEndConfigCommand), kEndConfigAck);
+    return reset;
+  }
+
+  delay(2000);
+  resetReportParser();
+  clearRadarInput();
+  if (!sendAndWaitAck(kEnableConfigCommand, sizeof(kEnableConfigCommand),
+                      kEnableConfigAck)) {
+    return reset;
+  }
+
+  const RadarCommandResult reboot =
+      sendAndReadAckStatus(kRebootCommand, sizeof(kRebootCommand), kRebootAck);
+  RadarCommandResult result;
+  result.received = reset.received && reboot.received;
+  result.success = reset.success && reboot.success;
+  if (result.success) {
+    engineeringModeEnabled_ = false;
+    nextEngineeringModeAttemptMs_ = millis() + kEngineeringModeStartupDelayMs;
+  }
   return result;
 }
 
@@ -520,6 +601,32 @@ RadarSensitivityConfig RadarSensor::readStaticSensitivity() {
 
   sendAndWaitAck(kEndConfigCommand, sizeof(kEndConfigCommand), kEndConfigAck);
   return config;
+}
+
+RadarCommandResult RadarSensor::setEngineeringMode(bool enabled) {
+  engineeringModeWanted_ = enabled;
+  resetReportParser();
+  clearRadarInput();
+
+  if (!sendAndWaitAck(kEnableConfigCommand, sizeof(kEnableConfigCommand),
+                      kEnableConfigAck)) {
+    return {};
+  }
+
+  const uint8_t* command =
+      enabled ? kEnableEngineeringModeCommand : kDisableEngineeringModeCommand;
+  const size_t commandLength =
+      enabled ? sizeof(kEnableEngineeringModeCommand)
+              : sizeof(kDisableEngineeringModeCommand);
+  const uint16_t ack =
+      enabled ? kEnableEngineeringModeAck : kDisableEngineeringModeAck;
+  RadarCommandResult result =
+      sendAndReadAckStatus(command, commandLength, ack);
+  sendAndWaitAck(kEndConfigCommand, sizeof(kEndConfigCommand), kEndConfigAck);
+  if (result.success) {
+    engineeringModeEnabled_ = enabled;
+  }
+  return result;
 }
 
 RadarTargetSnapshot RadarSensor::readTarget() const {

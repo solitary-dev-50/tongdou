@@ -18,6 +18,7 @@ class WebConfigServer {
   void setupRoutes();
   void handleBoardTestPage();
   void handleDiagnosticCommand();
+  void handleAudioRecordingDownload();
   void handleRadarStatus();
   void handleStatus();
   void handleNotFound();

@@ -5,7 +5,7 @@ It is not a wish list. Do not add entries here before code exists.
 
 ## Main Board-Test Firmware
 
-Path: `hardware_test_firmware/firmware`
+Path: `board_test_firmware/firmware`
 
 Build system: PlatformIO, Arduino framework, ESP32-S3 target.
 
@@ -16,18 +16,21 @@ Build system: PlatformIO, Arduino framework, ESP32-S3 target.
 - `battery`: reads USB presence, charging, standby, and raw battery ADC state.
 - `radar`: reads the LD2412 OUT pin state.
 - `radar target`: prints parsed LD2412 serial target data.
-- `radar sample`: prints live radar sample counters.
+- `radar sample`: collects three seconds without printing during capture, then
+  prints target-state, distance, energy, valid-frame, and invalid-frame totals.
 - `radar parser selftest`: checks the LD2412 frame parser with known sample frames.
 - `radar guided test`: starts a guided empty/target radar check.
 - `radar guided status`: prints guided radar check progress.
 - `radar guided blocking`: runs the guided radar check as a blocking serial test.
 - `radar config`: prints current LD2412 configuration.
+- `radar sensitivity`: prints all 14 moving and still gate thresholds.
+- `radar engineering on|off`: enables or disables per-gate engineering data.
 - `radar desk`: applies the current desk-mode LD2412 configuration.
 - `radar near`: applies the current near-field LD2412 configuration.
 - `radar resolution`: reads LD2412 distance resolution.
 - `radar res20`: sets LD2412 distance resolution to 20 cm.
-- `radar calibrate`: starts LD2412 empty-scene background calibration.
-- `radar calibrate status`: reads LD2412 empty-scene calibration status.
+- `radar calibrate`: starts LD2412 module calibration.
+- `radar calibrate status`: prints LD2412 calibration status.
 - `radar bridge`: bridges LD2412 serial traffic for external inspection.
 - `mic`: samples the PDM microphone and prints level statistics.
 - `i2c scan`: scans the OLED and QMI8658A shared I2C bus.
@@ -35,10 +38,10 @@ Build system: PlatformIO, Arduino framework, ESP32-S3 target.
 - `imu raw test`: prints a short QMI8658A raw-data motion report.
 - `speaker`: plays a generated I2S test tone through NS4168.
 - `audio volume [0-100]`: sets the generated test-tone volume.
-- `led red`: turns the WS2812 LED red.
-- `led green`: turns the WS2812 LED green.
-- `led blue`: turns the WS2812 LED blue.
-- `led off`: turns the WS2812 LED off.
+- `led red`: turns the SK6812-EC20 LED red.
+- `led green`: turns the SK6812-EC20 LED green.
+- `led blue`: turns the SK6812-EC20 LED blue.
+- `led off`: turns the SK6812-EC20 LED off.
 - `motor forward`: runs a short forward pulse on both motors.
 - `motor reverse`: runs a short reverse pulse on both motors.
 - `motor stop`: stops both motors.
@@ -54,19 +57,44 @@ After connecting to it, open:
 http://192.168.4.1/motor
 ```
 
-The page exposes common hardware checks: six-item status, battery, microphone,
-speaker, I2C, IMU, radar, LED, speaker volume, and basic motor tests.
+The page is the normal board-test workbench. It keeps the repeatable checks
+needed during assembly: board status, battery, microphone, speaker, I2C, IMU,
+radar presence, LED, motor direction, motor power, microphone recording, WAV
+download, and speaker volume.
 
-The radar panel exposes `/api/radar`, live target / no-target status, motion
-target status, nearest reported distance, valid frame count, bad frame count,
-and empty-scene background calibration.
+Advanced and temporary diagnostics remain available from the serial console
+but are intentionally not shown on the web page. These include the IMU raw
+test, radar parser inspection, guided radar experiments, radar parameter
+presets, and other serial-only diagnostic commands.
 
-Advanced diagnostics such as `imu raw test`, `radar parser selftest`, `radar
-guided test`, `radar bridge`, and arbitrary command entry are intentionally
-kept on the serial console only.
+The radar panel uses the LD2412 serial report as its primary source. The OUT
+pin is shown only as a wiring and module-output reference; it is not used as
+the accuracy result. Presence follows the module target-state byte exactly:
+zero means clear and a non-zero target state means occupied. Per-gate energy
+is diagnostic data only and never creates a host-side presence result.
 
-See [LD2412_RADAR_TEST.md](LD2412_RADAR_TEST.md) for the real-board radar test
-record and calibration notes.
+The web radar panel shows only `Target detected`, `No target`, or
+`No serial frame`. Live polling is intentionally silent on the USB serial
+console; use `radar sample` when a detailed serial report is needed.
+
+The V1.26 module firmware observed during board testing keeps the `0x55`
+marker before the final report byte, but that final byte is not always
+`0x00` in moving-target engineering frames. The parser validates the report
+header, declared length, `0x55` marker, and report footer without requiring a
+fixed final report byte.
+
+For a meaningful test, install the radar in its final fixed direction, keep
+the sensing area clear, and run `radar calibrate`. Do not rotate the radar
+between the empty and occupied phases; move the person into and out of the
+fixed sensing area instead. After calibration completes, allow the module to
+settle for 10 seconds, then use `radar sample` for one empty capture and one
+30-to-100-cm moving-person capture. A passing capture has complete frames,
+zero invalid-frame growth, a clear target state when empty, and moving or
+combined target states when occupied.
+
+Do not run the Hi-Link Bluetooth application and UART configuration commands
+at the same time. Use one controller at a time when changing parameters or
+running background calibration.
 
 ### Logo Touch
 
@@ -81,17 +109,19 @@ personality behavior, voice playback, or full motor choreography.
 
 ## Standalone QMI8658A Smoke Test
 
-Path: `hardware_test_firmware/qmi8658a_test_firmware`
+Path: `board_test_firmware/qmi8658a_test_firmware`
 
 Build system: PlatformIO, Arduino framework, ESP32-S3 target.
 
 This is a short single-file bring-up program. It checks:
 
-- QMI8658A on I2C IO5/IO6.
-- WS2812 LED on IO9.
+- QMI8658A on I2C IO6/IO7.
+- SK6812-EC20 LED on IO9.
 - PDM microphone on IO1/IO2.
 - NS4168 amplifier control and I2S beep on IO15/IO12/IO13/IO14.
 - AT8833CT motor wake and short output pulses on IO42/IO38/IO39/IO40/IO41.
+- AT8833CT nFAULT input on IO37.
+- LD2412 radar OUT/TX/RX on IO5/IO10/IO11.
 - Battery voltage, USB detect, charge, and standby signals on IO8/IO17/IO35/IO48.
 
 ## Explicitly Out Of Scope
