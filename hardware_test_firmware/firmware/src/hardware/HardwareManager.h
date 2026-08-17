@@ -46,7 +46,7 @@ class HardwareManager {
   AudioOutput audioOutput_;
   BatterySnapshot startupBattery_;
   HardwareSelfTestService selfTest_{battery_, audioInput_, audioOutput_, led_, motors_,
-                                    radar_, faceDisplay_, imu_};
+                                    radar_, faceDisplay_, imu_, logoTouch_};
 };
 
 }  // namespace tongdou

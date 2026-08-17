@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <Wire.h>
+#include <stdio.h>
 #include <string.h>
 
 namespace tongdou {
@@ -50,6 +51,41 @@ void FaceDisplay::show(FaceExpression expression) {
 
   clear();
   drawExpression(expression);
+  flush();
+}
+
+void FaceDisplay::showBattery(uint8_t percent, uint16_t voltageMv,
+                              bool usbPresent, bool charging, bool standby) {
+  if (!available_) {
+    return;
+  }
+
+  char percentText[8] = {};
+  char voltageText[12] = {};
+  snprintf(percentText, sizeof(percentText), "%u%%", static_cast<unsigned>(percent));
+  snprintf(voltageText, sizeof(voltageText), "%u.%02uV",
+           static_cast<unsigned>(voltageMv / 1000U),
+           static_cast<unsigned>((voltageMv % 1000U) / 10U));
+
+  clear();
+  drawText5x7(0, 0, "BAT", 1);
+  drawText5x7(88, 0, usbPresent ? "USB" : "BAT", 1);
+  drawText5x7(22, 16, percentText, 3);
+  drawText5x7(34, 44, voltageText, 1);
+
+  rect(8, 46, 20, 10);
+  fillRect(28, 49, 2, 4);
+  const uint8_t fillWidth = static_cast<uint8_t>(constrain(percent, 0, 100) * 16 / 100);
+  if (fillWidth > 0) {
+    fillRect(10, 48, fillWidth, 6);
+  }
+
+  if (charging) {
+    drawText5x7(90, 44, "CHG", 1);
+  } else if (standby) {
+    drawText5x7(90, 44, "FULL", 1);
+  }
+
   flush();
 }
 
@@ -173,6 +209,27 @@ void FaceDisplay::drawEyePair(int16_t leftX, int16_t rightX, int16_t y, int16_t 
 void FaceDisplay::drawChar5x7(int16_t x, int16_t y, char value, uint8_t scale) {
   uint8_t columns[5] = {};
   switch (value) {
+    case '%':
+      columns[0] = 0x23; columns[1] = 0x13; columns[2] = 0x08; columns[3] = 0x64; columns[4] = 0x62;
+      break;
+    case '0':
+      columns[0] = 0x3E; columns[1] = 0x51; columns[2] = 0x49; columns[3] = 0x45; columns[4] = 0x3E;
+      break;
+    case '6':
+      columns[0] = 0x3E; columns[1] = 0x49; columns[2] = 0x49; columns[3] = 0x49; columns[4] = 0x30;
+      break;
+    case '7':
+      columns[0] = 0x01; columns[1] = 0x71; columns[2] = 0x09; columns[3] = 0x05; columns[4] = 0x03;
+      break;
+    case '8':
+      columns[0] = 0x36; columns[1] = 0x49; columns[2] = 0x49; columns[3] = 0x49; columns[4] = 0x36;
+      break;
+    case '9':
+      columns[0] = 0x06; columns[1] = 0x49; columns[2] = 0x49; columns[3] = 0x49; columns[4] = 0x3E;
+      break;
+    case 'A':
+      columns[0] = 0x7E; columns[1] = 0x09; columns[2] = 0x09; columns[3] = 0x09; columns[4] = 0x7E;
+      break;
     case 'B':
       columns[0] = 0x7F; columns[1] = 0x49; columns[2] = 0x49; columns[3] = 0x49; columns[4] = 0x36;
       break;
@@ -188,6 +245,15 @@ void FaceDisplay::drawChar5x7(int16_t x, int16_t y, char value, uint8_t scale) {
     case 'F':
       columns[0] = 0x7F; columns[1] = 0x09; columns[2] = 0x09; columns[3] = 0x09; columns[4] = 0x01;
       break;
+    case 'G':
+      columns[0] = 0x3E; columns[1] = 0x41; columns[2] = 0x49; columns[3] = 0x49; columns[4] = 0x7A;
+      break;
+    case 'H':
+      columns[0] = 0x7F; columns[1] = 0x08; columns[2] = 0x08; columns[3] = 0x08; columns[4] = 0x7F;
+      break;
+    case 'L':
+      columns[0] = 0x7F; columns[1] = 0x40; columns[2] = 0x40; columns[3] = 0x40; columns[4] = 0x40;
+      break;
     case 'O':
       columns[0] = 0x3E; columns[1] = 0x41; columns[2] = 0x41; columns[3] = 0x41; columns[4] = 0x3E;
       break;
@@ -196,6 +262,12 @@ void FaceDisplay::drawChar5x7(int16_t x, int16_t y, char value, uint8_t scale) {
       break;
     case 'T':
       columns[0] = 0x01; columns[1] = 0x01; columns[2] = 0x7F; columns[3] = 0x01; columns[4] = 0x01;
+      break;
+    case 'U':
+      columns[0] = 0x3F; columns[1] = 0x40; columns[2] = 0x40; columns[3] = 0x40; columns[4] = 0x3F;
+      break;
+    case 'V':
+      columns[0] = 0x1F; columns[1] = 0x20; columns[2] = 0x40; columns[3] = 0x20; columns[4] = 0x1F;
       break;
     case '1':
       columns[0] = 0x00; columns[1] = 0x42; columns[2] = 0x7F; columns[3] = 0x40; columns[4] = 0x00;

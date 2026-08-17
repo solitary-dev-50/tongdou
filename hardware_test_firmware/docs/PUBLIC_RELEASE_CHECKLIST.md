@@ -1,16 +1,19 @@
 # Public Release Checklist
 
-Use this checklist before copying `board_test_firmware/` into a public GitHub
-repository or release archive.
+Use this checklist before publishing `hardware_test_firmware/` source or release
+artifacts.
 
 ## Source Boundary
 
-- [ ] The package contains only `board_test_firmware/` files.
-- [ ] The full firmware under `firmware/` is not included.
-- [ ] The internal demo firmware under `local_demo_firmware/` is not included.
-- [ ] Website files under `site/` are not included.
+- [ ] The source package contains only `hardware_test_firmware/` files.
+- [ ] The complete application firmware under the repository-root `firmware/` directory is not included.
+- [ ] The internal demo firmware under the repository-root `local_demo_firmware/` directory is not included.
+- [ ] Website files under the repository-root `site/` directory are not included.
 - [ ] Hardware PCB, schematic, Gerber, BOM, mechanical, fixture, and tooling files are not included unless the release scope explicitly says so.
 - [ ] Audio files are not included.
+- [ ] PlatformIO build caches such as `.pio/` are not included.
+- [ ] Temporary release artifacts are not committed unless they are intentionally part of the release.
+- [ ] `led_data_high_test_firmware/` is reviewed as a temporary diagnostic sub-firmware before inclusion.
 
 ## Firmware Boundary
 
@@ -19,9 +22,9 @@ repository or release archive.
 - [ ] No personality prompt or AI conversation logic is included.
 - [ ] No full expression, light, voice, and motor timeline is included.
 - [ ] No formal product firmware feature is included.
-- [ ] No gyro closed-loop straight-line correction is included.
-- [ ] No automatic motor learning algorithm is included.
-- [ ] No production calibration flow is included.
+- [ ] No complete product action or scene choreography is included.
+- [ ] Logo double-tap gyro return or wiggle behavior has been reviewed before publication.
+- [ ] Engineering maintenance features are documented as risky when they can move motors, write Flash, change radar parameters, or discharge the battery.
 
 ## Sensitive Data
 
@@ -36,6 +39,7 @@ Suggested scan:
 ```bash
 rg -n -S "password|passwd|ssid|token|api[_-]?key|secret|BEGIN PRIVATE|WiFi.begin|Authorization|Bearer|macAddress|http://|https://|ws://|wss://" hardware_test_firmware
 rg --files hardware_test_firmware -g "*.mp3" -g "*.wav" -g "*.m4a" -g "*.aac" -g "*.flac" -g "*.pcm" -g "*.pem" -g "*.key" -g "*.crt" -g "*.p12" -g "*.env"
+rg --files hardware_test_firmware | rg -i "\.pio|\.elf$|\.map$|\.zip$|\.7z$|\.rar$|\.log$|\.tmp$"
 ```
 
 Expected notes:
@@ -49,24 +53,47 @@ Expected notes:
 Run:
 
 ```bash
-cd board_test_firmware/firmware
+cd hardware_test_firmware/firmware
 platformio run
 ```
+
+Current PlatformIO project settings should be checked from
+`hardware_test_firmware/firmware/platformio.ini`, not guessed from ESP-IDF
+defaults.
+
+Expected public binary sources after build:
+
+- `.pio/build/esp32s3/bootloader.bin`
+- `.pio/build/esp32s3/partitions.bin`
+- `.pio/build/esp32s3/firmware.bin`
+- PlatformIO Arduino `boot_app0.bin`
+
+Expected ESP32-S3 flash addresses:
+
+- `0x0`: `bootloader.bin`
+- `0x8000`: `partitions.bin`
+- `0xe000`: `boot_app0.bin`
+- `0x10000`: `firmware.bin`
+
+If a merged image is produced, it should be generated from these PlatformIO
+artifacts and flashed at `0x0`.
 
 Optional short smoke test:
 
 ```bash
-cd board_test_firmware/qmi8658a_test_firmware
+cd hardware_test_firmware/qmi8658a_test_firmware
 platformio run
 ```
 
 ## Manual Hardware Check
 
-- [ ] OLED shows the expected test face/status.
+- [ ] OLED shows the expected test face/status and battery status screen.
 - [ ] SK6812-EC20 shows red, green, blue, and off.
 - [ ] PDM microphone prints changing level statistics.
 - [ ] NS4168 plays only the generated test tone.
 - [ ] Left and right motors pass short forward/reverse/manual checks.
 - [ ] QMI8658A appears on the I2C scan and prints motion data.
 - [ ] LD2412 radar OUT and serial parser checks work.
-- [ ] Battery, USB, charge, and standby readings make sense.
+- [ ] Battery percent estimate, voltage, USB, charge, and standby readings make sense.
+- [ ] Shipping discharge refuses to start with USB connected.
+- [ ] Shipping discharge stops the motors and alarms at 30% estimated charge.

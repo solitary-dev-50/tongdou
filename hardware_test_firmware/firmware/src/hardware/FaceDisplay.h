@@ -10,6 +10,8 @@ class FaceDisplay {
  public:
   void begin();
   void show(FaceExpression expression);
+  void showBattery(uint8_t percent, uint16_t voltageMv, bool usbPresent,
+                   bool charging, bool standby);
   bool ready() const;
 
  private:

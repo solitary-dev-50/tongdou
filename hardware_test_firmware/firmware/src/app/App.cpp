@@ -36,6 +36,7 @@ void App::begin() {
 void App::update() {
   webConfigServer_.update();
   hardware_.update();
+  updateLogoWiggleState();
   handleStartupReport();
   handleSerialDiagnostics();
   handleLogoTouchEvents();
@@ -46,6 +47,8 @@ void App::handleLogoTouchEvents() {
   if (event == LogoTouchEvent::None) {
     return;
   }
+
+  logoWiggle_.stop();
 
   if (event == LogoTouchEvent::LongPress) {
     logoSleepMode_ = !logoSleepMode_;
@@ -61,11 +64,29 @@ void App::handleLogoTouchEvents() {
   } else if (event == LogoTouchEvent::DoubleTap) {
     hardware_.faceDisplay().show(FaceExpression::Proud);
     hardware_.led().show({0, 16, 18});
-    Serial.println("logo action=double_tap_indicator");
+    logoWiggle_.start();
+    logoWiggleWasRunning_ = logoWiggle_.running();
+    Serial.println("logo action=double_tap_gyro_wiggle");
   } else {
     hardware_.faceDisplay().show(FaceExpression::Blink);
     hardware_.led().show({8, 8, 8});
     Serial.println("logo action=single_tap_blink");
+  }
+}
+
+void App::updateLogoWiggleState() {
+  const bool wasRunning = logoWiggle_.running();
+  logoWiggle_.update();
+  const bool isRunning = logoWiggle_.running();
+
+  if ((wasRunning || logoWiggleWasRunning_) && !isRunning) {
+    logoWiggleWasRunning_ = false;
+    if (!logoSleepMode_) {
+      hardware_.faceDisplay().show(FaceExpression::Awake);
+    }
+    hardware_.led().off();
+  } else {
+    logoWiggleWasRunning_ = isRunning;
   }
 }
 

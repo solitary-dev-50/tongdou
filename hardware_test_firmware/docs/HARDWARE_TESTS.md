@@ -5,7 +5,7 @@ It is not a wish list. Do not add entries here before code exists.
 
 ## Main Board-Test Firmware
 
-Path: `board_test_firmware/firmware`
+Path: `hardware_test_firmware/firmware`
 
 Build system: PlatformIO, Arduino framework, ESP32-S3 target.
 
@@ -13,7 +13,8 @@ Build system: PlatformIO, Arduino framework, ESP32-S3 target.
 
 - `selftest`: prints the basic board health report.
 - `status`: prints ready/failed status for display, LED, microphone, speaker, and web diagnostics.
-- `battery`: reads USB presence, charging, standby, and raw battery ADC state.
+- `battery`: reads USB presence, charging, standby, raw battery ADC, estimated
+  battery voltage, and estimated battery percent.
 - `radar`: reads the LD2412 OUT pin state.
 - `radar target`: prints parsed LD2412 serial target data.
 - `radar sample`: collects three seconds without printing during capture, then
@@ -47,6 +48,10 @@ Build system: PlatformIO, Arduino framework, ESP32-S3 target.
 - `motor stop`: stops both motors.
 - `motor manual forward [leftPwm rightPwm]`: keeps both motors moving forward briefly.
 - `motor manual reverse [leftPwm rightPwm]`: keeps both motors moving reverse briefly.
+- `shipping discharge start`: with wheels removed and USB unplugged, runs the
+  motors as a local load until estimated battery charge reaches 30%.
+- `shipping discharge status`: prints the current discharge state.
+- `shipping discharge stop`: stops shipping discharge immediately.
 
 ### Web Page
 
@@ -59,13 +64,23 @@ http://192.168.4.1/motor
 
 The page is the normal board-test workbench. It keeps the repeatable checks
 needed during assembly: board status, battery, microphone, speaker, I2C, IMU,
-radar presence, LED, motor direction, motor power, microphone recording, WAV
-download, and speaker volume.
+radar presence, LED, motor direction, motor power, gyro straight-line test,
+and speaker volume.
+
+The shipping discharge panel is for shipment preparation. It requires wheels to
+be removed, refuses to start while USB is present, stops at 30% estimated charge,
+and plays a three-tone speaker alarm when the target is reached.
+
+The status area shows estimated battery percent and voltage. The OLED also
+refreshes a battery status screen so a board can be checked without opening the
+web page. The percent is estimated from the `100k/100k` battery divider and is
+not a calibrated production fuel gauge.
 
 Advanced and temporary diagnostics remain available from the serial console
-but are intentionally not shown on the web page. These include the IMU raw
-test, radar parser inspection, guided radar experiments, radar parameter
-presets, and other serial-only diagnostic commands.
+or maintenance areas when needed. These include the IMU raw test, radar parser
+inspection, guided radar experiments, radar parameter presets, motor
+calibration, gyro straight-line testing, audio loopback, touch watch, and
+low-level LED GPIO checks.
 
 The radar panel uses the LD2412 serial report as its primary source. The OUT
 pin is shown only as a wiring and module-output reference; it is not used as
@@ -109,7 +124,7 @@ personality behavior, voice playback, or full motor choreography.
 
 ## Standalone QMI8658A Smoke Test
 
-Path: `board_test_firmware/qmi8658a_test_firmware`
+Path: `hardware_test_firmware/qmi8658a_test_firmware`
 
 Build system: PlatformIO, Arduino framework, ESP32-S3 target.
 
@@ -124,15 +139,21 @@ This is a short single-file bring-up program. It checks:
 - LD2412 radar OUT/TX/RX on IO5/IO10/IO11.
 - Battery voltage, USB detect, charge, and standby signals on IO8/IO17/IO35/IO48.
 
-## Explicitly Out Of Scope
+## Public Boundary
 
-The board-test package must not include:
+This package is the real TongDou V9 engineering board-test firmware. It may
+include risky maintenance and calibration functions when they are useful for
+bring-up, diagnostics, repair, or shipment preparation.
+
+The board-test package must still not include:
 
 - Full TongDou scenes.
 - Personality prompts or AI conversation logic.
 - Local audio files.
 - Full expression, light, voice, and motor timelines.
 - Formal product firmware features.
-- Gyro closed-loop straight-line correction.
-- Automatic motor learning algorithms.
-- Production calibration procedures.
+
+High-risk maintenance functions must be documented clearly instead of being
+hidden. These include persistent motor configuration, motor calibration,
+gyro-assisted straight-line tests, radar parameter changes, radar factory
+reset, and shipping discharge.

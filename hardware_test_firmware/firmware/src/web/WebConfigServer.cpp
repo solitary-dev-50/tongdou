@@ -1,4 +1,4 @@
-﻿#include "web/WebConfigServer.h"
+#include "web/WebConfigServer.h"
 
 #include <WiFi.h>
 #include <math.h>
@@ -8,7 +8,9 @@ namespace tongdou {
 namespace {
 
 constexpr const char* kPortalSsid = "TongDou-BoardTest";
-constexpr uint16_t kDnsPort = 53;
+constexpr uint8_t kPortalChannel = 6;
+constexpr uint8_t kPortalMaxConnections = 4;
+constexpr unsigned long kApHealthLogIntervalMs = 15000;
 constexpr size_t kAudioWavHeaderBytes = 44;
 constexpr size_t kAudioExportChunkSamples = 128;
 constexpr int32_t kAudioHighPassAlphaQ15 = 31295;  // about 120 Hz at 16 kHz.
@@ -17,9 +19,39 @@ constexpr float kAudioExportMaxGain = 40.0F;
 const IPAddress kPortalIp(192, 168, 4, 1);
 const IPAddress kPortalGateway(192, 168, 4, 1);
 const IPAddress kPortalSubnet(255, 255, 255, 0);
+const IPAddress kPortalDhcpStart(192, 168, 4, 2);
+
+uint8_t parseDutyArg(const String& value, uint8_t fallback) {
+  if (value.length() == 0) {
+    return fallback;
+  }
+
+  char* end = nullptr;
+  const long parsed = strtol(value.c_str(), &end, 10);
+  if (end == value.c_str()) {
+    return fallback;
+  }
+
+  return static_cast<uint8_t>(constrain(parsed, 0, 255));
+}
 
 String boolJson(bool value) {
   return value ? "true" : "false";
+}
+
+String jsonString(const char* value) {
+  String escaped = "\"";
+  if (value != nullptr) {
+    while (*value != '\0') {
+      if (*value == '"' || *value == '\\') {
+        escaped += '\\';
+      }
+      escaped += *value;
+      ++value;
+    }
+  }
+  escaped += "\"";
+  return escaped;
 }
 
 void writeLe16(uint8_t* output, uint16_t value) {
@@ -76,21 +108,40 @@ WebConfigServer::WebConfigServer(HardwareSelfTestService& hardwareSelfTest)
     : hardwareSelfTest_(hardwareSelfTest) {}
 
 void WebConfigServer::begin() {
+  WiFi.persistent(false);
+  WiFi.mode(WIFI_OFF);
+  delay(100);
   WiFi.mode(WIFI_AP);
-  WiFi.softAPConfig(kPortalIp, kPortalGateway, kPortalSubnet);
-  WiFi.softAP(kPortalSsid);
+  WiFi.setSleep(false);
+  const bool configReady =
+      WiFi.softAPConfig(kPortalIp, kPortalGateway, kPortalSubnet,
+                        kPortalDhcpStart);
+  const bool apReady =
+      WiFi.softAP(kPortalSsid, nullptr, kPortalChannel, 0,
+                  kPortalMaxConnections);
 
-  dnsServer_.start(kDnsPort, "*", kPortalIp);
-  dnsStarted_ = true;
+  dnsStarted_ = false;
 
   setupRoutes();
   server_.begin();
   serverStarted_ = true;
 
-  Serial.print(F("board test ap ssid="));
+  Serial.print(F("board test ap config="));
+  Serial.print(configReady ? 1 : 0);
+  Serial.print(F(" start="));
+  Serial.print(apReady ? 1 : 0);
+  Serial.print(F(" ssid="));
   Serial.print(kPortalSsid);
+  Serial.print(F(" channel="));
+  Serial.print(kPortalChannel);
+  Serial.print(F(" max_clients="));
+  Serial.print(kPortalMaxConnections);
+  Serial.print(F(" dns="));
+  Serial.print(dnsStarted_ ? 1 : 0);
   Serial.print(F(" ip="));
-  Serial.println(WiFi.softAPIP());
+  Serial.print(WiFi.softAPIP());
+  Serial.print(F(" dhcp_start="));
+  Serial.println(kPortalDhcpStart);
 }
 
 void WebConfigServer::update() {
@@ -99,6 +150,20 @@ void WebConfigServer::update() {
   }
   if (serverStarted_) {
     server_.handleClient();
+  }
+
+  const uint8_t stationCount = WiFi.softAPgetStationNum();
+  if (stationCount != lastStationCount_) {
+    lastStationCount_ = stationCount;
+    Serial.print(F("board test ap clients="));
+    Serial.println(lastStationCount_);
+  }
+  if (millis() - lastApHealthLogMs_ >= kApHealthLogIntervalMs) {
+    lastApHealthLogMs_ = millis();
+    Serial.print(F("board test ap health ip="));
+    Serial.print(WiFi.softAPIP());
+    Serial.print(F(" clients="));
+    Serial.println(stationCount);
   }
 }
 
@@ -110,11 +175,20 @@ void WebConfigServer::setupRoutes() {
   server_.on("/api/diagnostic", HTTP_POST, [this]() { handleDiagnosticCommand(); });
   server_.on("/api/audio/recording.wav", HTTP_GET,
              [this]() { handleAudioRecordingDownload(); });
-  server_.on("/generate_204", HTTP_GET, [this]() { handleBoardTestPage(); });
-  server_.on("/gen_204", HTTP_GET, [this]() { handleBoardTestPage(); });
-  server_.on("/hotspot-detect.html", HTTP_GET, [this]() { handleBoardTestPage(); });
-  server_.on("/connecttest.txt", HTTP_GET, [this]() { handleBoardTestPage(); });
-  server_.on("/redirect", HTTP_GET, [this]() { handleBoardTestPage(); });
+  server_.on("/api/motor/config", HTTP_GET, [this]() { handleMotorConfigGet(); });
+  server_.on("/api/motor/config", HTTP_POST, [this]() { handleMotorConfigSave(); });
+  server_.on("/generate_204", HTTP_GET,
+             [this]() { sendText(204, "text/plain", ""); });
+  server_.on("/gen_204", HTTP_GET,
+             [this]() { sendText(204, "text/plain", ""); });
+  server_.on("/hotspot-detect.html", HTTP_GET,
+             [this]() { sendText(200, "text/html", "<HTML><BODY>Success</BODY></HTML>"); });
+  server_.on("/connecttest.txt", HTTP_GET,
+             [this]() { sendText(200, "text/plain", "Microsoft Connect Test"); });
+  server_.on("/redirect", HTTP_GET, [this]() {
+    server_.sendHeader("Location", "http://192.168.4.1/motor", true);
+    sendText(302, "text/plain", "");
+  });
   server_.on("/favicon.ico", HTTP_GET,
              [this]() { sendText(204, "image/x-icon", ""); });
   server_.onNotFound([this]() { handleNotFound(); });
@@ -162,8 +236,6 @@ pre,input{-webkit-touch-callout:default;-webkit-user-select:text;user-select:tex
 .radarDot.seen{background:#188038;box-shadow:0 0 0 6px #dff3e7}
 .radarDot.waiting{background:#f29900;box-shadow:0 0 0 6px #fff3d6}
 .radarState{font-size:19px;font-weight:700}
-.kv{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;margin-top:10px}
-.kv div{background:#f6f7f8;border-radius:6px;padding:8px}
 .controlBand{background:#fff;border:1px solid #d5d9df;border-radius:8px;padding:12px}
 .rangeRow{display:grid;grid-template-columns:1fr 48px 112px;gap:10px;align-items:center}
 .rangeValue{text-align:center;font-weight:700}
@@ -184,7 +256,7 @@ summary{font-size:17px;font-weight:700;cursor:pointer;padding:8px 0}
 <main>
 <h1 data-i18n="title">TongDou V9 Board Test</h1>
 <div class="toolbar">
-<p id="subtitle">AP: TongDou-BoardTest / Page: 192.168.4.1/motor</p>
+<p id="subtitle">AP: TongDou-BoardTest · Page: 192.168.4.1/motor</p>
 <button id="langToggle" onclick="toggleLanguage()">中文</button>
 </div>
 
@@ -195,6 +267,7 @@ summary{font-size:17px;font-weight:700;cursor:pointer;padding:8px 0}
 <div class="statusItem"><span data-i18n="mic">Microphone</span><span id="micStatus" class="statusValue">--</span></div>
 <div class="statusItem"><span data-i18n="speaker">Speaker</span><span id="speakerStatus" class="statusValue">--</span></div>
 <div class="statusItem"><span data-i18n="power">Power</span><span id="powerStatus" class="statusValue">--</span></div>
+<div class="statusItem"><span data-i18n="batteryLevel">Battery</span><span id="batteryLevelStatus" class="statusValue">--</span></div>
 <div class="statusItem"><span data-i18n="system">System</span><span id="systemStatus" class="statusValue">--</span></div>
 </div>
 
@@ -231,12 +304,6 @@ summary{font-size:17px;font-weight:700;cursor:pointer;padding:8px 0}
 <button onclick="stopRadarLive()" data-i18n="radarStop">Stop live</button>
 <button id="radarCalibrate" onclick="startRadarCalibration()" data-i18n="radarCalibrate">Calibrate empty</button>
 </div>
-<div class="kv">
-<div><span class="small" data-i18n="radarMotion">Motion target</span><br><strong id="radarMotion">-</strong></div>
-<div><span class="small" data-i18n="radarDistance">Nearest distance</span><br><strong id="radarDistance">-</strong></div>
-<div><span class="small" data-i18n="radarValidFrames">Valid frames</span><br><strong id="radarValidFrames">0</strong></div>
-<div><span class="small" data-i18n="radarBadFrames">Bad frames</span><br><strong id="radarBadFrames">0</strong></div>
-</div>
 </div>
 
 <h2 data-i18n="soundLight">Sound And Light</h2>
@@ -257,15 +324,21 @@ summary{font-size:17px;font-weight:700;cursor:pointer;padding:8px 0}
 
 <h2 data-i18n="motorTitle">Motor Direction And Power</h2>
 <div class="row">
+<label><input id="leftInv" type="checkbox"> <span data-i18n="leftReversed">Left reversed</span></label>
+<label><input id="rightInv" type="checkbox"> <span data-i18n="rightReversed">Right reversed</span></label>
+</div>
+<div class="row">
 <label><span data-i18n="leftPwm">Left PWM</span> <input id="leftPwm" type="number" min="0" max="255"></label>
 <label><span data-i18n="rightPwm">Right PWM</span> <input id="rightPwm" type="number" min="0" max="255"></label>
 </div>
 <div class="grid">
+<button class="primary" onclick="saveMotorConfig()" data-i18n="saveMotor">Save motor setup</button>
 <button class="danger" onclick="diag('motor stop')" data-i18n="stop">Stop</button>
 <button onclick="diag('motor forward')" data-i18n="pulseForward">Pulse forward</button>
 <button onclick="diag('motor reverse')" data-i18n="pulseReverse">Pulse reverse</button>
 <button onclick="manualMotor('forward')" data-i18n="manualForward">Manual forward</button>
 <button onclick="manualMotor('reverse')" data-i18n="manualReverse">Manual reverse</button>
+<button onclick="gyroStraight()" data-i18n="gyroAuto">Gyro auto straight</button>
 </div>
 <p class="small" data-i18n="motorNote">Manual motor commands time out automatically. Use Stop before lifting the board.</p>
 
@@ -294,12 +367,13 @@ let radarNoticeKey=null;
 const text={
   en:{
     title:'TongDou V9 Board Test',
-    subtitle:'AP: TongDou-BoardTest 路 Page: 192.168.4.1/motor',
-    langToggle:'涓枃',
+    subtitle:'AP: TongDou-BoardTest · Page: 192.168.4.1/motor',
+    langToggle:'中文',
     status:'Status',
     display:'Display',
     led:'LED',
     power:'Power',
+    batteryLevel:'Battery',
     system:'System',
     ready:'Ready',
     check:'Check',
@@ -335,13 +409,6 @@ const text={
     radarSeen:'Target detected',
     radarClear:'No target',
     radarNoFrame:'No serial frame',
-    radarMotion:'Motion target',
-    radarDistance:'Nearest distance',
-    radarValidFrames:'Valid frames',
-    radarBadFrames:'Bad frames',
-    yes:'yes',
-    no:'no',
-    cm:'cm',
     soundLight:'Sound And Light',
     volume:'Speaker volume',
     applyVolume:'Apply volume',
@@ -350,19 +417,23 @@ const text={
     blue:'Blue',
     off:'Off',
     motorTitle:'Motor Direction And Power',
+    leftReversed:'Left reversed',
+    rightReversed:'Right reversed',
     leftPwm:'Left PWM',
     rightPwm:'Right PWM',
+    saveMotor:'Save motor setup',
     stop:'Stop',
     pulseForward:'Pulse forward',
     pulseReverse:'Pulse reverse',
     manualForward:'Manual forward',
     manualReverse:'Manual reverse',
+    gyroAuto:'Gyro auto straight',
     motorNote:'Manual motor commands time out automatically. Use Stop before lifting the board.',
     log:'Log'
   },
   zh:{
-    title:'铜豆 V9 板级测试',
-    subtitle:'热点：TongDou-BoardTest / 页面：192.168.4.1/motor',
+    title:'铜豆 V9 板测',
+    subtitle:'热点：TongDou-BoardTest · 页面：192.168.4.1/motor',
     langToggle:'English',
     status:'状态',
     display:'屏幕',
@@ -379,7 +450,7 @@ const text={
     degraded:'降级',
     copyLog:'复制日志',
     clearLog:'清空日志',
-    quickChecks:'快速检测',
+    quickChecks:'快速检查',
     selfTest:'一键自检',
     battery:'电池',
     mic:'麦克风',
@@ -403,13 +474,6 @@ const text={
     radarSeen:'识别到目标',
     radarClear:'没有目标',
     radarNoFrame:'没有串口数据',
-    radarMotion:'运动目标',
-    radarDistance:'最近距离',
-    radarValidFrames:'有效帧',
-    radarBadFrames:'坏帧',
-    yes:'有',
-    no:'无',
-    cm:'厘米',
     soundLight:'声音与灯光',
     volume:'喇叭音量',
     applyVolume:'应用音量',
@@ -418,13 +482,17 @@ const text={
     blue:'蓝灯',
     off:'关闭',
     motorTitle:'电机方向和力度',
+    leftReversed:'左轮反向',
+    rightReversed:'右轮反向',
     leftPwm:'左轮 PWM',
     rightPwm:'右轮 PWM',
+    saveMotor:'保存电机设置',
     stop:'停止',
     pulseForward:'短促前进',
     pulseReverse:'短促后退',
     manualForward:'手动前进',
     manualReverse:'手动后退',
+    gyroAuto:'陀螺仪自动直行',
     motorNote:'手动电机会自动超时。拿起板子前先点停止。',
     log:'日志'
   }
@@ -518,27 +586,16 @@ function updateRadarPanel(data){
   lastRadarData=data;
   const dict=text[currentLanguage];
   const seen=!!data.hasTarget;
-  const moving=!!data.movingTarget;
   const frame=!!data.received;
-  const badFrames=data.badFrameCount||data.invalidFrameCount||0;
   if(!frame){
     $('radarDot').className='radarDot';
     $('radarState').textContent=dict.radarNoFrame;
     $('radarHint').textContent=dict.radarNoFrame;
-    $('radarMotion').textContent='-';
-    $('radarDistance').textContent='-';
-    $('radarValidFrames').textContent=data.validFrameCount||0;
-    $('radarBadFrames').textContent=badFrames;
     return;
   }
-  const distance=data.nearestDistanceCm||data.targetDistanceCm||0;
   $('radarDot').className='radarDot '+(seen?'seen':'waiting');
   $('radarState').textContent=seen?dict.radarSeen:dict.radarClear;
-  $('radarHint').textContent=(seen?dict.radarSeen:dict.radarClear)+' 路 '+dict.radarMotion+': '+(moving?dict.yes:dict.no)+' 路 '+dict.radarBadFrames+': '+badFrames;
-  $('radarMotion').textContent=moving?dict.yes:dict.no;
-  $('radarDistance').textContent=distance>0?distance+' '+dict.cm:'-';
-  $('radarValidFrames').textContent=data.validFrameCount||0;
-  $('radarBadFrames').textContent=badFrames;
+  $('radarHint').textContent=seen?dict.radarSeen:dict.radarClear;
 }
 async function readRadarOnce(){
   if(radarBusy)return;
@@ -715,6 +772,8 @@ function renderStatus(data){
   let power=dict.batteryPower;
   if(data.usbPresent)power=data.charging?dict.charging:(data.standby?dict.standby:dict.usbPower);
   setStatus('powerStatus',true,power);
+  const batteryText=data.batteryPercent+'% / '+(data.batteryVoltageMv/1000).toFixed(2)+'V';
+  setStatus('batteryLevelStatus',data.batteryPercent>15,batteryText);
   setStatus('systemStatus',!data.degraded,data.degraded?dict.degraded:dict.healthy);
   if(document.activeElement!==$('volume')){
     $('volume').value=data.audioVolumePercent;
@@ -726,8 +785,6 @@ async function refreshStatus(){
     const r=await fetch('/api/status',{cache:'no-store'});
     lastStatus=await r.json();
     renderStatus(lastStatus);
-    if(!$('leftPwm').value)$('leftPwm').value=lastStatus.motorLeftPwm;
-    if(!$('rightPwm').value)$('rightPwm').value=lastStatus.motorRightPwm;
   }catch(error){
     append(text[currentLanguage].requestFailed+': '+error);
   }
@@ -738,8 +795,29 @@ function showVolume(){
 async function saveVolume(){
   await diag('audio volume '+$('volume').value);
 }
+async function loadMotorConfig(){
+  const r=await fetch('/api/motor/config');
+  const j=await r.json();
+  $('leftInv').checked=j.leftInverted;
+  $('rightInv').checked=j.rightInverted;
+  $('leftPwm').value=j.leftPwm;
+  $('rightPwm').value=j.rightPwm;
+}
+async function saveMotorConfig(){
+  const body='leftInverted='+($('leftInv').checked?'1':'0')+
+    '&rightInverted='+($('rightInv').checked?'1':'0')+
+    '&leftPwm='+encodeURIComponent($('leftPwm').value)+
+    '&rightPwm='+encodeURIComponent($('rightPwm').value);
+  append(await post('/api/motor/config',body));
+  await loadMotorConfig();
+  refreshStatus();
+}
 function manualMotor(direction){
   diag('motor manual '+direction+' '+$('leftPwm').value+' '+$('rightPwm').value);
+}
+async function gyroStraight(){
+  await diag('motor auto forward '+$('leftPwm').value);
+  setTimeout(()=>diag('motor auto status'),2600);
 }
 async function copyLog(){
   const value='STATUS\n'+JSON.stringify(lastStatus||{},null,2)+'\n\nLOG\n'+$('log').textContent;
@@ -757,6 +835,7 @@ async function copyLog(){
 function clearLog(){$('log').textContent=''}
 window.addEventListener('beforeunload',()=>navigator.sendBeacon('/api/diagnostic','command=motor%20stop'));
 applyLanguage('en');
+loadMotorConfig();
 refreshStatus();
 </script>
 </body>
@@ -764,6 +843,33 @@ refreshStatus();
 )HTML";
 
   sendText(200, "text/html; charset=utf-8", FPSTR(kPage));
+}
+
+void WebConfigServer::handleMotorConfigGet() {
+  String body = "{";
+  body += "\"leftInverted\":";
+  body += boolJson(hardwareSelfTest_.motorLeftInverted());
+  body += ",\"rightInverted\":";
+  body += boolJson(hardwareSelfTest_.motorRightInverted());
+  body += ",\"leftPwm\":";
+  body += hardwareSelfTest_.motorLeftDefaultDuty();
+  body += ",\"rightPwm\":";
+  body += hardwareSelfTest_.motorRightDefaultDuty();
+  body += "}";
+  sendText(200, "application/json", body);
+}
+
+void WebConfigServer::handleMotorConfigSave() {
+  const bool leftInverted = server_.arg("leftInverted") == "1";
+  const bool rightInverted = server_.arg("rightInverted") == "1";
+  const uint8_t leftDuty =
+      parseDutyArg(server_.arg("leftPwm"), hardwareSelfTest_.motorLeftDefaultDuty());
+  const uint8_t rightDuty =
+      parseDutyArg(server_.arg("rightPwm"), hardwareSelfTest_.motorRightDefaultDuty());
+
+  hardwareSelfTest_.saveMotorCalibration(leftInverted, rightInverted, leftDuty,
+                                         rightDuty);
+  sendText(200, "application/json", "{\"ok\":true}");
 }
 
 void WebConfigServer::handleDiagnosticCommand() {
@@ -776,6 +882,9 @@ void WebConfigServer::handleDiagnosticCommand() {
     sendText(400, "text/plain", "missing command");
     return;
   }
+
+  Serial.print(F("web diagnostic command="));
+  Serial.println(command);
 
   String output;
   class StringPrint : public Print {
@@ -813,8 +922,7 @@ void WebConfigServer::handleAudioRecordingDownload() {
   for (size_t index = 0; index < sampleCount; ++index) {
     sum += samples[index];
   }
-  const int32_t mean =
-      static_cast<int32_t>(sum / static_cast<int64_t>(sampleCount));
+  const int32_t mean = static_cast<int32_t>(sum / static_cast<int64_t>(sampleCount));
 
   int64_t sumSquares = 0;
   int32_t previousInput = 0;
@@ -823,13 +931,12 @@ void WebConfigServer::handleAudioRecordingDownload() {
     const int32_t processed =
         highPassPcm16(static_cast<int32_t>(samples[index]) - mean,
                       previousInput, previousOutput);
-    sumSquares += static_cast<int64_t>(processed) *
-                  static_cast<int64_t>(processed);
+    sumSquares += static_cast<int64_t>(processed) * static_cast<int64_t>(processed);
   }
 
   float gain = 1.0F;
-  const float rms =
-      sqrtf(static_cast<float>(sumSquares) / static_cast<float>(sampleCount));
+  const float rms = sqrtf(static_cast<float>(sumSquares) /
+                         static_cast<float>(sampleCount));
   if (rms > 1.0F) {
     gain = kAudioExportTargetRms / rms;
     if (gain < 1.0F) {
@@ -885,21 +992,17 @@ void WebConfigServer::handleRadarStatus() {
   body += boolJson(target.received);
   body += ",\"hasTarget\":";
   body += boolJson(target.hasTarget);
-  body += ",\"movingTarget\":";
-  body += boolJson((target.targetState & 0x01) != 0);
-  body += ",\"staticTarget\":";
-  body += boolJson((target.targetState & 0x02) != 0);
   body += ",\"stateTarget\":";
   body += boolJson(target.stateTarget);
   body += ",\"energyTarget\":";
   body += boolJson(target.energyTarget);
+  body += ",\"movingGateTarget\":";
+  body += boolJson(target.movingGateTarget);
   body += ",\"targetConfidence\":";
   body += target.targetConfidence;
   body += ",\"state\":";
   body += target.targetState;
   body += ",\"targetDistanceCm\":";
-  body += target.targetDistanceCm;
-  body += ",\"nearestDistanceCm\":";
   body += target.targetDistanceCm;
   body += ",\"movingDistanceCm\":";
   body += target.movingDistanceCm;
@@ -915,8 +1018,6 @@ void WebConfigServer::handleRadarStatus() {
   body += target.validFrameCount;
   body += ",\"invalidFrameCount\":";
   body += target.invalidFrameCount;
-  body += ",\"badFrameCount\":";
-  body += target.invalidFrameCount;
   body += "}";
   sendText(200, "application/json", body);
 }
@@ -926,7 +1027,7 @@ void WebConfigServer::handleStatus() {
 }
 
 void WebConfigServer::handleNotFound() {
-  handleBoardTestPage();
+  sendText(404, "text/plain; charset=utf-8", "not found");
 }
 
 void WebConfigServer::sendText(int code, const char* type, const String& body) {
@@ -957,6 +1058,20 @@ String WebConfigServer::statusJson() const {
   body += boolJson(battery.standby);
   body += ",\"rawAdc\":";
   body += battery.rawAdc;
+  body += ",\"batteryVoltageMv\":";
+  body += battery.voltageMv;
+  body += ",\"batteryPercent\":";
+  body += battery.percent;
+  body += ",\"shippingDischargeActive\":";
+  body += boolJson(hardwareSelfTest_.shippingDischargeActive());
+  body += ",\"shippingDischargeDone\":";
+  body += boolJson(hardwareSelfTest_.shippingDischargeDone());
+  body += ",\"shippingDischargeFailed\":";
+  body += boolJson(hardwareSelfTest_.shippingDischargeFailed());
+  body += ",\"shippingDischargeTargetPercent\":";
+  body += hardwareSelfTest_.shippingDischargeTargetPercent();
+  body += ",\"shippingDischargeMessage\":";
+  body += jsonString(hardwareSelfTest_.shippingDischargeMessage());
   body += ",\"audioVolumePercent\":";
   body += hardwareSelfTest_.audioVolumePercent();
   body += ",\"motorLeftInverted\":";
