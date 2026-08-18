@@ -12,6 +12,9 @@ This is not the complete TongDou application firmware. It does not include the
 character behavior system, official audio assets, scripted scenes, cloud voice
 features, or the final user-facing product experience.
 
+Software source code in this directory is licensed under the MIT License. See
+[LICENSE](LICENSE).
+
 ## Target Hardware
 
 This firmware targets TongDou V9 hardware:

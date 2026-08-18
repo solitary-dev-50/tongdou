@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>铜豆控制台</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main>
+      <h1>铜豆控制台</h1>
+      <p class="sub">状态、人格和少量必要设置。硬件诊断默认收起来。</p>
+
+      <section>
+        <h2>当前状态</h2>
+        <div class="status-grid">
+          <div class="status-item">
+            <span>联网</span>
+            <strong id="wifi-status">读取中</strong>
+          </div>
+          <div class="status-item">
+            <span>时间</span>
+            <strong id="time-status">读取中</strong>
+          </div>
+          <div class="status-item">
+            <span>模式</span>
+            <strong id="mode-status">读取中</strong>
+          </div>
+          <div class="status-item">
+            <span>硬件</span>
+            <strong id="hardware-status">读取中</strong>
+          </div>
+          <div class="status-item">
+            <span>保留能力</span>
+            <strong id="capability-status">读取中</strong>
+          </div>
+        </div>
+        <button id="refresh-status">刷新状态</button>
+      </section>
+
+      <section>
+        <h2>选择铜豆今天的人格</h2>
+        <div class="personality-grid" role="radiogroup" aria-label="铜豆人格模式">
+          <button class="personality-card" data-personality="gentle" role="radio" aria-checked="false">
+            <span class="emoji">🍵</span>
+            <strong>温柔提醒</strong>
+            <small>安静专注不打扰，适合专心搞钱的时刻。</small>
+          </button>
+          <button class="personality-card active" data-personality="balanced" role="radio" aria-checked="true">
+            <span class="emoji">😜</span>
+            <strong>嘴欠搭子</strong>
+            <small>嘴硬心软，有分寸地小闹腾，陪你吐槽打工生活。</small>
+          </button>
+          <button class="personality-card" data-personality="dramatic" role="radio" aria-checked="false">
+            <span class="emoji">🎭</span>
+            <strong>彻底戏精</strong>
+            <small>高频加戏，放飞自我。老板在身边时慎用。</small>
+          </button>
+        </div>
+        <small id="personality-message"></small>
+      </section>
+
+      <section>
+        <h2>连接和时间</h2>
+        <form method="post" action="/api/setup/wifi">
+          <input name="ssid" placeholder="WiFi 名称" required />
+          <input name="password" type="password" placeholder="WiFi 密码" />
+          <button type="submit">保存并连接</button>
+        </form>
+        <button id="sync-time">用手机/电脑时间同步</button>
+        <small id="time-message"></small>
+      </section>
+
+      <details class="diagnostic-panel">
+        <summary>展开硬件诊断</summary>
+        <section>
+          <h2>硬件诊断</h2>
+          <h3>状态读取</h3>
+          <div class="button-grid">
+            <button data-command="selftest">完整自检</button>
+            <button data-command="status">硬件状态</button>
+            <button data-command="battery">电池/充电</button>
+            <button data-command="radar">雷达</button>
+            <button data-command="mic">麦克风</button>
+          </div>
+          <h3>输出测试</h3>
+          <div class="button-grid">
+            <button data-command="speaker">喇叭测试音</button>
+            <button data-command="led red">红灯</button>
+            <button data-command="led green">绿灯</button>
+            <button data-command="led blue">蓝灯</button>
+            <button data-command="led off">关灯</button>
+            <button data-command="motor forward">电机正转</button>
+            <button data-command="motor reverse">电机反转</button>
+            <button data-command="motor stop">电机停止</button>
+          </div>
+          <h3>剧情测试</h3>
+          <div class="button-grid">
+            <button data-mcp-tool="play_scenario" data-mcp-args='{"event":"boot_completed"}'>
+              开机剧情
+            </button>
+            <button data-mcp-tool="play_scenario" data-mcp-args='{"event":"voice_recognition_failed"}'>
+              识别失败补救
+            </button>
+            <button data-mcp-tool="voice_status" data-mcp-args="{}">语音状态</button>
+          </div>
+          <pre id="diagnostic-output">等待诊断命令。</pre>
+        </section>
+      </details>
+
+      <section>
+        <h2>剧情配置</h2>
+        <div class="config-note">
+          剧情包编辑器后续接入。当前先用上方人格卡片和诊断区剧情测试。
+        </div>
+      </section>
+    </main>
+    <script src="./app.js"></script>
+  </body>
+</html>

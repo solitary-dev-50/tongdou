@@ -6,26 +6,30 @@
 
 TongDou was featured on Hackaday:
 
-**[Tiny Desktop Robot Has Radar →](https://hackaday.com/2026/07/31/tiny-desktop-robot-has-radar/)**
+**[Tiny Desktop Robot Has Radar ->](https://hackaday.com/2026/07/31/tiny-desktop-robot-has-radar/)**
 
-Written by Zoe Skyforest · July 31, 2026
+Written by Zoe Skyforest - July 31, 2026
 
 > **Work in Progress**
 >
 > TongDou is being actively documented and open-sourced step by step.
-> Hardware test firmware, prototype photos, and selected hardware documents are
-> public now. Other design files, manufacturing documents, and build guides will
-> be released progressively.
+> Hardware test firmware, demo scene firmware, prototype photos, and selected
+> hardware documents are public now. Other design files, manufacturing
+> documents, and build guides will be released progressively.
 > Please see the [Roadmap](#roadmap) below for the current release plan.
 
-TongDou is a small desktop robot that has already been physically built and run. It is not a concept project.
+TongDou is a small desktop robot that has already been physically built and run.
+It is not a concept project.
 
-This repository is the official public project showcase and phased open-source entry point for TongDou.
+This repository is the official public project showcase and phased open-source
+entry point for TongDou.
 
 Official website: https://gettongdou.com
+
 Contact: hello@gettongdou.com
 
-Official TongDou products and crowdfunding campaigns will only be announced through https://gettongdou.com
+Official TongDou products and crowdfunding campaigns will only be announced
+through https://gettongdou.com
 
 ## Prototype Photos
 
@@ -39,9 +43,11 @@ Official TongDou products and crowdfunding campaigns will only be announced thro
 
 ## Building the Brass Frame
 
-Before TongDou wakes up, the brass exoskeleton has to be aligned and soldered by hand. This video shows the real prototype process using two brass side plates, 1 mm brass rods, and a simple custom fixture.
+Before TongDou wakes up, the brass exoskeleton has to be aligned and soldered
+by hand. This video shows the real prototype process using two brass side
+plates, 1 mm brass rods, and a simple custom fixture.
 
-[**Watch TongDou's brass exoskeleton assembly on YouTube →**](https://youtu.be/Y9hkVVa-t_o)
+[**Watch TongDou's brass exoskeleton assembly on YouTube ->**](https://youtu.be/Y9hkVVa-t_o)
 
 ## Watch TongDou Run
 
@@ -49,7 +55,8 @@ Open the local showcase page:
 
 [TongDou public showcase](index.html)
 
-The showcase page uses a muted, looping video so it can autoplay in normal browsers.
+The showcase page uses a muted, looping video so it can autoplay in normal
+browsers.
 
 Full video:
 
@@ -61,6 +68,52 @@ Full video:
 
 This public package is intended for hardware bring-up and diagnostics. It is
 not the complete TongDou application firmware.
+
+Source code in `hardware_test_firmware/` is licensed under the MIT License.
+
+Prebuilt release:
+
+- [TongDou V9 Hardware Test Firmware v1.0](https://github.com/solitary-dev-50/tongdou/releases/tag/hardware-test-v1.0)
+
+## Demo Firmware
+
+[Open the TongDou demo firmware](demo_firmware/)
+
+This is a developer-oriented scene example firmware. It is provided so
+developers can study, modify, and experiment with TongDou scenes on real
+hardware.
+
+It is not the complete TongDou application firmware, and it is not a long-term
+maintained full application.
+
+Complete audio-driven examples included in this demo source:
+
+- Scene 8 - First Summon / Nightmare
+- Scene 6 - Confused Accountant
+
+Scene 6 includes these branches:
+
+- 6-1 clear
+- 6-2 extort
+- 6-3 bribe
+- 6-4 forgetful
+- 6-5 pi
+
+Scenes 1, 2, 3, 5, and 7 are kept as development experiments and scene
+templates. Their original audio was never recorded, so this repository does not
+include those audio resources and does not treat them as missing release files.
+
+Scene 4 is intentionally a silent email notice.
+
+Some scripted character scenes are now available in `demo_firmware/`. A limited
+set of demo audio assets is included only so the published demo scenes can run
+as intended on TongDou hardware.
+
+Source code in `demo_firmware/` is licensed under the MIT License. Demo audio
+assets in `demo_firmware/firmware/data/audio/` are not covered by the MIT
+License.
+
+Prebuilt Demo Firmware release package: not published on GitHub yet.
 
 ## V8 and V9 PCB Revisions
 
@@ -80,14 +133,16 @@ and an onboard QMI8658A 6-axis IMU.
 This repository currently includes:
 
 - Project overview
-- Hardware test and diagnostic firmware
+- Hardware test and engineering firmware
+- Demo scene firmware source
 - V8 and V9 prototype PCB photos
 - Existing schematic PDF files
 - Existing project photos and videos
-- License and notice files
+- Flashable Hardware Test Firmware release
+- License, attribution, and notice files
 - Open-source release plan
 
-The hardware test firmware is not the complete TongDou application firmware.
+The complete TongDou application firmware is not yet publicly released.
 
 Current schematic PDFs:
 
@@ -114,8 +169,8 @@ This repository does not currently provide:
 - BOM and pick-and-place files
 - Mechanical source files
 - Production calibration and manufacturing files
-- Character behaviors
-- Official audio assets
+- Full final character behavior system
+- Full official audio asset library
 - Private data, keys, backend configuration, and service credentials
 - Complete manufacturing or assembly tutorials
 - Cost, supply-chain, or purchasing lists
@@ -138,7 +193,13 @@ public release route.
 The public hardware test firmware is available now for board bring-up and
 diagnostics. It is not the complete TongDou application firmware.
 
-### 3. Additional hardware design materials
+### 3. Demo firmware
+
+The public demo firmware source is available now as a developer scene example.
+It includes Scene 8, Scene 6, and development scene templates. It is not the
+complete TongDou application firmware.
+
+### 4. Additional hardware design materials
 
 Existing schematic PDFs are available now. Editable PCB source files, Gerber
 files, BOM, pick-and-place files, mechanical source files, and production
@@ -146,7 +207,7 @@ calibration and manufacturing files are not published yet.
 
 Further hardware notes and validation records will be added progressively.
 
-### 4. Assembly and validation records
+### 5. Assembly and validation records
 
 Brass-frame soldering, assembly, power-on checks, testing records, and
 troubleshooting material.
@@ -171,17 +232,31 @@ published manufacturing package.
 
 ## Why The Release Is Phased
 
-TongDou is a real hardware product, not only a document package. Some files can be used to directly manufacture, clone, or misrepresent the product before the first official release is ready.
+TongDou is a real hardware product, not only a document package. Some files can
+be used to directly manufacture, clone, or misrepresent the product before the
+first official release is ready.
 
-For this stage, the public repository is intentionally limited to project presentation, schematic-level reference, real media, hardware test firmware, licensing boundaries, and the future open-source path.
+For this stage, the public repository is intentionally limited to project
+presentation, schematic-level reference, real media, hardware test firmware,
+demo scene firmware, licensing boundaries, and the future open-source path.
 
 ## License Scope
 
-The root [LICENSE](LICENSE) file contains the CERN Open Hardware Licence Version 2 - Permissive, also known as `CERN-OHL-P-2.0`.
+The root [LICENSE](LICENSE) file contains the CERN Open Hardware Licence
+Version 2 - Permissive, also known as `CERN-OHL-P-2.0`.
 
-At the current stage, that license only applies to schematic PDF files in this repository that are explicitly marked as open hardware materials.
+At the current stage, that hardware license applies only to schematic PDF files
+in this repository that are explicitly marked as open hardware materials.
 
-Photos, videos, README content, website content, the TongDou name, logo, character identity, official audio, promotional materials, packaging, complete application firmware, PCB source files, Gerber files, BOM files, PNP files, mechanical files, production calibration files, manufacturing files, and fixtures are not included in the open hardware license unless a future release clearly says otherwise.
+Software source code in `hardware_test_firmware/` and `demo_firmware/` is
+licensed under the MIT License in each directory.
+
+Official audio assets, photos, videos, README content, website content, the
+TongDou name, logo, character identity, promotional materials, packaging,
+complete application firmware, PCB source files, Gerber files, BOM files, PNP
+files, mechanical files, production calibration files, manufacturing files, and
+fixtures are not included in the open hardware license or the firmware MIT
+licenses unless a future release clearly says otherwise.
 
 See [NOTICE.md](NOTICE.md) for the exact boundary.
 
@@ -189,21 +264,25 @@ See [NOTICE.md](NOTICE.md) for the exact boundary.
 
 Third-party products must not be presented as official TongDou products.
 
-Third parties must not claim official TongDou certification, approval, endorsement, or crowdfunding participation unless that status is announced through the official website.
+Third parties must not claim official TongDou certification, approval,
+endorsement, or crowdfunding participation unless that status is announced
+through the official website.
 
-Official TongDou products and crowdfunding campaigns will only be announced through https://gettongdou.com
+Official TongDou products and crowdfunding campaigns will only be announced
+through https://gettongdou.com
 
 ## Repository Documents
 
 - [Hardware Test Firmware](hardware_test_firmware/)
+- [Demo Firmware](demo_firmware/)
 - [License Scope and Attribution](NOTICE.md)
 
 ## Inspiration & Acknowledgements
 
 TongDou's brass-and-PCB aesthetic and compact mechanical form were deeply
-inspired by the incredible craftsmanship of **Huy Vector** of
-**Huy Vector Lab**, particularly the desktop robot **Mo-chan**, as shown
-in [this original build video](https://www.youtube.com/watch?v=3hjvpyjxPsk).
+inspired by the incredible craftsmanship of **Huy Vector** of **Huy Vector
+Lab**, particularly the desktop robot **Mo-chan**, as shown in
+[this original build video](https://www.youtube.com/watch?v=3hjvpyjxPsk).
 
 I'm a huge fan of Huy's work and highly recommend exploring the original
 projects and [Huy Vector on YouTube](https://www.youtube.com/@huyvector).
@@ -218,8 +297,8 @@ developed for this project.
 ## Community & Contact
 
 > **Note:** TongDou is currently a solo-maker project. To keep my focus on
-> hardware development, firmware polishing, documentation, and the early
-> tester program, GitHub Issues and Discussions are temporarily disabled.
+> hardware development, firmware polishing, documentation, and the early tester
+> program, GitHub Issues and Discussions are temporarily disabled.
 >
 > To follow project updates, join the waitlist, or apply for the early tester
 > program, please visit the [TongDou official website](https://gettongdou.com)
