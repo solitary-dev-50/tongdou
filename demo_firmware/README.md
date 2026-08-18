@@ -130,9 +130,9 @@ platformio run -t upload
 platformio run -t uploadfs
 ```
 
-When a prebuilt flash package is published, normal Windows users can use the
-one-click package instead of installing PlatformIO. That package contains one
-merged 4 MB image:
+For Windows users, the prebuilt release package provides a one-click flashing
+option without requiring PlatformIO or Python. That package contains one merged
+4 MB image:
 
 ```text
 TongDou_Demo_Firmware_v0.1.0.bin

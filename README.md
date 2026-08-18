@@ -113,7 +113,9 @@ Source code in `demo_firmware/` is licensed under the MIT License. Demo audio
 assets in `demo_firmware/firmware/data/audio/` are not covered by the MIT
 License.
 
-Prebuilt Demo Firmware release package: not published on GitHub yet.
+Prebuilt release:
+
+- [TongDou Demo Firmware v0.1.0](https://github.com/solitary-dev-50/tongdou/releases/tag/demo-v0.1.0)
 
 ## V8 and V9 PCB Revisions
 
@@ -139,6 +141,7 @@ This repository currently includes:
 - Existing schematic PDF files
 - Existing project photos and videos
 - Flashable Hardware Test Firmware release
+- Flashable Demo Firmware release
 - License, attribution, and notice files
 - Open-source release plan
 
