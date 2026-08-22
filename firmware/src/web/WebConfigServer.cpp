@@ -187,7 +187,7 @@ pre{white-space:pre-wrap;background:#0b0b0b;padding:12px;border-radius:8px;min-h
 .row{display:grid;grid-template-columns:1fr 1fr;gap:8px}@media(max-width:560px){.row{grid-template-columns:1fr}}
 small{color:#aaa}
 </style></head><body><main>
-<h1>铜豆控制台</h1><p class="sub">旧 PCB 固件调试面板</p>
+<h1>铜豆控制台</h1><p class="sub">本地配置、状态查看和硬件诊断。</p>
 
 <section class="card"><h2>状态</h2><div class="status">
 <div class="item"><div class="label">网络</div><div class="value" id="wifi">读取中</div></div>
@@ -199,11 +199,12 @@ small{color:#aaa}
 </div><button onclick="loadStatus()">刷新状态</button></section>
 
 <section class="card"><h2>连接和时间</h2>
-<form method="post" action="/api/setup/wifi">
-<input name="ssid" placeholder="WiFi 名称" required>
-<input name="password" type="password" placeholder="WiFi 密码">
-<button type="submit">保存并连接</button>
-</form><button onclick="syncTime()">同步当前时间</button><small id="msg"></small></section>
+<form id="wifiForm" onsubmit="saveWifi(event)">
+<input id="ssid" name="ssid" list="wifiOptions" placeholder="WiFi 名称" required>
+<datalist id="wifiOptions"></datalist>
+<input id="password" name="password" type="password" placeholder="WiFi 密码">
+<div class="row"><button type="button" class="secondary" onclick="scanWifi()">扫描附近 WiFi</button><button type="submit">保存并连接</button></div>
+</form><div id="wifiList" class="grid"></div><button onclick="syncTime()">同步当前时间</button><small id="msg"></small></section>
 
 <section class="card"><h2>麦克风</h2>
 <div class="meter"><div class="bar" id="micBar"></div></div>
@@ -264,6 +265,8 @@ const $=id=>document.getElementById(id);let micTimer=null,radarTimer=null;
 function capText(c){let a=[];if(c.reminders)a.push('提醒');if(c.web)a.push('网页');if(c.visual)a.push('视觉');if(c.sound)a.push('声音');if(c.voiceInput)a.push('麦克风');return a.join(' / ')||'无'}
 async function loadStatus(){try{let r=await fetch('/api/status');let j=await r.json();$('wifi').textContent=j.wifiConnected?'已连接':(j.portal?'配网模式':'连接中');$('ip').textContent=j.ip||'-';$('time').textContent=j.timeReady?j.now:'未校时';$('battery').textContent=`USB ${j.battery.usb?'有':'无'} / 充电 ${j.battery.charging?'是':'否'} / ADC ${j.battery.rawAdc}`;$('hardware').textContent=j.hardware.degraded?(j.hardware.motorFault?'电机故障':'降级'):'正常';$('capability').textContent=capText(j.capabilities)}catch(e){$('wifi').textContent='读取失败'}}
 async function syncTime(){let e=Math.floor(Date.now()/1000);let r=await fetch('/api/time/sync',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'epoch='+e});$('msg').textContent=await r.text();loadStatus()}
+async function scanWifi(){let m=$('msg'),l=$('wifiList'),d=$('wifiOptions');m.textContent='正在扫描附近 WiFi';l.innerHTML='';try{let r=await fetch('/api/wifi/scan');let a=await r.json();d.innerHTML='';if(!a.length){m.textContent='没有扫到 WiFi，可以手动填写';return}a.sort((x,y)=>y.rssi-x.rssi);a.slice(0,12).forEach(n=>{let o=document.createElement('option');o.value=n.ssid;d.appendChild(o);let b=document.createElement('button');b.type='button';b.className='secondary';b.textContent=n.ssid+'  '+n.rssi+' dBm';b.onclick=()=>{$('ssid').value=n.ssid;$('password').focus()};l.appendChild(b)});m.textContent='点一个 WiFi 名称，或继续手动填写'}catch(e){m.textContent='扫描失败，请手动填写'}}
+async function saveWifi(e){e.preventDefault();let s=$('ssid').value.trim(),p=$('password').value;if(!s){$('msg').textContent='请先选择或填写 WiFi 名称';return}$('msg').textContent='正在保存并连接';let r=await fetch('/api/setup/wifi',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'ssid='+encodeURIComponent(s)+'&password='+encodeURIComponent(p)});$('msg').textContent=await r.text();setTimeout(loadStatus,1200)}
 async function diag(c){$('diag').textContent='执行中：'+c;let r=await fetch('/api/diagnostic',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'command='+encodeURIComponent(c)});let t=await r.text();$('diag').textContent=t;return t}
 function val(t,k){let m=t.match(new RegExp(k+'=([^\\n\\r]+)'));return m?m[1].trim():''}
 async function pollMic(){let t=await diag('mic');let avg=Number(val(t,'avg_abs')||0),peak=Number(val(t,'peak')||0);$('micValue').textContent=`avg_abs=${avg} peak=${peak}`;$('micBar').style.width=Math.min(100,Math.round(peak/600))+'%'}
