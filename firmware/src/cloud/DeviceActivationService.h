@@ -17,6 +17,7 @@ class DeviceActivationService {
   bool activated() const;
   String activationCode() const;
   String lastError() const;
+  bool consumeActivationCodeEvent(String& code);
 
  private:
   enum class State : uint8_t {
@@ -40,10 +41,11 @@ class DeviceActivationService {
   State state_ = State::WaitingForWifi;
   unsigned long nextAttemptMs_ = 0;
   String activationCode_;
+  String activationCodeEvent_;
   String lastError_;
   bool codeDisplayed_ = false;
+  bool activationCodeEventPending_ = false;
   bool voiceConfigured_ = false;
 };
 
 }  // namespace tongdou
-

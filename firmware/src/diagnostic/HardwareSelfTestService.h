@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 
+#include "audio/AudioCuePlayer.h"
 #include "hardware/AudioInput.h"
 #include "hardware/AudioOutput.h"
 #include "hardware/BatteryMonitor.h"
@@ -36,7 +37,8 @@ struct HardwareDiagnosticStatus {
 class HardwareSelfTestService {
  public:
   HardwareSelfTestService(BatteryMonitor& battery, AudioInput& audioInput,
-                          AudioOutput& audioOutput, LedPixel& led,
+                          AudioOutput& audioOutput, AudioCuePlayer& audioCuePlayer,
+                          LedPixel& led,
                           MotorDriver& motors, RadarSensor& radar, FaceDisplay& faceDisplay,
                           ImuSensor& imu, LogoTouchInput& logoTouch);
 
@@ -66,6 +68,8 @@ class HardwareSelfTestService {
   void printMotorFault(Print& out) const;
   void setMotorFaultSimulation(bool active, Print& out);
   void testSpeaker(Print& out);
+  void testAudioCue(const String& command, Print& out);
+  void printAudioCueResult(const AudioCuePlaybackResult& result, Print& out) const;
   void testLed(const RgbColor& color, Print& out);
   void testMotor(WheelDrive left, WheelDrive right, Print& out);
   void stopMotorPulse();
@@ -73,6 +77,7 @@ class HardwareSelfTestService {
   BatteryMonitor& battery_;
   AudioInput& audioInput_;
   AudioOutput& audioOutput_;
+  AudioCuePlayer& audioCuePlayer_;
   LedPixel& led_;
   MotorDriver& motors_;
   RadarSensor& radar_;

@@ -81,6 +81,16 @@ String DeviceActivationService::lastError() const {
   return lastError_;
 }
 
+bool DeviceActivationService::consumeActivationCodeEvent(String& code) {
+  if (!activationCodeEventPending_) {
+    return false;
+  }
+
+  code = activationCodeEvent_;
+  activationCodeEventPending_ = false;
+  return true;
+}
+
 void DeviceActivationService::requestActivation() {
   HTTPClient http;
   if (!http.begin(kOtaUrl)) {
@@ -184,6 +194,8 @@ bool DeviceActivationService::applyResponse(const String& response) {
     if (activationCode_ != newCode || !codeDisplayed_) {
       activationCode_ = newCode;
       codeDisplayed_ = true;
+      activationCodeEvent_ = activationCode_;
+      activationCodeEventPending_ = true;
       Serial.print("device activation code=");
       Serial.println(activationCode_);
       faceDisplay_.showActivationCode(activationCode_);
@@ -205,6 +217,8 @@ bool DeviceActivationService::applyResponse(const String& response) {
 
   state_ = State::Activated;
   activationCode_ = "";
+  activationCodeEvent_ = "";
+  activationCodeEventPending_ = false;
   Serial.println("device activation active");
   return true;
 }

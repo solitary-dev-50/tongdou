@@ -24,6 +24,7 @@ void HardwareManager::begin() {
 
   audioInput_.begin();
   audioOutput_.begin();
+  audioCuePlayer_.begin();
   selfTest_.begin();
 }
 
@@ -91,6 +92,8 @@ void HardwareManager::printStartupReport(Print& out) const {
   out.print(static_cast<int>(pins::I2S_SPK_DATA));
   out.print(" ctrl=");
   out.println(static_cast<int>(pins::SPK_CTRL));
+  out.print("  audio cues ");
+  out.println(audioCuePlayer_.ready() ? "ready" : "failed");
 
   out.println("hardware ready");
 }
@@ -121,6 +124,10 @@ AudioInput& HardwareManager::audioInput() {
 
 AudioOutput& HardwareManager::audioOutput() {
   return audioOutput_;
+}
+
+AudioCuePlayer& HardwareManager::audioCuePlayer() {
+  return audioCuePlayer_;
 }
 
 ImuSensor& HardwareManager::imu() {

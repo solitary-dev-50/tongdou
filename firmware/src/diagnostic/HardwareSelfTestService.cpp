@@ -1,6 +1,7 @@
 #include "diagnostic/HardwareSelfTestService.h"
 
 #include <Wire.h>
+#include <cstring>
 
 namespace tongdou {
 namespace {
@@ -37,6 +38,7 @@ bool logoTouched(const LogoTouchInput& logoTouch) {
 HardwareSelfTestService::HardwareSelfTestService(BatteryMonitor& battery,
                                                  AudioInput& audioInput,
                                                  AudioOutput& audioOutput,
+                                                 AudioCuePlayer& audioCuePlayer,
                                                  LedPixel& led,
                                                  MotorDriver& motors,
                                                  RadarSensor& radar,
@@ -46,6 +48,7 @@ HardwareSelfTestService::HardwareSelfTestService(BatteryMonitor& battery,
     : battery_(battery),
       audioInput_(audioInput),
       audioOutput_(audioOutput),
+      audioCuePlayer_(audioCuePlayer),
       led_(led),
       motors_(motors),
       radar_(radar),
@@ -109,6 +112,8 @@ void HardwareSelfTestService::printHelp(Print& out) const {
   out.println(F("  radar calibrate"));
   out.println(F("  mic"));
   out.println(F("  speaker"));
+  out.println(F("  audio cue wake|success|error|low_battery|wifi|welcome [locale]"));
+  out.println(F("  audio code <digits> [locale]"));
   out.println(F("  led red|green|blue|off"));
   out.println(F("  motor fault"));
   out.println(F("  motor fault simulate on|off"));
@@ -189,6 +194,10 @@ bool HardwareSelfTestService::handleCommand(const String& command, Print& out) {
   }
   if (cmd == F("speaker")) {
     testSpeaker(out);
+    return true;
+  }
+  if (cmd.startsWith(F("audio cue ")) || cmd.startsWith(F("audio code "))) {
+    testAudioCue(cmd, out);
     return true;
   }
   if (cmd == F("motor fault")) {
@@ -526,6 +535,67 @@ void HardwareSelfTestService::printMic(Print& out) {
 void HardwareSelfTestService::testSpeaker(Print& out) {
   audioOutput_.playTestTone(kSpeakerTestHz, kSpeakerTestMs);
   out.println(F("speaker test tone done"));
+}
+
+void HardwareSelfTestService::testAudioCue(const String& command, Print& out) {
+  String rest = command;
+  rest.trim();
+
+  if (rest.startsWith(F("audio code "))) {
+    rest.remove(0, strlen("audio code "));
+    rest.trim();
+    const int split = rest.indexOf(' ');
+    const String code = split < 0 ? rest : rest.substring(0, split);
+    const String locale = split < 0 ? "en-GB" : rest.substring(split + 1);
+    printAudioCueResult(audioCuePlayer_.playActivationCode(code, locale), out);
+    return;
+  }
+
+  rest.remove(0, strlen("audio cue "));
+  rest.trim();
+  const int split = rest.indexOf(' ');
+  const String cueName = split < 0 ? rest : rest.substring(0, split);
+  const String locale = split < 0 ? "en-GB" : rest.substring(split + 1);
+
+  AudioCuePlaybackResult result;
+  if (cueName == F("wake")) {
+    result = audioCuePlayer_.playSystem(SystemAudioCue::Wake);
+  } else if (cueName == F("success")) {
+    result = audioCuePlayer_.playSystem(SystemAudioCue::Success);
+  } else if (cueName == F("error")) {
+    result = audioCuePlayer_.playSystem(SystemAudioCue::Error);
+  } else if (cueName == F("low_battery")) {
+    result = audioCuePlayer_.playSystem(SystemAudioCue::LowBattery);
+  } else if (cueName == F("vibration")) {
+    result = audioCuePlayer_.playSystem(SystemAudioCue::Vibration);
+  } else if (cueName == F("wifi")) {
+    result = audioCuePlayer_.playLocalized(LocalizedAudioCue::WifiConfig, locale);
+  } else if (cueName == F("welcome")) {
+    result = audioCuePlayer_.playLocalized(LocalizedAudioCue::Welcome, locale);
+  } else if (cueName == F("activation")) {
+    result = audioCuePlayer_.playLocalized(LocalizedAudioCue::ActivationCode, locale);
+  } else {
+    out.println(F("audio cue unknown"));
+    return;
+  }
+
+  printAudioCueResult(result, out);
+}
+
+void HardwareSelfTestService::printAudioCueResult(const AudioCuePlaybackResult& result,
+                                                  Print& out) const {
+  out.println(F("audio cue:"));
+  printBool(out, F("  ok="), result.ok);
+  out.print(F("  packets="));
+  out.println(result.packets);
+  out.print(F("  samples="));
+  out.println(result.samples);
+  out.print(F("  sample_rate="));
+  out.println(result.sampleRate);
+  if (!result.ok) {
+    out.print(F("  error="));
+    out.println(result.error);
+  }
 }
 
 void HardwareSelfTestService::printMotorFault(Print& out) const {

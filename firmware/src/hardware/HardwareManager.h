@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 
+#include "audio/AudioCuePlayer.h"
 #include "diagnostic/HardwareSelfTestService.h"
 #include "hardware/AudioInput.h"
 #include "hardware/AudioOutput.h"
@@ -29,6 +30,7 @@ class HardwareManager {
   RadarSensor& radar();
   AudioInput& audioInput();
   AudioOutput& audioOutput();
+  AudioCuePlayer& audioCuePlayer();
   ImuSensor& imu();
   LogoTouchInput& logoTouch();
   HardwareSelfTestService& selfTest();
@@ -44,9 +46,10 @@ class HardwareManager {
   RadarSensor radar_;
   AudioInput audioInput_;
   AudioOutput audioOutput_;
+  AudioCuePlayer audioCuePlayer_{audioOutput_};
   BatterySnapshot startupBattery_;
-  HardwareSelfTestService selfTest_{battery_, audioInput_, audioOutput_, led_, motors_,
-                                    radar_, faceDisplay_, imu_, logoTouch_};
+  HardwareSelfTestService selfTest_{battery_, audioInput_, audioOutput_, audioCuePlayer_,
+                                    led_, motors_, radar_, faceDisplay_, imu_, logoTouch_};
 };
 
 }  // namespace tongdou

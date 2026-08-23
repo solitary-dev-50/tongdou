@@ -35,6 +35,10 @@ void App::begin() {
   wifiConfigStore_.begin();
   Serial.println("wifi config ready");
 
+  deviceLocaleStore_.begin();
+  Serial.print("device locale=");
+  Serial.println(deviceLocaleStore_.locale());
+
   timeService_.begin();
   Serial.println("time service started");
 
@@ -65,6 +69,7 @@ void App::update() {
   hardware_.update();
   realtimeVoiceService_.update();
   deviceActivationService_.update();
+  handleAudioCueEvents();
   handleStartupReport();
   handleSerialDiagnostics();
   handleLogoTouchEvents();
@@ -115,6 +120,38 @@ void App::handleReminderEvents() {
   scenarioExecutor_.execute(plan);
 }
 
+void App::handleAudioCueEvents() {
+  for (uint8_t i = 0; i < 3; ++i) {
+    const WebConfigEvent event = webConfigServer_.consumeEvent();
+    if (event == WebConfigEvent::None) {
+      break;
+    }
+
+    switch (event) {
+      case WebConfigEvent::SetupPortalStarted:
+        playLocalizedCue(LocalizedAudioCue::WifiConfig, "wifi_config");
+        break;
+      case WebConfigEvent::LocaleChanged:
+        playLocalizedCue(LocalizedAudioCue::WifiConfig, "locale_changed_wifi_config");
+        break;
+      case WebConfigEvent::WifiConnected:
+        playSystemCue(SystemAudioCue::Success, "wifi_connected");
+        break;
+      case WebConfigEvent::WifiConnectFailed:
+        playSystemCue(SystemAudioCue::Error, "wifi_connect_failed");
+        break;
+      case WebConfigEvent::None:
+      default:
+        break;
+    }
+  }
+
+  String activationCode;
+  if (deviceActivationService_.consumeActivationCodeEvent(activationCode)) {
+    playActivationCodeCue(activationCode);
+  }
+}
+
 void App::handleRealtimeVoiceEvents() {
   if (!realtimeVoiceService_.consumeFailureEvent()) {
     return;
@@ -148,6 +185,35 @@ void App::handleSerialDiagnostics() {
   Serial.println("unknown command, type help");
 }
 
+void App::playSystemCue(SystemAudioCue cue, const char* label) {
+  logAudioCueResult(label, hardware_.audioCuePlayer().playSystem(cue));
+}
+
+void App::playLocalizedCue(LocalizedAudioCue cue, const char* label) {
+  logAudioCueResult(label, hardware_.audioCuePlayer().playLocalized(cue, deviceLocaleStore_.locale()));
+}
+
+void App::playActivationCodeCue(const String& code) {
+  logAudioCueResult("activation_code",
+                    hardware_.audioCuePlayer().playActivationCode(code, deviceLocaleStore_.locale()));
+}
+
+void App::logAudioCueResult(const char* label, const AudioCuePlaybackResult& result) const {
+  Serial.print("audio cue ");
+  Serial.print(label);
+  Serial.print(" ok=");
+  Serial.print(result.ok ? "1" : "0");
+  Serial.print(" packets=");
+  Serial.print(result.packets);
+  Serial.print(" samples=");
+  Serial.print(result.samples);
+  if (!result.ok) {
+    Serial.print(" error=");
+    Serial.print(result.error);
+  }
+  Serial.println();
+}
+
 void App::handleStartupReport() {
   const unsigned long elapsed = millis() - bootMs_;
   if (startupReportCount_ == 0 && elapsed >= kFirstStartupReportMs) {
@@ -174,6 +240,8 @@ void App::printStartupReport(const char* title) {
   Serial.println("  realtime voice ready");
   Serial.println("  device activation ready");
   Serial.println("  wifi config ready");
+  Serial.print("  device locale=");
+  Serial.println(deviceLocaleStore_.locale());
   Serial.println("  time service started");
   Serial.println("  reminder store ready");
   Serial.println("  reminder manager ready");

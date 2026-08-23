@@ -35,6 +35,10 @@
 | --- | --- | --- |
 | `GET` | `/api/health` | 查询设备是否在线 |
 | `GET` | `/api/status` | 查询联网和时间状态 |
+| `GET` | `/api/wifi/scan` | 扫描附近 WiFi |
+| `POST` | `/api/setup/wifi` | 保存 WiFi 并开始连接 |
+| `GET` | `/api/locale` | 读取设备语言 |
+| `POST` | `/api/locale` | 保存设备语言 |
 | `GET` | `/api/scenario/config` | 读取当前剧情配置 |
 | `PUT` | `/api/scenario/config` | 保存完整剧情配置 |
 | `POST` | `/api/scenario/reset` | 恢复默认剧情配置 |
@@ -131,6 +135,8 @@
   "timeReady": true,
   "now": "2026-06-22 10:00:00",
   "systemMode": "normal",
+  "locale": "en-GB",
+  "localeName": "English UK",
   "hardware": {
     "face": true,
     "led": true,
@@ -156,6 +162,92 @@
 | `portal` | 配网模式 |
 | `connecting` | 正在联网 |
 | `degraded` | 硬件降级 |
+
+---
+
+## 5.2 GET /api/locale
+
+用途：
+
+> 读取设备当前语言，用于配置页下拉框、提示音和后续语音服务默认语言。
+
+当前返回：
+
+```json
+{
+  "locale": "en-GB",
+  "name": "English UK"
+}
+```
+
+---
+
+## 5.3 POST /api/locale
+
+用途：
+
+> 保存设备语言。
+
+请求体：
+
+```text
+locale=en-GB
+```
+
+当前支持：
+
+- `English UK`
+- `English Canada`
+- `Français`
+- `Français Canada`
+- `Nederlands`
+- `Русский`
+- `中文`
+
+返回：纯文本保存结果。
+
+---
+
+## 5.4 GET /api/wifi/scan
+
+用途：
+
+> 扫描附近 WiFi，给配网页面下拉和按钮列表使用。
+
+当前行为：
+
+- 扫描前清掉旧结果。
+- 扫不到时自动重试一次。
+- 返回时跳过空名字的隐藏网络。
+
+当前返回：
+
+```json
+[
+  {
+    "ssid": "Home WiFi",
+    "rssi": -45
+  }
+]
+```
+
+如果仍然扫不到，返回空数组，页面继续允许用户手动填写。
+
+---
+
+## 5.5 POST /api/setup/wifi
+
+用途：
+
+> 保存 WiFi 名称和密码，并让设备开始连接。
+
+请求体：
+
+```text
+ssid=Home%20WiFi&password=12345678
+```
+
+返回：纯文本保存结果。
 
 ---
 

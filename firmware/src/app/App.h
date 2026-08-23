@@ -12,6 +12,7 @@
 #include "scenario/ScenarioEngine.h"
 #include "scenario/ScenarioExecutor.h"
 #include "scenario/ScenarioLibrary.h"
+#include "system/DeviceLocaleStore.h"
 #include "system/TimeService.h"
 #include "system/WifiConfigStore.h"
 #include "web/ScenarioConfigApi.h"
@@ -28,13 +29,19 @@ class App {
  private:
   void handleReminderEvents();
   void handleLogoTouchEvents();
+  void handleAudioCueEvents();
   void handleRealtimeVoiceEvents();
   void handleSerialDiagnostics();
   void handleStartupReport();
+  void playSystemCue(SystemAudioCue cue, const char* label);
+  void playLocalizedCue(LocalizedAudioCue cue, const char* label);
+  void playActivationCodeCue(const String& code);
+  void logAudioCueResult(const char* label, const AudioCuePlaybackResult& result) const;
   void printStartupReport(const char* title);
 
   HardwareManager hardware_;
   WifiConfigStore wifiConfigStore_;
+  DeviceLocaleStore deviceLocaleStore_;
   TimeService timeService_;
   ReminderStore reminderStore_;
   ReminderManager reminderManager_{timeService_, reminderStore_};
@@ -54,7 +61,8 @@ class App {
   ScenarioConfigStore scenarioConfigStore_;
   ScenarioConfigApi scenarioConfigApi_{scenarioConfigStore_};
   WebConfigServer webConfigServer_{scenarioConfigApi_, wifiConfigStore_, timeService_,
-                                   reminderStore_, mcpServer_, hardware_.selfTest()};
+                                   reminderStore_, mcpServer_, hardware_.selfTest(),
+                                   deviceLocaleStore_};
   unsigned long bootMs_ = 0;
   uint8_t startupReportCount_ = 0;
 };

@@ -22,6 +22,8 @@
 | --- | --- |
 | `GET /api/health` | 查询设备是否在线 |
 | `GET /api/status` | 查询联网和时间状态 |
+| `GET /api/locale` | 读取设备语言 |
+| `POST /api/locale` | 保存设备语言 |
 | `GET /api/scenario/config` | 读取当前剧情配置 |
 | `PUT /api/scenario/config` | 保存完整剧情配置 |
 | `POST /api/scenario/reset` | 恢复默认剧情配置 |
@@ -33,7 +35,7 @@
 
 这些路径对应固件里的 `web/WebApiContract.h`。
 
-`GET /api/status` 会返回 `systemMode`、`hardware` 和 `capabilities`，用于显示启动模式、硬件降级状态和当前保留能力。
+`GET /api/status` 会返回 `systemMode`、`locale`、`localeName`、`hardware` 和 `capabilities`，用于显示启动模式、设备语言、硬件降级状态和当前保留能力。
 
 `POST /api/mcp` 当前支持 `get_status`、`create_reminder`、`list_reminders`、`delete_reminder`、`play_scenario`、`set_personality`、`start_voice_turn`、`voice_status`、`play_voice_response` 和 `fail_voice_turn`。网页或调试工具只负责发送 MCP 请求，具体剧情触发、人格切换和实时语音回合交给固件里的应用命令服务。
 

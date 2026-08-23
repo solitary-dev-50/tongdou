@@ -12,6 +12,9 @@ const IPAddress kPortalGateway(192, 168, 4, 1);
 const IPAddress kPortalSubnet(255, 255, 255, 0);
 constexpr unsigned long kConnectTimeoutMs = 12000;
 constexpr unsigned long kDeferredConnectDelayMs = 400;
+constexpr unsigned long kStationDisconnectSettleMs = 120;
+constexpr uint32_t kWifiScanFirstPassMsPerChannel = 220;
+constexpr uint32_t kWifiScanRetryMsPerChannel = 300;
 
 String htmlEscape(const String& value) {
   String escaped = value;
@@ -27,6 +30,31 @@ String jsonEscape(const String& value) {
   escaped.replace("\\", "\\\\");
   escaped.replace("\"", "\\\"");
   return escaped;
+}
+
+const char* localeDisplayName(const String& locale) {
+  if (locale == "en-GB") {
+    return "English UK";
+  }
+  if (locale == "en-CA") {
+    return "English Canada";
+  }
+  if (locale == "fr-FR") {
+    return "Français";
+  }
+  if (locale == "fr-CA") {
+    return "Français Canada";
+  }
+  if (locale == "nl-NL") {
+    return "Nederlands";
+  }
+  if (locale == "ru-RU") {
+    return "Русский";
+  }
+  if (locale == "zh-CN") {
+    return "中文";
+  }
+  return "English UK";
 }
 
 class StringPrint : public Print {
@@ -49,13 +77,15 @@ class StringPrint : public Print {
 WebConfigServer::WebConfigServer(ScenarioConfigApi& scenarioApi, WifiConfigStore& wifiStore,
                                  TimeService& timeService, ReminderStore& reminderStore,
                                  McpServer& mcpServer,
-                                 HardwareSelfTestService& hardwareSelfTest)
+                                 HardwareSelfTestService& hardwareSelfTest,
+                                 DeviceLocaleStore& deviceLocaleStore)
     : scenarioApi_(scenarioApi),
       wifiStore_(wifiStore),
       timeService_(timeService),
       reminderStore_(reminderStore),
       mcpServer_(mcpServer),
-      hardwareSelfTest_(hardwareSelfTest) {}
+      hardwareSelfTest_(hardwareSelfTest),
+      deviceLocaleStore_(deviceLocaleStore) {}
 
 void WebConfigServer::begin() {
   scenarioApi_.begin();
@@ -85,11 +115,13 @@ void WebConfigServer::update() {
   if (state_ == NetworkState::Connecting) {
     if (WiFi.status() == WL_CONNECTED) {
       state_ = NetworkState::Connected;
+      wifiConnectedEvent_ = true;
       timeService_.configureNetworkTime();
       Serial.print("wifi connected ip=");
       Serial.println(WiFi.localIP());
     } else if (millis() - connectStartedMs_ > kConnectTimeoutMs) {
       Serial.println("wifi connect timeout, starting setup portal");
+      wifiConnectFailedEvent_ = true;
       startPortal();
     }
   }
@@ -101,15 +133,38 @@ ScenarioConfigApi& WebConfigServer::scenarioApi() {
   return scenarioApi_;
 }
 
+WebConfigEvent WebConfigServer::consumeEvent() {
+  if (wifiConnectFailedEvent_) {
+    wifiConnectFailedEvent_ = false;
+    return WebConfigEvent::WifiConnectFailed;
+  }
+  if (wifiConnectedEvent_) {
+    wifiConnectedEvent_ = false;
+    return WebConfigEvent::WifiConnected;
+  }
+  if (localeChangedEvent_) {
+    localeChangedEvent_ = false;
+    return WebConfigEvent::LocaleChanged;
+  }
+  if (setupPortalStartedEvent_) {
+    setupPortalStartedEvent_ = false;
+    return WebConfigEvent::SetupPortalStarted;
+  }
+  return WebConfigEvent::None;
+}
+
 void WebConfigServer::startPortal() {
   WiFi.mode(WIFI_AP_STA);
   WiFi.setSleep(false);
+  WiFi.disconnect(false, false);
+  delay(kStationDisconnectSettleMs);
   WiFi.softAPConfig(kPortalIp, kPortalGateway, kPortalSubnet);
   WiFi.softAP(kPortalSsid);
 
   dnsServer_.start(kDnsPort, "*", kPortalIp);
   dnsStarted_ = true;
   state_ = NetworkState::Portal;
+  setupPortalStartedEvent_ = true;
 
   Serial.print("setup portal started ssid=");
   Serial.print(kPortalSsid);
@@ -141,9 +196,16 @@ void WebConfigServer::ensureHttpServer() {
 
 void WebConfigServer::setupRoutes() {
   server_.on("/", HTTP_GET, [this]() { handleRoot(); });
+  server_.on("/favicon.ico", HTTP_GET, [this]() { sendText(204, "text/plain", ""); });
+  server_.on("/generate_204", HTTP_GET, [this]() { handleRoot(); });
+  server_.on("/gen_204", HTTP_GET, [this]() { handleRoot(); });
+  server_.on("/hotspot-detect.html", HTTP_GET, [this]() { handleRoot(); });
+  server_.on("/connecttest.txt", HTTP_GET, [this]() { handleRoot(); });
   server_.on("/api/status", HTTP_GET, [this]() { sendText(200, "application/json", statusJson()); });
   server_.on("/api/wifi/scan", HTTP_GET, [this]() { handleWifiScan(); });
   server_.on("/api/setup/wifi", HTTP_POST, [this]() { handleWifiSave(); });
+  server_.on("/api/locale", HTTP_GET, [this]() { handleLocaleGet(); });
+  server_.on("/api/locale", HTTP_POST, [this]() { handleLocaleSave(); });
   server_.on("/api/time/sync", HTTP_POST, [this]() { handleTimeSync(); });
   server_.on("/api/time/status", HTTP_GET, [this]() { handleTimeStatus(); });
   server_.on("/api/reminders", HTTP_GET, [this]() { handleReminderList(); });
@@ -179,9 +241,9 @@ h1{margin:0 0 6px}h2{margin:0 0 12px}h3{margin:16px 0 8px}.sub{color:#aaa;margin
 .status{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:8px}
 .item{background:#0f0f0f;border:1px solid #2a2a2a;border-radius:8px;padding:12px}
 .label{color:#aaa;font-size:12px}.value{font-size:17px;margin-top:4px;word-break:break-word}
-button,input{box-sizing:border-box;width:100%;padding:12px;margin:5px 0;border-radius:8px}
+button,input,select{box-sizing:border-box;width:100%;padding:12px;margin:5px 0;border-radius:8px}
 button{border:0;background:#e7b45f;color:#111;font-weight:700;cursor:pointer}button.secondary{background:#2a2a2a;color:#f4f1ea}
-input{background:#0f0f0f;color:#f4f1ea;border:1px solid #2a2a2a}
+input,select{background:#0f0f0f;color:#f4f1ea;border:1px solid #2a2a2a}
 pre{white-space:pre-wrap;background:#0b0b0b;padding:12px;border-radius:8px;min-height:120px}
 .meter{height:16px;background:#0b0b0b;border:1px solid #2a2a2a;border-radius:999px;overflow:hidden}.bar{height:100%;width:0;background:#e7b45f}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:8px}@media(max-width:560px){.row{grid-template-columns:1fr}}
@@ -189,10 +251,23 @@ small{color:#aaa}
 </style></head><body><main>
 <h1>铜豆控制台</h1><p class="sub">本地配置、状态查看和硬件诊断。</p>
 
+<section class="card"><h2>语言</h2>
+<select id="locale" onchange="saveLocale()">
+<option value="en-GB">English UK</option>
+<option value="en-CA">English Canada</option>
+<option value="fr-FR">Français</option>
+<option value="fr-CA">Français Canada</option>
+<option value="nl-NL">Nederlands</option>
+<option value="ru-RU">Русский</option>
+<option value="zh-CN">中文</option>
+</select>
+<small id="localeMsg">提示音和后续语音服务会使用这个语言。</small></section>
+
 <section class="card"><h2>状态</h2><div class="status">
 <div class="item"><div class="label">网络</div><div class="value" id="wifi">读取中</div></div>
 <div class="item"><div class="label">地址</div><div class="value" id="ip">读取中</div></div>
 <div class="item"><div class="label">时间</div><div class="value" id="time">读取中</div></div>
+<div class="item"><div class="label">语言</div><div class="value" id="localeStatus">读取中</div></div>
 <div class="item"><div class="label">电池</div><div class="value" id="battery">读取中</div></div>
 <div class="item"><div class="label">硬件</div><div class="value" id="hardware">读取中</div></div>
 <div class="item"><div class="label">能力</div><div class="value" id="capability">读取中</div></div>
@@ -203,7 +278,7 @@ small{color:#aaa}
 <input id="ssid" name="ssid" list="wifiOptions" placeholder="WiFi 名称" required>
 <datalist id="wifiOptions"></datalist>
 <input id="password" name="password" type="password" placeholder="WiFi 密码">
-<div class="row"><button type="button" class="secondary" onclick="scanWifi()">扫描附近 WiFi</button><button type="submit">保存并连接</button></div>
+<div class="row"><button id="scanBtn" type="button" class="secondary" onclick="scanWifi()">扫描附近 WiFi</button><button type="submit">保存并连接</button></div>
 </form><div id="wifiList" class="grid"></div><button onclick="syncTime()">同步当前时间</button><small id="msg"></small></section>
 
 <section class="card"><h2>麦克风</h2>
@@ -222,6 +297,10 @@ small{color:#aaa}
 
 <section class="card"><h2>输出测试</h2><div class="grid">
 <button onclick="diag('speaker')">喇叭短音</button>
+<button onclick="diag('audio cue success')">成功提示</button>
+<button onclick="diag('audio cue error')">错误提示</button>
+<button onclick="diag('audio cue wifi '+$('locale').value)">配网提示</button>
+<button onclick="diag('audio code 1863 '+$('locale').value)">验证码播报</button>
 <button onclick="diag('led red')">红灯</button>
 <button onclick="diag('led green')">绿灯</button>
 <button onclick="diag('led blue')">蓝灯</button>
@@ -262,10 +341,12 @@ small{color:#aaa}
 
 <script>
 const $=id=>document.getElementById(id);let micTimer=null,radarTimer=null;
+function localeName(v){return {'en-GB':'English UK','en-CA':'English Canada','fr-FR':'Français','fr-CA':'Français Canada','nl-NL':'Nederlands','ru-RU':'Русский','zh-CN':'中文'}[v]||v}
 function capText(c){let a=[];if(c.reminders)a.push('提醒');if(c.web)a.push('网页');if(c.visual)a.push('视觉');if(c.sound)a.push('声音');if(c.voiceInput)a.push('麦克风');return a.join(' / ')||'无'}
-async function loadStatus(){try{let r=await fetch('/api/status');let j=await r.json();$('wifi').textContent=j.wifiConnected?'已连接':(j.portal?'配网模式':'连接中');$('ip').textContent=j.ip||'-';$('time').textContent=j.timeReady?j.now:'未校时';$('battery').textContent=`USB ${j.battery.usb?'有':'无'} / 充电 ${j.battery.charging?'是':'否'} / ADC ${j.battery.rawAdc}`;$('hardware').textContent=j.hardware.degraded?(j.hardware.motorFault?'电机故障':'降级'):'正常';$('capability').textContent=capText(j.capabilities)}catch(e){$('wifi').textContent='读取失败'}}
+async function loadStatus(){try{let r=await fetch('/api/status');let j=await r.json();$('wifi').textContent=j.wifiConnected?'已连接':(j.portal?'配网模式':'连接中');$('ip').textContent=j.ip||'-';$('time').textContent=j.timeReady?j.now:'未校时';$('localeStatus').textContent=localeName(j.locale);if($('locale').value!==j.locale)$('locale').value=j.locale;$('battery').textContent=`USB ${j.battery.usb?'有':'无'} / 充电 ${j.battery.charging?'是':'否'} / ADC ${j.battery.rawAdc}`;$('hardware').textContent=j.hardware.degraded?(j.hardware.motorFault?'电机故障':'降级'):'正常';$('capability').textContent=capText(j.capabilities)}catch(e){$('wifi').textContent='读取失败'}}
+async function saveLocale(){let v=$('locale').value;$('localeMsg').textContent='正在保存语言';let r=await fetch('/api/locale',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'locale='+encodeURIComponent(v)});$('localeMsg').textContent=await r.text();$('localeStatus').textContent=localeName(v)}
 async function syncTime(){let e=Math.floor(Date.now()/1000);let r=await fetch('/api/time/sync',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'epoch='+e});$('msg').textContent=await r.text();loadStatus()}
-async function scanWifi(){let m=$('msg'),l=$('wifiList'),d=$('wifiOptions');m.textContent='正在扫描附近 WiFi';l.innerHTML='';try{let r=await fetch('/api/wifi/scan');let a=await r.json();d.innerHTML='';if(!a.length){m.textContent='没有扫到 WiFi，可以手动填写';return}a.sort((x,y)=>y.rssi-x.rssi);a.slice(0,12).forEach(n=>{let o=document.createElement('option');o.value=n.ssid;d.appendChild(o);let b=document.createElement('button');b.type='button';b.className='secondary';b.textContent=n.ssid+'  '+n.rssi+' dBm';b.onclick=()=>{$('ssid').value=n.ssid;$('password').focus()};l.appendChild(b)});m.textContent='点一个 WiFi 名称，或继续手动填写'}catch(e){m.textContent='扫描失败，请手动填写'}}
+async function scanWifi(){let m=$('msg'),l=$('wifiList'),d=$('wifiOptions'),btn=$('scanBtn');m.textContent='正在扫描附近 WiFi，可能需要几秒';l.innerHTML='';if(btn)btn.disabled=true;try{let r=await fetch('/api/wifi/scan');let a=await r.json();d.innerHTML='';if(!a.length){m.textContent='没有扫到 WiFi，铜豆已经自动重试过一次，可以再点扫描或手动填写';return}a.sort((x,y)=>y.rssi-x.rssi);a.slice(0,16).forEach(n=>{let o=document.createElement('option');o.value=n.ssid;d.appendChild(o);let b=document.createElement('button');b.type='button';b.className='secondary';b.textContent=n.ssid+'  '+n.rssi+' dBm';b.onclick=()=>{$('ssid').value=n.ssid;$('password').focus()};l.appendChild(b)});m.textContent='点一个 WiFi 名称，或继续手动填写'}catch(e){m.textContent='扫描失败，请再试一次，或手动填写'}finally{if(btn)btn.disabled=false}}
 async function saveWifi(e){e.preventDefault();let s=$('ssid').value.trim(),p=$('password').value;if(!s){$('msg').textContent='请先选择或填写 WiFi 名称';return}$('msg').textContent='正在保存并连接';let r=await fetch('/api/setup/wifi',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'ssid='+encodeURIComponent(s)+'&password='+encodeURIComponent(p)});$('msg').textContent=await r.text();setTimeout(loadStatus,1200)}
 async function diag(c){$('diag').textContent='执行中：'+c;let r=await fetch('/api/diagnostic',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'command='+encodeURIComponent(c)});let t=await r.text();$('diag').textContent=t;return t}
 function val(t,k){let m=t.match(new RegExp(k+'=([^\\n\\r]+)'));return m?m[1].trim():''}
@@ -333,6 +414,12 @@ loadStatus();setInterval(loadStatus,5000);
   body += F("<button onclick=\"stopMicTest()\">停止麦克风测试</button>");
   body += F("</div><h3>输出测试</h3><div class='grid'>");
   body += F("<button onclick=\"diag('speaker')\">喇叭测试音</button>");
+  body += F("<button onclick=\"diag('audio cue success')\">成功提示</button>");
+  body += F("<button onclick=\"diag('audio cue error')\">错误提示</button>");
+  body += F("<button onclick=\"diag('audio cue wifi en-GB')\">配网英文</button>");
+  body += F("<button onclick=\"diag('audio cue wifi fr-FR')\">配网法语</button>");
+  body += F("<button onclick=\"diag('audio cue wifi nl-NL')\">配网荷兰语</button>");
+  body += F("<button onclick=\"diag('audio code 1863 ru-RU')\">验证码俄语</button>");
   body += F("<button onclick=\"diag('led red')\">红灯</button>");
   body += F("<button onclick=\"diag('led green')\">绿灯</button>");
   body += F("<button onclick=\"diag('led blue')\">蓝灯</button>");
@@ -387,20 +474,82 @@ void WebConfigServer::handleWifiSave() {
 }
 
 void WebConfigServer::handleWifiScan() {
-  const int count = WiFi.scanNetworks();
-  String body = "[";
-  for (int i = 0; i < count; ++i) {
-    if (i > 0) {
-      body += ",";
+  if (state_ == NetworkState::Portal) {
+    WiFi.mode(WIFI_AP_STA);
+    WiFi.disconnect(false, false);
+    delay(kStationDisconnectSettleMs);
+  }
+
+  WiFi.scanDelete();
+  int count = WiFi.scanNetworks(false, false, false, kWifiScanFirstPassMsPerChannel);
+  if (count <= 0) {
+    Serial.print("wifi scan first pass count=");
+    Serial.println(count);
+    delay(120);
+    if (state_ == NetworkState::Portal) {
+      WiFi.mode(WIFI_AP_STA);
+      WiFi.disconnect(false, false);
+      delay(kStationDisconnectSettleMs);
     }
-    body += "{\"ssid\":\"";
-    body += jsonEscape(WiFi.SSID(i));
-    body += "\",\"rssi\":";
-    body += WiFi.RSSI(i);
-    body += "}";
+    WiFi.scanDelete();
+    count = WiFi.scanNetworks(false, false, false, kWifiScanRetryMsPerChannel);
+  }
+
+  Serial.print("wifi scan count=");
+  Serial.println(count);
+  String body = "[";
+  bool first = true;
+  if (count > 0) {
+    for (int i = 0; i < count; ++i) {
+      const String ssid = WiFi.SSID(i);
+      if (ssid.length() == 0) {
+        continue;
+      }
+      if (!first) {
+        body += ",";
+      }
+      first = false;
+      body += "{\"ssid\":\"";
+      body += jsonEscape(ssid);
+      body += "\",\"rssi\":";
+      body += WiFi.RSSI(i);
+      body += "}";
+    }
   }
   body += "]";
+  WiFi.scanDelete();
   sendText(200, "application/json", body);
+}
+
+void WebConfigServer::handleLocaleGet() {
+  const String locale = deviceLocaleStore_.locale();
+  String body;
+  body.reserve(96);
+  body += "{\"locale\":\"";
+  body += jsonEscape(locale);
+  body += "\",\"name\":\"";
+  body += localeDisplayName(locale);
+  body += "\"}";
+  sendText(200, "application/json", body);
+}
+
+void WebConfigServer::handleLocaleSave() {
+  String locale = server_.arg("locale");
+  locale.trim();
+
+  if (!DeviceLocaleStore::supported(locale)) {
+    sendText(400, "text/plain; charset=utf-8", "不支持这个语言");
+    return;
+  }
+
+  if (!deviceLocaleStore_.save(locale)) {
+    sendText(500, "text/plain; charset=utf-8", "语言保存失败");
+    return;
+  }
+
+  localeChangedEvent_ = true;
+  sendText(200, "text/plain; charset=utf-8",
+           String("语言已保存：") + localeDisplayName(locale));
 }
 
 void WebConfigServer::handleTimeSync() {
@@ -679,8 +828,9 @@ String WebConfigServer::callMcpTool(const char* name, const String& argumentsJso
 String WebConfigServer::statusJson() const {
   const HardwareDiagnosticStatus hardware = hardwareSelfTest_.status();
   const BatterySnapshot battery = hardwareSelfTest_.batterySnapshot();
+  const String locale = deviceLocaleStore_.locale();
   String body;
-  body.reserve(860);
+  body.reserve(980);
   const char* systemMode = "normal";
   if (state_ == NetworkState::Portal) {
     systemMode = "portal";
@@ -704,6 +854,10 @@ String WebConfigServer::statusJson() const {
   body += timeService_.ready() ? timeService_.isoNow() : "";
   body += "\",\"systemMode\":\"";
   body += systemMode;
+  body += "\",\"locale\":\"";
+  body += jsonEscape(locale);
+  body += "\",\"localeName\":\"";
+  body += localeDisplayName(locale);
   body += "\",\"hardware\":{\"face\":";
   body += hardware.faceReady ? "true" : "false";
   body += ",\"imu\":";
