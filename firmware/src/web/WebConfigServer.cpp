@@ -249,9 +249,9 @@ pre{white-space:pre-wrap;background:#0b0b0b;padding:12px;border-radius:8px;min-h
 .row{display:grid;grid-template-columns:1fr 1fr;gap:8px}@media(max-width:560px){.row{grid-template-columns:1fr}}
 small{color:#aaa}
 </style></head><body><main>
-<h1>铜豆控制台</h1><p class="sub">本地配置、状态查看和硬件诊断。</p>
+<h1 data-i18n="appTitle">铜豆控制台</h1><p class="sub" data-i18n="appSub">本地配置、状态查看和硬件诊断。</p>
 
-<section class="card"><h2>语言</h2>
+<section class="card"><h2 data-i18n="language">语言</h2>
 <select id="locale" onchange="saveLocale()">
 <option value="en-GB">English UK</option>
 <option value="en-CA">English Canada</option>
@@ -261,100 +261,112 @@ small{color:#aaa}
 <option value="ru-RU">Русский</option>
 <option value="zh-CN">中文</option>
 </select>
-<small id="localeMsg">提示音和后续语音服务会使用这个语言。</small></section>
+<small id="localeMsg" data-i18n="languageHelp">提示音、验证码播报和配置页面会使用这个语言。</small></section>
 
-<section class="card"><h2>状态</h2><div class="status">
-<div class="item"><div class="label">网络</div><div class="value" id="wifi">读取中</div></div>
-<div class="item"><div class="label">地址</div><div class="value" id="ip">读取中</div></div>
-<div class="item"><div class="label">时间</div><div class="value" id="time">读取中</div></div>
-<div class="item"><div class="label">语言</div><div class="value" id="localeStatus">读取中</div></div>
-<div class="item"><div class="label">电池</div><div class="value" id="battery">读取中</div></div>
-<div class="item"><div class="label">硬件</div><div class="value" id="hardware">读取中</div></div>
-<div class="item"><div class="label">能力</div><div class="value" id="capability">读取中</div></div>
-</div><button onclick="loadStatus()">刷新状态</button></section>
+<section class="card"><h2 data-i18n="status">状态</h2><div class="status">
+<div class="item"><div class="label" data-i18n="network">网络</div><div class="value" id="wifi" data-i18n="loading">读取中</div></div>
+<div class="item"><div class="label" data-i18n="address">地址</div><div class="value" id="ip" data-i18n="loading">读取中</div></div>
+<div class="item"><div class="label" data-i18n="time">时间</div><div class="value" id="time" data-i18n="loading">读取中</div></div>
+<div class="item"><div class="label" data-i18n="language">语言</div><div class="value" id="localeStatus" data-i18n="loading">读取中</div></div>
+<div class="item"><div class="label" data-i18n="battery">电池</div><div class="value" id="battery" data-i18n="loading">读取中</div></div>
+<div class="item"><div class="label" data-i18n="hardware">硬件</div><div class="value" id="hardware" data-i18n="loading">读取中</div></div>
+<div class="item"><div class="label" data-i18n="capability">能力</div><div class="value" id="capability" data-i18n="loading">读取中</div></div>
+</div><button onclick="loadStatus()" data-i18n="refreshStatus">刷新状态</button></section>
 
-<section class="card"><h2>连接和时间</h2>
+<section class="card"><h2 data-i18n="connectionTime">连接和时间</h2>
 <form id="wifiForm" onsubmit="saveWifi(event)">
-<input id="ssid" name="ssid" list="wifiOptions" placeholder="WiFi 名称" required>
+<input id="ssid" name="ssid" list="wifiOptions" placeholder="WiFi 名称" data-i18n-placeholder="wifiName" required>
 <datalist id="wifiOptions"></datalist>
-<input id="password" name="password" type="password" placeholder="WiFi 密码">
-<div class="row"><button id="scanBtn" type="button" class="secondary" onclick="scanWifi()">扫描附近 WiFi</button><button type="submit">保存并连接</button></div>
-</form><div id="wifiList" class="grid"></div><button onclick="syncTime()">同步当前时间</button><small id="msg"></small></section>
+<input id="password" name="password" type="password" placeholder="WiFi 密码" data-i18n-placeholder="wifiPassword">
+<div class="row"><button id="scanBtn" type="button" class="secondary" onclick="scanWifi()" data-i18n="scanWifi">扫描附近 WiFi</button><button type="submit" data-i18n="saveConnect">保存并连接</button></div>
+</form><div id="wifiList" class="grid"></div><button onclick="syncTime()" data-i18n="syncTime">同步当前时间</button><small id="msg"></small></section>
 
-<section class="card"><h2>麦克风</h2>
+<section class="card"><h2 data-i18n="microphone">麦克风</h2>
 <div class="meter"><div class="bar" id="micBar"></div></div>
-<div class="row"><button onclick="startMicTest()">开始持续测试</button><button class="secondary" onclick="stopMicTest()">停止</button></div>
-<div class="item"><div class="label">当前读数</div><div class="value" id="micValue">未开始</div></div></section>
+<div class="row"><button onclick="startMicTest()" data-i18n="startTest">开始持续测试</button><button class="secondary" onclick="stopMicTest()" data-i18n="stop">停止</button></div>
+<div class="item"><div class="label" data-i18n="currentReading">当前读数</div><div class="value" id="micValue" data-i18n="notStarted">未开始</div></div></section>
 
-<section class="card"><h2>雷达</h2>
+<section class="card"><h2 data-i18n="radar">雷达</h2>
 <div class="status">
-<div class="item"><div class="label">是否有人</div><div class="value" id="radarOccupied">未读取</div></div>
-<div class="item"><div class="label">距离</div><div class="value" id="radarDistance">不用于判断</div></div>
-<div class="item"><div class="label">原始辅助值</div><div class="value" id="radarRaw">未读取</div></div>
-<div class="item"><div class="label">状态</div><div class="value" id="radarState">未读取</div></div>
+<div class="item"><div class="label" data-i18n="occupied">是否有人</div><div class="value" id="radarOccupied" data-i18n="notRead">未读取</div></div>
+<div class="item"><div class="label" data-i18n="distance">距离</div><div class="value" id="radarDistance" data-i18n="distanceUnused">不用于判断</div></div>
+<div class="item"><div class="label" data-i18n="rawAux">原始辅助值</div><div class="value" id="radarRaw" data-i18n="notRead">未读取</div></div>
+<div class="item"><div class="label" data-i18n="state">状态</div><div class="value" id="radarState" data-i18n="notRead">未读取</div></div>
 </div>
-<div class="row"><button onclick="startRadarTest()">开始持续测试</button><button class="secondary" onclick="stopRadarTest()">停止</button></div></section>
+<div class="row"><button onclick="startRadarTest()" data-i18n="startTest">开始持续测试</button><button class="secondary" onclick="stopRadarTest()" data-i18n="stop">停止</button></div></section>
 
-<section class="card"><h2>输出测试</h2><div class="grid">
-<button onclick="diag('speaker')">喇叭短音</button>
-<button onclick="diag('audio cue success')">成功提示</button>
-<button onclick="diag('audio cue error')">错误提示</button>
-<button onclick="diag('audio cue wifi '+$('locale').value)">配网提示</button>
-<button onclick="diag('audio code 1863 '+$('locale').value)">验证码播报</button>
-<button onclick="diag('led red')">红灯</button>
-<button onclick="diag('led green')">绿灯</button>
-<button onclick="diag('led blue')">蓝灯</button>
-<button onclick="diag('led off')">关灯</button>
-<button onclick="diag('motor fault')">电机故障</button>
-<button onclick="diag('motor fault simulate on')">模拟电机故障</button>
-<button onclick="diag('motor fault simulate off')">取消模拟故障</button>
-<button onclick="diag('motor forward')">电机正转</button>
-<button onclick="diag('motor reverse')">电机反转</button>
-<button onclick="diag('motor turn left')">电机左扭</button>
-<button onclick="diag('motor turn right')">电机右扭</button>
-<button onclick="diag('motor stop')">电机停止</button>
+<section class="card"><h2 data-i18n="outputTest">输出测试</h2><div class="grid">
+<button onclick="diag('speaker')" data-i18n="speakerTone">喇叭短音</button>
+<button onclick="diag('audio cue success')" data-i18n="successCue">成功提示</button>
+<button onclick="diag('audio cue error')" data-i18n="errorCue">错误提示</button>
+<button onclick="diag('audio cue wifi '+$('locale').value)" data-i18n="wifiCue">配网提示</button>
+<button onclick="diag('audio code 1863 '+$('locale').value)" data-i18n="codeCue">验证码播报</button>
+<button onclick="diag('led red')" data-i18n="redLed">红灯</button>
+<button onclick="diag('led green')" data-i18n="greenLed">绿灯</button>
+<button onclick="diag('led blue')" data-i18n="blueLed">蓝灯</button>
+<button onclick="diag('led off')" data-i18n="ledOff">关灯</button>
+<button onclick="diag('motor fault')" data-i18n="motorFault">电机故障</button>
+<button onclick="diag('motor fault simulate on')" data-i18n="motorFaultOn">模拟电机故障</button>
+<button onclick="diag('motor fault simulate off')" data-i18n="motorFaultOff">取消模拟故障</button>
+<button onclick="diag('motor forward')" data-i18n="motorForward">电机正转</button>
+<button onclick="diag('motor reverse')" data-i18n="motorReverse">电机反转</button>
+<button onclick="diag('motor turn left')" data-i18n="motorLeft">电机左扭</button>
+<button onclick="diag('motor turn right')" data-i18n="motorRight">电机右扭</button>
+<button onclick="diag('motor stop')" data-i18n="motorStop">电机停止</button>
 </div></section>
 
-<section class="card"><h2>硬件读取</h2><div class="grid">
-<button onclick="diag('selftest')">完整自检</button>
-<button onclick="diag('status')">硬件状态</button>
-<button onclick="diag('battery')">电池/充电</button>
-<button onclick="diag('i2c scan')">I2C 扫描</button>
+<section class="card"><h2 data-i18n="hardwareRead">硬件读取</h2><div class="grid">
+<button onclick="diag('selftest')" data-i18n="fullSelftest">完整自检</button>
+<button onclick="diag('status')" data-i18n="hardwareStatus">硬件状态</button>
+<button onclick="diag('battery')" data-i18n="batteryCharge">电池/充电</button>
+<button onclick="diag('i2c scan')" data-i18n="i2cScan">I2C 扫描</button>
 <button onclick="diag('imu')">QMI8658A</button>
-<button onclick="diag('logo touch')">Logo 触摸</button>
-<button onclick="diag('radar')">雷达电平</button>
-<button onclick="diag('radar target')">雷达目标</button>
-<button onclick="diag('radar sample')">雷达连续采样</button>
-<button onclick="diag('mic')">麦克风单次</button>
+<button onclick="diag('logo touch')" data-i18n="logoTouch">Logo 触摸</button>
+<button onclick="diag('radar')" data-i18n="radarLevel">雷达电平</button>
+<button onclick="diag('radar target')" data-i18n="radarTarget">雷达目标</button>
+<button onclick="diag('radar sample')" data-i18n="radarSample">雷达连续采样</button>
+<button onclick="diag('mic')" data-i18n="micOnce">麦克风单次</button>
 </div></section>
 
-<section class="card"><h2>剧情测试</h2><div class="grid">
-<button onclick="mcpTool('play_scenario',{event:'boot_completed'})">开机场景</button>
-<button onclick="mcpTool('play_scenario',{event:'voice_recognition_failed'})">识别失败</button>
-<button onclick="mcpTool('play_scenario',{event:'logo_single_tapped'})">Logo 单击</button>
-<button onclick="mcpTool('play_scenario',{event:'logo_double_tapped'})">Logo 双击</button>
-<button onclick="mcpTool('play_scenario',{event:'logo_long_pressed'})">Logo 长按</button>
-<button onclick="mcpTool('voice_status',{})">语音状态</button>
+<section class="card"><h2 data-i18n="scenarioTest">剧情测试</h2><div class="grid">
+<button onclick="mcpTool('play_scenario',{event:'boot_completed'})" data-i18n="bootScenario">开机场景</button>
+<button onclick="mcpTool('play_scenario',{event:'voice_recognition_failed'})" data-i18n="recognitionFailed">识别失败</button>
+<button onclick="mcpTool('play_scenario',{event:'logo_single_tapped'})" data-i18n="logoSingle">Logo 单击</button>
+<button onclick="mcpTool('play_scenario',{event:'logo_double_tapped'})" data-i18n="logoDouble">Logo 双击</button>
+<button onclick="mcpTool('play_scenario',{event:'logo_long_pressed'})" data-i18n="logoLong">Logo 长按</button>
+<button onclick="mcpTool('voice_status',{})" data-i18n="voiceStatus">语音状态</button>
 </div></section>
 
-<section class="card"><h2>输出</h2><pre id="diag">等待操作</pre></section>
+<section class="card"><h2 data-i18n="output">输出</h2><pre id="diag" data-i18n="waiting">等待操作</pre></section>
 
 <script>
 const $=id=>document.getElementById(id);let micTimer=null,radarTimer=null;
+const I18N={
+'zh-CN':{appTitle:'铜豆控制台',appSub:'本地配置、状态查看和硬件诊断。',language:'语言',languageHelp:'提示音、验证码播报和配置页面会使用这个语言。',status:'状态',network:'网络',address:'地址',time:'时间',battery:'电池',hardware:'硬件',capability:'能力',loading:'读取中',refreshStatus:'刷新状态',connectionTime:'连接和时间',wifiName:'WiFi 名称',wifiPassword:'WiFi 密码',scanWifi:'扫描附近 WiFi',saveConnect:'保存并连接',syncTime:'同步当前时间',microphone:'麦克风',startTest:'开始持续测试',stop:'停止',currentReading:'当前读数',notStarted:'未开始',radar:'雷达',occupied:'是否有人',distance:'距离',rawAux:'原始辅助值',state:'状态',notRead:'未读取',distanceUnused:'不用于判断',outputTest:'输出测试',speakerTone:'喇叭短音',successCue:'成功提示',errorCue:'错误提示',wifiCue:'配网提示',codeCue:'验证码播报',redLed:'红灯',greenLed:'绿灯',blueLed:'蓝灯',ledOff:'关灯',motorFault:'电机故障',motorFaultOn:'模拟电机故障',motorFaultOff:'取消模拟故障',motorForward:'电机正转',motorReverse:'电机反转',motorLeft:'电机左扭',motorRight:'电机右扭',motorStop:'电机停止',hardwareRead:'硬件读取',fullSelftest:'完整自检',hardwareStatus:'硬件状态',batteryCharge:'电池/充电',i2cScan:'I2C 扫描',logoTouch:'Logo 触摸',radarLevel:'雷达电平',radarTarget:'雷达目标',radarSample:'雷达连续采样',micOnce:'麦克风单次',scenarioTest:'剧情测试',bootScenario:'开机场景',recognitionFailed:'识别失败',logoSingle:'Logo 单击',logoDouble:'Logo 双击',logoLong:'Logo 长按',voiceStatus:'语音状态',output:'输出',waiting:'等待操作',wifiConnected:'已连接',portalMode:'配网模式',connecting:'连接中',timeNotReady:'未校时',readFailed:'读取失败',usb:'USB',yes:'是',no:'否',charging:'充电',normal:'正常',degraded:'降级',reminders:'提醒',web:'网页',visual:'视觉',sound:'声音',voiceInput:'麦克风',none:'无',savingLanguage:'正在保存语言',scanStart:'正在扫描附近 WiFi，可能需要几秒',scanEmpty:'没有扫到 WiFi，铜豆已经自动重试过一次，可以再点扫描或手动填写',scanDone:'点一个 WiFi 名称，或继续手动填写',scanFailed:'扫描失败，请再试一次，或手动填写',missingSsid:'请先选择或填写 WiFi 名称',savingWifi:'正在保存并连接',running:'执行中：',unknown:'未知',present:'有人',absent:'无人',radarUnused:'不可用：LD2412 只用于有人/无人',movingRaw:'移动原始',energy:'能量',staticRaw:'静止原始',radar0:'无人',radar1:'移动目标',radar2:'静止目标',radar3:'移动+静止'},
+'en-GB':{appTitle:'Tong Dou Console',appSub:'Local setup, status, and hardware diagnostics.',language:'Language',languageHelp:'This language is used for prompts, activation codes, and this page.',status:'Status',network:'Network',address:'Address',time:'Time',battery:'Battery',hardware:'Hardware',capability:'Capabilities',loading:'Loading',refreshStatus:'Refresh status',connectionTime:'Connection and time',wifiName:'WiFi name',wifiPassword:'WiFi password',scanWifi:'Scan nearby WiFi',saveConnect:'Save and connect',syncTime:'Sync current time',microphone:'Microphone',startTest:'Start continuous test',stop:'Stop',currentReading:'Current reading',notStarted:'Not started',radar:'Radar',occupied:'Presence',distance:'Distance',rawAux:'Raw auxiliary values',state:'State',notRead:'Not read',distanceUnused:'Not used for decisions',outputTest:'Output test',speakerTone:'Speaker tone',successCue:'Success prompt',errorCue:'Error prompt',wifiCue:'Setup prompt',codeCue:'Activation code prompt',redLed:'Red light',greenLed:'Green light',blueLed:'Blue light',ledOff:'Light off',motorFault:'Motor fault',motorFaultOn:'Simulate motor fault',motorFaultOff:'Clear simulated fault',motorForward:'Motor forward',motorReverse:'Motor reverse',motorLeft:'Motor twist left',motorRight:'Motor twist right',motorStop:'Motor stop',hardwareRead:'Hardware readings',fullSelftest:'Full self-test',hardwareStatus:'Hardware status',batteryCharge:'Battery/charging',i2cScan:'I2C scan',logoTouch:'Logo touch',radarLevel:'Radar level',radarTarget:'Radar target',radarSample:'Radar samples',micOnce:'Microphone once',scenarioTest:'Scenario test',bootScenario:'Boot scenario',recognitionFailed:'Recognition failed',logoSingle:'Logo single tap',logoDouble:'Logo double tap',logoLong:'Logo long press',voiceStatus:'Voice status',output:'Output',waiting:'Waiting',wifiConnected:'Connected',portalMode:'Setup mode',connecting:'Connecting',timeNotReady:'Time not set',readFailed:'Read failed',usb:'USB',yes:'yes',no:'no',charging:'charging',normal:'Normal',degraded:'Degraded',reminders:'Reminders',web:'Web',visual:'Visual',sound:'Sound',voiceInput:'Microphone',none:'None',savingLanguage:'Saving language',scanStart:'Scanning nearby WiFi. This may take a few seconds.',scanEmpty:'No WiFi found. Tong Dou already retried once. Scan again or enter it manually.',scanDone:'Pick a WiFi name, or enter one manually.',scanFailed:'Scan failed. Try again or enter it manually.',missingSsid:'Choose or enter a WiFi name first.',savingWifi:'Saving and connecting',running:'Running: ',unknown:'Unknown',present:'Present',absent:'Absent',radarUnused:'Not used: LD2412 is only used for presence.',movingRaw:'moving raw',energy:'energy',staticRaw:'static raw',radar0:'No target',radar1:'Moving target',radar2:'Static target',radar3:'Moving + static'},
+'en-CA':null,'fr-FR':null,'fr-CA':null,'nl-NL':null,'ru-RU':null};
+I18N['en-CA']=I18N['en-GB'];
+I18N['fr-FR']={...I18N['en-GB'],appTitle:'Console Tong Dou',appSub:'Configuration locale, état et diagnostic matériel.',language:'Langue',languageHelp:'Cette langue est utilisée pour les annonces, le code d’activation et cette page.',status:'État',network:'Réseau',address:'Adresse',time:'Heure',battery:'Batterie',hardware:'Matériel',capability:'Capacités',loading:'Chargement',refreshStatus:'Actualiser',connectionTime:'Connexion et heure',wifiName:'Nom du WiFi',wifiPassword:'Mot de passe WiFi',scanWifi:'Scanner les WiFi proches',saveConnect:'Enregistrer et connecter',syncTime:'Synchroniser l’heure',microphone:'Microphone',startTest:'Démarrer le test continu',stop:'Arrêter',currentReading:'Lecture actuelle',notStarted:'Pas démarré',radar:'Radar',occupied:'Présence',distance:'Distance',rawAux:'Valeurs brutes',state:'État',notRead:'Non lu',distanceUnused:'Non utilisé pour décider',outputTest:'Test de sortie',speakerTone:'Son haut-parleur',successCue:'Annonce de succès',errorCue:'Annonce d’erreur',wifiCue:'Annonce de configuration',codeCue:'Annonce du code',hardwareRead:'Lecture matériel',fullSelftest:'Autotest complet',hardwareStatus:'État matériel',batteryCharge:'Batterie/charge',logoTouch:'Toucher logo',radarLevel:'Niveau radar',radarTarget:'Cible radar',radarSample:'Échantillons radar',micOnce:'Micro une fois',scenarioTest:'Test scénario',bootScenario:'Scénario démarrage',recognitionFailed:'Reconnaissance échouée',voiceStatus:'État voix',output:'Sortie',waiting:'En attente',wifiConnected:'Connecté',portalMode:'Mode configuration',connecting:'Connexion',timeNotReady:'Heure non réglée',readFailed:'Lecture échouée',yes:'oui',no:'non',charging:'charge',normal:'Normal',degraded:'Dégradé',reminders:'Rappels',visual:'Visuel',sound:'Son',voiceInput:'Microphone',none:'Aucun',savingLanguage:'Enregistrement de la langue',scanStart:'Recherche des WiFi proches. Cela peut prendre quelques secondes.',scanEmpty:'Aucun WiFi trouvé. Tong Dou a déjà réessayé. Relancez ou saisissez manuellement.',scanDone:'Choisissez un WiFi ou saisissez-le manuellement.',scanFailed:'Échec du scan. Réessayez ou saisissez manuellement.',missingSsid:'Choisissez ou saisissez d’abord un nom WiFi.',savingWifi:'Enregistrement et connexion',running:'Exécution : ',unknown:'Inconnu',present:'Présent',absent:'Absent',radarUnused:'Non utilisé : le LD2412 sert seulement à détecter une présence.'};
+I18N['fr-CA']=I18N['fr-FR'];
+I18N['nl-NL']={...I18N['en-GB'],appTitle:'Tong Dou-console',appSub:'Lokale configuratie, status en hardwarediagnose.',language:'Taal',languageHelp:'Deze taal wordt gebruikt voor meldingen, activatiecodes en deze pagina.',status:'Status',network:'Netwerk',address:'Adres',time:'Tijd',battery:'Batterij',hardware:'Hardware',capability:'Mogelijkheden',loading:'Laden',refreshStatus:'Status vernieuwen',connectionTime:'Verbinding en tijd',wifiName:'WiFi-naam',wifiPassword:'WiFi-wachtwoord',scanWifi:'WiFi in de buurt zoeken',saveConnect:'Opslaan en verbinden',syncTime:'Huidige tijd synchroniseren',microphone:'Microfoon',startTest:'Continue test starten',stop:'Stoppen',currentReading:'Huidige waarde',notStarted:'Niet gestart',radar:'Radar',occupied:'Aanwezigheid',distance:'Afstand',rawAux:'Ruwe hulpwaarden',state:'Status',notRead:'Niet gelezen',distanceUnused:'Niet gebruikt voor beslissing',outputTest:'Uitvoertest',speakerTone:'Luidsprekertoon',successCue:'Succesmelding',errorCue:'Foutmelding',wifiCue:'Configuratiemelding',codeCue:'Activatiecode voorlezen',hardwareRead:'Hardwarewaarden',fullSelftest:'Volledige zelftest',hardwareStatus:'Hardwarestatus',batteryCharge:'Batterij/laden',logoTouch:'Logo-aanraking',radarLevel:'Radarniveau',radarTarget:'Radardoel',radarSample:'Radarsamples',micOnce:'Microfoon eenmalig',scenarioTest:'Scenariotest',bootScenario:'Opstartscenario',recognitionFailed:'Herkenning mislukt',voiceStatus:'Spraakstatus',output:'Uitvoer',waiting:'Wachten',wifiConnected:'Verbonden',portalMode:'Configuratiemodus',connecting:'Verbinden',timeNotReady:'Tijd niet ingesteld',readFailed:'Lezen mislukt',yes:'ja',no:'nee',charging:'laden',normal:'Normaal',degraded:'Beperkt',reminders:'Herinneringen',visual:'Visueel',sound:'Geluid',voiceInput:'Microfoon',none:'Geen',savingLanguage:'Taal opslaan',scanStart:'WiFi in de buurt zoeken. Dit kan een paar seconden duren.',scanEmpty:'Geen WiFi gevonden. Tong Dou heeft al opnieuw geprobeerd. Scan opnieuw of vul handmatig in.',scanDone:'Kies een WiFi-naam of vul handmatig in.',scanFailed:'Scannen mislukt. Probeer opnieuw of vul handmatig in.',missingSsid:'Kies of vul eerst een WiFi-naam in.',savingWifi:'Opslaan en verbinden',running:'Bezig: ',unknown:'Onbekend',present:'Aanwezig',absent:'Afwezig',radarUnused:'Niet gebruikt: LD2412 wordt alleen gebruikt voor aanwezigheid.'};
+I18N['ru-RU']={...I18N['en-GB'],appTitle:'Панель Tong Dou',appSub:'Локальная настройка, состояние и диагностика.',language:'Язык',languageHelp:'Этот язык используется для подсказок, кода активации и этой страницы.',status:'Состояние',network:'Сеть',address:'Адрес',time:'Время',battery:'Батарея',hardware:'Оборудование',capability:'Возможности',loading:'Загрузка',refreshStatus:'Обновить состояние',connectionTime:'Подключение и время',wifiName:'Имя WiFi',wifiPassword:'Пароль WiFi',scanWifi:'Сканировать WiFi рядом',saveConnect:'Сохранить и подключить',syncTime:'Синхронизировать время',microphone:'Микрофон',startTest:'Начать непрерывный тест',stop:'Стоп',currentReading:'Текущее значение',notStarted:'Не начато',radar:'Радар',occupied:'Присутствие',distance:'Расстояние',rawAux:'Сырые значения',state:'Состояние',notRead:'Не прочитано',distanceUnused:'Не используется для решения',outputTest:'Тест вывода',speakerTone:'Короткий звук',successCue:'Сигнал успеха',errorCue:'Сигнал ошибки',wifiCue:'Подсказка настройки',codeCue:'Озвучить код',hardwareRead:'Данные оборудования',fullSelftest:'Полная самопроверка',hardwareStatus:'Состояние оборудования',batteryCharge:'Батарея/заряд',logoTouch:'Касание логотипа',radarLevel:'Уровень радара',radarTarget:'Цель радара',radarSample:'Сэмплы радара',micOnce:'Микрофон один раз',scenarioTest:'Тест сценария',bootScenario:'Сценарий запуска',recognitionFailed:'Ошибка распознавания',voiceStatus:'Состояние голоса',output:'Вывод',waiting:'Ожидание',wifiConnected:'Подключено',portalMode:'Режим настройки',connecting:'Подключение',timeNotReady:'Время не задано',readFailed:'Ошибка чтения',yes:'да',no:'нет',charging:'заряд',normal:'Норма',degraded:'Ограничено',reminders:'Напоминания',visual:'Визуально',sound:'Звук',voiceInput:'Микрофон',none:'Нет',savingLanguage:'Сохранение языка',scanStart:'Сканирование WiFi рядом. Это может занять несколько секунд.',scanEmpty:'WiFi не найден. Tong Dou уже повторил попытку. Сканируйте снова или введите вручную.',scanDone:'Выберите WiFi или введите вручную.',scanFailed:'Сканирование не удалось. Повторите или введите вручную.',missingSsid:'Сначала выберите или введите имя WiFi.',savingWifi:'Сохранение и подключение',running:'Выполняется: ',unknown:'Неизвестно',present:'Есть',absent:'Нет',radarUnused:'Не используется: LD2412 только определяет присутствие.'};
+let currentLocale='en-GB';
+function tr(k){let d=I18N[currentLocale]||I18N['en-GB'];return (d&&d[k])||I18N['en-GB'][k]||I18N['zh-CN'][k]||k}
+function applyI18n(){document.documentElement.lang=currentLocale;document.title=tr('appTitle');document.querySelectorAll('[data-i18n]').forEach(e=>e.textContent=tr(e.dataset.i18n));document.querySelectorAll('[data-i18n-placeholder]').forEach(e=>e.placeholder=tr(e.dataset.i18nPlaceholder))}
 function localeName(v){return {'en-GB':'English UK','en-CA':'English Canada','fr-FR':'Français','fr-CA':'Français Canada','nl-NL':'Nederlands','ru-RU':'Русский','zh-CN':'中文'}[v]||v}
-function capText(c){let a=[];if(c.reminders)a.push('提醒');if(c.web)a.push('网页');if(c.visual)a.push('视觉');if(c.sound)a.push('声音');if(c.voiceInput)a.push('麦克风');return a.join(' / ')||'无'}
-async function loadStatus(){try{let r=await fetch('/api/status');let j=await r.json();$('wifi').textContent=j.wifiConnected?'已连接':(j.portal?'配网模式':'连接中');$('ip').textContent=j.ip||'-';$('time').textContent=j.timeReady?j.now:'未校时';$('localeStatus').textContent=localeName(j.locale);if($('locale').value!==j.locale)$('locale').value=j.locale;$('battery').textContent=`USB ${j.battery.usb?'有':'无'} / 充电 ${j.battery.charging?'是':'否'} / ADC ${j.battery.rawAdc}`;$('hardware').textContent=j.hardware.degraded?(j.hardware.motorFault?'电机故障':'降级'):'正常';$('capability').textContent=capText(j.capabilities)}catch(e){$('wifi').textContent='读取失败'}}
-async function saveLocale(){let v=$('locale').value;$('localeMsg').textContent='正在保存语言';let r=await fetch('/api/locale',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'locale='+encodeURIComponent(v)});$('localeMsg').textContent=await r.text();$('localeStatus').textContent=localeName(v)}
+function capText(c){let a=[];if(c.reminders)a.push(tr('reminders'));if(c.web)a.push(tr('web'));if(c.visual)a.push(tr('visual'));if(c.sound)a.push(tr('sound'));if(c.voiceInput)a.push(tr('voiceInput'));return a.join(' / ')||tr('none')}
+async function loadStatus(){try{let r=await fetch('/api/status');let j=await r.json();currentLocale=j.locale||currentLocale;if($('locale').value!==currentLocale)$('locale').value=currentLocale;applyI18n();$('wifi').textContent=j.wifiConnected?tr('wifiConnected'):(j.portal?tr('portalMode'):tr('connecting'));$('ip').textContent=j.ip||'-';$('time').textContent=j.timeReady?j.now:tr('timeNotReady');$('localeStatus').textContent=localeName(currentLocale);$('battery').textContent=`${tr('usb')} ${j.battery.usb?tr('yes'):tr('no')} / ${tr('charging')} ${j.battery.charging?tr('yes'):tr('no')} / ADC ${j.battery.rawAdc}`;$('hardware').textContent=j.hardware.degraded?(j.hardware.motorFault?tr('motorFault'):tr('degraded')):tr('normal');$('capability').textContent=capText(j.capabilities)}catch(e){$('wifi').textContent=tr('readFailed')}}
+async function saveLocale(){let v=$('locale').value;currentLocale=v;applyI18n();$('localeMsg').textContent=tr('savingLanguage');let r=await fetch('/api/locale',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'locale='+encodeURIComponent(v)});$('localeMsg').textContent=await r.text();$('localeStatus').textContent=localeName(v)}
 async function syncTime(){let e=Math.floor(Date.now()/1000);let r=await fetch('/api/time/sync',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'epoch='+e});$('msg').textContent=await r.text();loadStatus()}
-async function scanWifi(){let m=$('msg'),l=$('wifiList'),d=$('wifiOptions'),btn=$('scanBtn');m.textContent='正在扫描附近 WiFi，可能需要几秒';l.innerHTML='';if(btn)btn.disabled=true;try{let r=await fetch('/api/wifi/scan');let a=await r.json();d.innerHTML='';if(!a.length){m.textContent='没有扫到 WiFi，铜豆已经自动重试过一次，可以再点扫描或手动填写';return}a.sort((x,y)=>y.rssi-x.rssi);a.slice(0,16).forEach(n=>{let o=document.createElement('option');o.value=n.ssid;d.appendChild(o);let b=document.createElement('button');b.type='button';b.className='secondary';b.textContent=n.ssid+'  '+n.rssi+' dBm';b.onclick=()=>{$('ssid').value=n.ssid;$('password').focus()};l.appendChild(b)});m.textContent='点一个 WiFi 名称，或继续手动填写'}catch(e){m.textContent='扫描失败，请再试一次，或手动填写'}finally{if(btn)btn.disabled=false}}
-async function saveWifi(e){e.preventDefault();let s=$('ssid').value.trim(),p=$('password').value;if(!s){$('msg').textContent='请先选择或填写 WiFi 名称';return}$('msg').textContent='正在保存并连接';let r=await fetch('/api/setup/wifi',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'ssid='+encodeURIComponent(s)+'&password='+encodeURIComponent(p)});$('msg').textContent=await r.text();setTimeout(loadStatus,1200)}
-async function diag(c){$('diag').textContent='执行中：'+c;let r=await fetch('/api/diagnostic',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'command='+encodeURIComponent(c)});let t=await r.text();$('diag').textContent=t;return t}
+async function scanWifi(){let m=$('msg'),l=$('wifiList'),d=$('wifiOptions'),btn=$('scanBtn');m.textContent=tr('scanStart');l.innerHTML='';if(btn)btn.disabled=true;try{let r=await fetch('/api/wifi/scan');let a=await r.json();d.innerHTML='';if(!a.length){m.textContent=tr('scanEmpty');return}a.sort((x,y)=>y.rssi-x.rssi);a.slice(0,16).forEach(n=>{let o=document.createElement('option');o.value=n.ssid;d.appendChild(o);let b=document.createElement('button');b.type='button';b.className='secondary';b.textContent=n.ssid+'  '+n.rssi+' dBm';b.onclick=()=>{$('ssid').value=n.ssid;$('password').focus()};l.appendChild(b)});m.textContent=tr('scanDone')}catch(e){m.textContent=tr('scanFailed')}finally{if(btn)btn.disabled=false}}
+async function saveWifi(e){e.preventDefault();let s=$('ssid').value.trim(),p=$('password').value;if(!s){$('msg').textContent=tr('missingSsid');return}$('msg').textContent=tr('savingWifi');let r=await fetch('/api/setup/wifi',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'ssid='+encodeURIComponent(s)+'&password='+encodeURIComponent(p)});$('msg').textContent=await r.text();setTimeout(loadStatus,1200)}
+async function diag(c){$('diag').textContent=tr('running')+c;let r=await fetch('/api/diagnostic',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'command='+encodeURIComponent(c)});let t=await r.text();$('diag').textContent=t;return t}
 function val(t,k){let m=t.match(new RegExp(k+'=([^\\n\\r]+)'));return m?m[1].trim():''}
 async function pollMic(){let t=await diag('mic');let avg=Number(val(t,'avg_abs')||0),peak=Number(val(t,'peak')||0);$('micValue').textContent=`avg_abs=${avg} peak=${peak}`;$('micBar').style.width=Math.min(100,Math.round(peak/600))+'%'}
 function startMicTest(){if(micTimer)return;pollMic();micTimer=setInterval(pollMic,350)}
 function stopMicTest(){if(!micTimer)return;clearInterval(micTimer);micTimer=null}
-function radarStateText(s){return {0:'无人',1:'移动目标',2:'静止目标',3:'移动+静止'}[s]||'未知'}
-async function pollRadar(){let t=await diag('radar target');let has=val(t,'has_target'),state=val(t,'state'),md=val(t,'moving_distance_cm'),me=val(t,'moving_energy'),sd=val(t,'static_distance_cm'),se=val(t,'static_energy');$('radarOccupied').textContent=has==='1'?'有人':(has==='0'?'无人':'未知');$('radarDistance').textContent='不可用：LD2412 只用于有人/无人';$('radarRaw').textContent='移动原始 '+(md||'-')+' cm / 能量 '+(me||'-')+'；静止原始 '+(sd||'-')+' cm / 能量 '+(se||'-');$('radarState').textContent=radarStateText(state)}
+function radarStateText(s){return {0:tr('radar0'),1:tr('radar1'),2:tr('radar2'),3:tr('radar3')}[s]||tr('unknown')}
+async function pollRadar(){let t=await diag('radar target');let has=val(t,'has_target'),state=val(t,'state'),md=val(t,'moving_distance_cm'),me=val(t,'moving_energy'),sd=val(t,'static_distance_cm'),se=val(t,'static_energy');$('radarOccupied').textContent=has==='1'?tr('present'):(has==='0'?tr('absent'):tr('unknown'));$('radarDistance').textContent=tr('radarUnused');$('radarRaw').textContent=tr('movingRaw')+' '+(md||'-')+' cm / '+tr('energy')+' '+(me||'-')+'; '+tr('staticRaw')+' '+(sd||'-')+' cm / '+tr('energy')+' '+(se||'-');$('radarState').textContent=radarStateText(state)}
 function startRadarTest(){if(radarTimer)return;pollRadar();radarTimer=setInterval(pollRadar,700)}
 function stopRadarTest(){if(!radarTimer)return;clearInterval(radarTimer);radarTimer=null}
 async function mcpTool(n,a){$('diag').textContent='执行中：'+n;let p={jsonrpc:'2.0',id:Date.now(),method:'tools/call',params:{name:n,arguments:a||{}}};let r=await fetch('/api/mcp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});$('diag').textContent=await r.text()}
