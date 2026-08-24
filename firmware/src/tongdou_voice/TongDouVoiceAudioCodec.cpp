@@ -68,6 +68,7 @@ bool TongDouVoiceAudioCodec::begin(const TongDouVoiceAudioParams& audio) {
   encoder_ = opus_encoder_create(audio_.sampleRate, audio_.channels,
                                  OPUS_APPLICATION_VOIP, &error);
   if (error != OPUS_OK || encoder_ == nullptr) {
+    setNativeError(error);
     stats_.lastError = "opus_encoder_create_failed";
     end();
     return false;
@@ -75,6 +76,7 @@ bool TongDouVoiceAudioCodec::begin(const TongDouVoiceAudioParams& audio) {
 
   decoder_ = opus_decoder_create(audio_.sampleRate, audio_.channels, &error);
   if (error != OPUS_OK || decoder_ == nullptr) {
+    setNativeError(error);
     stats_.lastError = "opus_decoder_create_failed";
     end();
     return false;
@@ -106,6 +108,8 @@ TongDouVoiceAudioCodecSelfTestResult TongDouVoiceAudioCodec::runSelfTest() {
   result.inputSamples = frameSamples_;
   if (!ready() || frameSamples_ == 0) {
     result.error = "opus_codec_not_ready";
+    result.nativeError = stats_.lastNativeError;
+    result.nativeErrorText = stats_.lastNativeErrorText;
     return result;
   }
   if (frameSamples_ > kSelfTestMaxSamples) {
@@ -139,6 +143,11 @@ TongDouVoiceAudioCodecSelfTestResult TongDouVoiceAudioCodec::runSelfTest() {
     }
   }
 
+  if (!result.ok) {
+    result.nativeError = stats_.lastNativeError;
+    result.nativeErrorText = stats_.lastNativeErrorText;
+  }
+
   return result;
 }
 
@@ -164,7 +173,7 @@ bool TongDouVoiceAudioCodec::encodePcm16ToOpus(const int16_t* pcm,
   const int encoded = opus_encode(encoder_, pcm, static_cast<int>(sampleCount),
                                   opus, static_cast<opus_int32>(opusCapacity));
   if (encoded <= 0) {
-    failEncode("opus_encode_failed");
+    failEncode("opus_encode_failed", encoded);
     return false;
   }
 
@@ -190,7 +199,7 @@ bool TongDouVoiceAudioCodec::decodeOpusToPcm16(const uint8_t* opus,
   const int decoded = opus_decode(decoder_, opus, static_cast<opus_int32>(opusLength),
                                   pcm, static_cast<int>(pcmCapacity), 0);
   if (decoded <= 0) {
-    failDecode("opus_decode_failed");
+    failDecode("opus_decode_failed", decoded);
     return false;
   }
 
@@ -206,13 +215,20 @@ TongDouVoiceAudioCodecStats TongDouVoiceAudioCodec::stats() const {
   return stats_;
 }
 
-void TongDouVoiceAudioCodec::failEncode(const char* code) {
+void TongDouVoiceAudioCodec::setNativeError(int error) {
+  stats_.lastNativeError = error;
+  stats_.lastNativeErrorText = error == OPUS_OK ? "" : opus_strerror(error);
+}
+
+void TongDouVoiceAudioCodec::failEncode(const char* code, int nativeError) {
   ++stats_.encodeFailures;
+  setNativeError(nativeError);
   stats_.lastError = code;
 }
 
-void TongDouVoiceAudioCodec::failDecode(const char* code) {
+void TongDouVoiceAudioCodec::failDecode(const char* code, int nativeError) {
   ++stats_.decodeFailures;
+  setNativeError(nativeError);
   stats_.lastError = code;
 }
 

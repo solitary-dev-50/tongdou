@@ -82,7 +82,14 @@ AppCommandResult AppCommandService::configureVoiceBackend(const String& host, in
 
 AppCommandResult AppCommandService::connectVoiceBackend() {
   if (!realtimeVoiceService_.connectBackend()) {
-    return {false, "voice_backend_not_configured", "voice backend is not configured"};
+    const RealtimeVoiceSnapshot snapshot = realtimeVoiceService_.snapshot();
+    const String code = snapshot.lastErrorCode.length() > 0
+                            ? snapshot.lastErrorCode
+                            : String("voice_connect_failed");
+    const String message = snapshot.lastErrorMessage.length() > 0
+                               ? snapshot.lastErrorMessage
+                               : String("voice backend failed to connect");
+    return {false, code, message};
   }
   return {true, "ok", "voice backend connecting"};
 }
@@ -162,6 +169,8 @@ String AppCommandService::voiceStatusJson() const {
   doc["backend"]["codecDecodeAttempts"] = snapshot.backendCodecDecodeAttempts;
   doc["backend"]["codecEncodeFailures"] = snapshot.backendCodecEncodeFailures;
   doc["backend"]["codecDecodeFailures"] = snapshot.backendCodecDecodeFailures;
+  doc["backend"]["codecNativeError"] = snapshot.backendCodecNativeError;
+  doc["backend"]["codecNativeErrorText"] = snapshot.backendCodecNativeErrorText;
   doc["backend"]["codecLastError"] = snapshot.backendCodecLastError;
   doc["backend"]["lastMessageType"] = snapshot.backendLastMessageType;
   doc["backend"]["lastTtsState"] = snapshot.backendLastTtsState;
@@ -187,6 +196,8 @@ String AppCommandService::voiceCodecSelfTestJson() {
   doc["decodedSamples"] = result.decodedSamples;
   doc["inputMeanAbs"] = result.inputMeanAbs;
   doc["decodedMeanAbs"] = result.decodedMeanAbs;
+  doc["nativeError"] = result.nativeError;
+  doc["nativeErrorText"] = result.nativeErrorText;
   doc["error"] = result.error;
 
   String output;
@@ -234,6 +245,8 @@ bool AppCommandService::parseEventName(String name, ScenarioEventType& eventType
     eventType = ScenarioEventType::OvertimeReminderDue;
   } else if (name == F("voice_recognition_failed")) {
     eventType = ScenarioEventType::VoiceRecognitionFailed;
+  } else if (name == F("conversation_window_timeout")) {
+    eventType = ScenarioEventType::ConversationWindowTimeout;
   } else if (name == F("dance_show")) {
     eventType = ScenarioEventType::DanceShowRequested;
   } else if (name == F("dance_show_global")) {

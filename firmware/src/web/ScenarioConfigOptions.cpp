@@ -22,6 +22,7 @@ constexpr ScenarioEventType kEvents[] = {
     ScenarioEventType::ChargingStarted,
     ScenarioEventType::OvertimeReminderDue,
     ScenarioEventType::VoiceRecognitionFailed,
+    ScenarioEventType::ConversationWindowTimeout,
     ScenarioEventType::DanceShowRequested,
     ScenarioEventType::DanceShowGlobalRequested,
     ScenarioEventType::LogoSingleTapped,
@@ -70,6 +71,7 @@ constexpr VoiceLine kVoices[] = {
     VoiceLine::LowBatteryWhine,
     VoiceLine::ChargingRelief,
     VoiceLine::RecognitionCoffeeChoke,
+    VoiceLine::ConversationWindowTimeout,
     VoiceLine::DanceShowDomestic,
     VoiceLine::DanceShowGlobal,
 };

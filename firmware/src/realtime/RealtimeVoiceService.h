@@ -2,8 +2,8 @@
 
 #include <Arduino.h>
 
-#include "hardware/AudioInput.h"
 #include "hardware/AudioOutput.h"
+#include "realtime/LocalAudioPipeline.h"
 #include "realtime/RealtimeAudioSender.h"
 #include "tongdou_voice/TongDouVoiceAudioCodec.h"
 #include "tongdou_voice/TongDouVoiceClient.h"
@@ -47,6 +47,8 @@ struct RealtimeVoiceSnapshot {
   uint32_t backendCodecDecodeAttempts = 0;
   uint32_t backendCodecEncodeFailures = 0;
   uint32_t backendCodecDecodeFailures = 0;
+  int32_t backendCodecNativeError = 0;
+  String backendCodecNativeErrorText;
   String backendSessionId;
   String backendLastMessageType;
   String backendLastTtsState;
@@ -60,7 +62,7 @@ struct RealtimeVoiceSnapshot {
 
 class RealtimeVoiceService {
  public:
-  RealtimeVoiceService(AudioInput& audioInput, AudioOutput& audioOutput);
+  RealtimeVoiceService(LocalAudioPipeline& audioPipeline, AudioOutput& audioOutput);
 
   void begin();
   void update();
@@ -69,21 +71,37 @@ class RealtimeVoiceService {
   bool sendDetectText(const String& text);
   bool abortBackendSpeech();
   bool startTurn(uint16_t captureMs = 2500);
+  bool startAutoTurn();
+  bool startConversationTurn();
   bool playResponse(uint16_t clipId, const String& text);
   void failTurn(const String& code, const String& message);
   bool consumeFailureEvent();
+  bool consumeTurnCompletedEvent();
+  bool consumeConversationTimeoutEvent();
   TongDouVoiceAudioCodecSelfTestResult runCodecSelfTest();
   RealtimeVoiceSnapshot snapshot() const;
   const char* stateName() const;
 
  private:
-  static constexpr size_t kCapturedPcmFrameSamples = 960;
+  enum class TurnKind : uint8_t {
+    Regular,
+    ConversationFollowUp,
+  };
 
-  void captureFrame(unsigned long nowMs);
+  static constexpr size_t kCapturedPcmFrameSamples =
+      LocalAudioPipeline::kUploadFrameSamples;
+
+  bool startTurnWithMode(TongDouVoiceListenMode mode, uint16_t captureMs,
+                         TurnKind turnKind);
+  void sendAvailableAudioFrames(unsigned long nowMs);
   bool sendCapturedFrame(bool padWithSilence);
   void finishCapture();
+  void completeAutoCaptureWhenBackendResponds();
+  void updateBackendTurnCompletion();
+  void logFirstPcmFrame(const int16_t* samples, size_t sampleCount,
+                        unsigned long nowMs);
 
-  AudioInput& audioInput_;
+  LocalAudioPipeline& audioPipeline_;
   AudioOutput& audioOutput_;
   RealtimeAudioSender sender_;
   TongDouVoicePerfTracer perfTracer_;
@@ -92,11 +110,21 @@ class RealtimeVoiceService {
   bool backendConfigured_ = false;
   bool backendStarted_ = false;
   RealtimeVoiceSnapshot snapshot_;
+  TongDouVoiceListenMode currentListenMode_ = TongDouVoiceListenMode::Manual;
   unsigned long captureUntilMs_ = 0;
   unsigned long nextCaptureMs_ = 0;
+  unsigned long awaitingResponseStartedMs_ = 0;
   int16_t capturedPcmFrame_[kCapturedPcmFrameSamples] = {};
   size_t capturedPcmFrameUsed_ = 0;
+  uint32_t backendDownlinkPacketsAtTurnStart_ = 0;
+  uint32_t backendBinaryPacketsAtTurnStart_ = 0;
+  unsigned long turnStartedMs_ = 0;
+  bool firstPcmFrameLogged_ = false;
+  bool firstOpusPacketLogged_ = false;
   bool failurePending_ = false;
+  bool turnCompletedPending_ = false;
+  bool conversationTimeoutPending_ = false;
+  TurnKind currentTurnKind_ = TurnKind::Regular;
 };
 
 }  // namespace tongdou

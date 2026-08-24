@@ -17,6 +17,7 @@ enum class ScenarioEventType : uint8_t {
   ChargingStarted,
   OvertimeReminderDue,
   VoiceRecognitionFailed,
+  ConversationWindowTimeout,
   DanceShowRequested,
   DanceShowGlobalRequested,
   LogoSingleTapped,

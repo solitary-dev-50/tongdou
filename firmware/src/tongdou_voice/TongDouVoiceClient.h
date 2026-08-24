@@ -47,13 +47,13 @@ struct TongDouVoiceClientSnapshot {
 
 class TongDouVoiceClient {
  public:
-  void begin(const TongDouVoiceConnectionConfig& connectionConfig,
+  bool begin(const TongDouVoiceConnectionConfig& connectionConfig,
              const TongDouVoiceHelloConfig& helloConfig = TongDouVoiceHelloConfig{});
   void update();
   void disconnect();
 
-  bool sendListenStart();
-  bool sendListenStop();
+  bool sendListenStart(TongDouVoiceListenMode mode = TongDouVoiceListenMode::Manual);
+  bool sendListenStop(TongDouVoiceListenMode mode = TongDouVoiceListenMode::Manual);
   bool sendListenDetect(const String& text);
   bool sendAbort();
   bool sendPcm16Frame(const int16_t* samples, size_t sampleCount);

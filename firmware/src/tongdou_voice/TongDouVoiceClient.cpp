@@ -1,19 +1,55 @@
 #include "tongdou_voice/TongDouVoiceClient.h"
 
 namespace tongdou {
+namespace {
 
-void TongDouVoiceClient::begin(const TongDouVoiceConnectionConfig& connectionConfig,
+void printVoiceMemorySnapshot(const char* phase) {
+  const uint32_t psramTotal = ESP.getPsramSize();
+  Serial.print(F("voice memory phase="));
+  Serial.print(phase);
+  Serial.print(F(" psram_found="));
+  Serial.print(psramTotal > 0 ? 1 : 0);
+  Serial.print(F(" psram_total="));
+  Serial.print(psramTotal);
+  Serial.print(F(" psram_free="));
+  Serial.print(ESP.getFreePsram());
+  Serial.print(F(" psram_largest="));
+  Serial.print(ESP.getMaxAllocPsram());
+  Serial.print(F(" internal_free="));
+  Serial.print(ESP.getFreeHeap());
+  Serial.print(F(" internal_min_free="));
+  Serial.print(ESP.getMinFreeHeap());
+  Serial.print(F(" internal_largest="));
+  Serial.println(ESP.getMaxAllocHeap());
+}
+
+}  // namespace
+
+bool TongDouVoiceClient::begin(const TongDouVoiceConnectionConfig& connectionConfig,
                                const TongDouVoiceHelloConfig& helloConfig) {
   helloConfig_ = helloConfig;
   snapshot_ = {};
   queues_.clear();
   snapshot_.downstreamAudio = helloConfig_.audio;
-  audioCodec_.begin(helloConfig_.audio);
+  printVoiceMemorySnapshot("before_codec");
+  const bool codecStarted = audioCodec_.begin(helloConfig_.audio);
+  printVoiceMemorySnapshot("after_codec");
   snapshot_.codecStats = audioCodec_.stats();
+  if (!codecStarted) {
+    snapshot_.lastError = snapshot_.codecStats.lastError;
+    Serial.print(F("voice codec unavailable error="));
+    Serial.print(snapshot_.codecStats.lastError);
+    Serial.print(F(" native_error="));
+    Serial.print(snapshot_.codecStats.lastNativeError);
+    Serial.print(F(" native_text="));
+    Serial.println(snapshot_.codecStats.lastNativeErrorText);
+    setState(TongDouVoiceClientState::Failed);
+    return false;
+  }
   if (connectionConfig.host.length() == 0) {
     snapshot_.lastError = "voice_server_host_missing";
     setState(TongDouVoiceClientState::Failed);
-    return;
+    return false;
   }
 
   socket_.onStateChanged([this](TongDouVoiceWebSocketState state) {
@@ -28,6 +64,7 @@ void TongDouVoiceClient::begin(const TongDouVoiceConnectionConfig& connectionCon
 
   setState(TongDouVoiceClientState::Connecting);
   socket_.begin(connectionConfig);
+  return true;
 }
 
 void TongDouVoiceClient::update() {
@@ -50,25 +87,29 @@ void TongDouVoiceClient::disconnect() {
   setState(TongDouVoiceClientState::Offline);
 }
 
-bool TongDouVoiceClient::sendListenStart() {
+bool TongDouVoiceClient::sendListenStart(TongDouVoiceListenMode mode) {
   if (!ready()) {
     return false;
   }
-  if (!sendText(protocol_.buildListenStart(snapshot_.sessionId))) {
+  if (!sendText(protocol_.buildListenStart(snapshot_.sessionId, mode))) {
     return false;
   }
+  Serial.print(F("voice listen start mode="));
+  Serial.println(tongDouVoiceListenModeName(mode));
   perfTracer_.listenStart();
   setState(TongDouVoiceClientState::Listening);
   return true;
 }
 
-bool TongDouVoiceClient::sendListenStop() {
+bool TongDouVoiceClient::sendListenStop(TongDouVoiceListenMode mode) {
   if (snapshot_.state != TongDouVoiceClientState::Listening) {
     return false;
   }
-  if (!sendText(protocol_.buildListenStop(snapshot_.sessionId))) {
+  if (!sendText(protocol_.buildListenStop(snapshot_.sessionId, mode))) {
     return false;
   }
+  Serial.print(F("voice listen stop mode="));
+  Serial.println(tongDouVoiceListenModeName(mode));
   perfTracer_.listenStop();
   setState(TongDouVoiceClientState::Ready);
   return true;
@@ -161,6 +202,7 @@ bool TongDouVoiceClient::playNextDownlinkPacket(AudioOutput& audioOutput) {
 
 TongDouVoiceClientSnapshot TongDouVoiceClient::snapshot() const {
   TongDouVoiceClientSnapshot copy = snapshot_;
+  copy.ready = ready();
   copy.queueStats = queues_.stats();
   copy.codecStats = audioCodec_.stats();
   return copy;
@@ -171,7 +213,7 @@ TongDouVoiceClientState TongDouVoiceClient::state() const {
 }
 
 bool TongDouVoiceClient::ready() const {
-  return snapshot_.ready && socket_.connected();
+  return snapshot_.ready && socket_.connected() && audioCodec_.ready();
 }
 
 void TongDouVoiceClient::handleSocketState(TongDouVoiceWebSocketState state) {
@@ -211,6 +253,12 @@ void TongDouVoiceClient::handleTextMessage(const String& payload) {
   }
 
   if (message.type == TongDouVoiceMessageType::Hello) {
+    if (!audioCodec_.ready()) {
+      snapshot_.ready = false;
+      snapshot_.lastError = "voice_codec_not_ready";
+      setState(TongDouVoiceClientState::Failed);
+      return;
+    }
     Serial.print("voice session=");
     Serial.println(snapshot_.sessionId);
     snapshot_.ready = true;
@@ -240,6 +288,10 @@ void TongDouVoiceClient::handleBinaryMessage(const uint8_t* payload, size_t leng
 }
 
 void TongDouVoiceClient::setState(TongDouVoiceClientState state) {
+  if (state == TongDouVoiceClientState::Offline ||
+      state == TongDouVoiceClientState::Failed) {
+    snapshot_.ready = false;
+  }
   if (snapshot_.state == state) {
     return;
   }

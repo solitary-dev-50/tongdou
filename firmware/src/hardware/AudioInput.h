@@ -1,6 +1,8 @@
 #pragma once
 
 #include <Arduino.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 
 namespace tongdou {
 
@@ -24,6 +26,7 @@ class AudioInput {
   bool ready() const;
 
  private:
+  SemaphoreHandle_t mutex_ = nullptr;
   bool ready_ = false;
 };
 

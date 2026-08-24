@@ -15,6 +15,8 @@ struct TongDouVoiceAudioCodecStats {
   uint32_t decodeAttempts = 0;
   uint32_t encodeFailures = 0;
   uint32_t decodeFailures = 0;
+  int32_t lastNativeError = 0;
+  String lastNativeErrorText;
   String lastError;
 };
 
@@ -25,6 +27,8 @@ struct TongDouVoiceAudioCodecSelfTestResult {
   size_t decodedSamples = 0;
   uint32_t inputMeanAbs = 0;
   uint32_t decodedMeanAbs = 0;
+  int32_t nativeError = 0;
+  String nativeErrorText;
   String error;
 };
 
@@ -43,8 +47,9 @@ class TongDouVoiceAudioCodec {
   TongDouVoiceAudioCodecStats stats() const;
 
  private:
-  void failEncode(const char* code);
-  void failDecode(const char* code);
+  void setNativeError(int error);
+  void failEncode(const char* code, int nativeError = 0);
+  void failDecode(const char* code, int nativeError = 0);
 
   TongDouVoiceAudioCodecStats stats_;
   TongDouVoiceAudioParams audio_;

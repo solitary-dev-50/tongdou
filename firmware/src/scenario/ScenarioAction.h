@@ -61,6 +61,7 @@ enum class VoiceLine : uint8_t {
   LowBatteryWhine,
   ChargingRelief,
   RecognitionCoffeeChoke,
+  ConversationWindowTimeout,
   DanceShowDomestic,
   DanceShowGlobal,
 };

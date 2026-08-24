@@ -11,18 +11,31 @@ namespace {
 constexpr i2s_port_t kMicPort = I2S_NUM_0;
 constexpr uint32_t kSampleRate = 16000;
 constexpr size_t kSampleCount = 128;
+constexpr int32_t kMicDigitalGain = 12;
+constexpr int32_t kPcm16Min = -32768;
+constexpr int32_t kPcm16Max = 32767;
 
 int32_t abs32(int32_t value) {
   return value < 0 ? -value : value;
 }
 
 int16_t sampleToPcm16(int32_t raw) {
-  return static_cast<int16_t>(raw);
+  int32_t scaled = raw * kMicDigitalGain;
+  if (scaled > kPcm16Max) {
+    scaled = kPcm16Max;
+  } else if (scaled < kPcm16Min) {
+    scaled = kPcm16Min;
+  }
+  return static_cast<int16_t>(scaled);
 }
 
 }  // namespace
 
 void AudioInput::begin() {
+  if (mutex_ == nullptr) {
+    mutex_ = xSemaphoreCreateMutex();
+  }
+
   i2s_config_t config = {};
   config.mode = static_cast<i2s_mode_t>(I2S_MODE_MASTER | I2S_MODE_RX | I2S_MODE_PDM);
   config.sample_rate = kSampleRate;
@@ -65,10 +78,16 @@ AudioInputSnapshot AudioInput::readLevel() {
     return snapshot;
   }
 
+  if (mutex_ != nullptr) {
+    xSemaphoreTake(mutex_, portMAX_DELAY);
+  }
   int16_t samples[kSampleCount] = {};
   size_t bytesRead = 0;
   const esp_err_t err =
       i2s_read(kMicPort, samples, sizeof(samples), &bytesRead, pdMS_TO_TICKS(20));
+  if (mutex_ != nullptr) {
+    xSemaphoreGive(mutex_);
+  }
   if (err != ESP_OK || bytesRead == 0) {
     return snapshot;
   }
@@ -117,12 +136,18 @@ bool AudioInput::readPcm16(int16_t* buffer, size_t maxSamples, size_t& samplesRe
     return false;
   }
 
+  if (mutex_ != nullptr) {
+    xSemaphoreTake(mutex_, portMAX_DELAY);
+  }
   int16_t samples[kSampleCount] = {};
   size_t bytesRead = 0;
   const size_t samplesToRead = min(maxSamples, kSampleCount);
   const esp_err_t err =
       i2s_read(kMicPort, samples, samplesToRead * sizeof(samples[0]), &bytesRead,
                pdMS_TO_TICKS(20));
+  if (mutex_ != nullptr) {
+    xSemaphoreGive(mutex_);
+  }
   if (err != ESP_OK || bytesRead == 0) {
     return false;
   }

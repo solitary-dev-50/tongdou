@@ -6,6 +6,7 @@
 #include "cloud/DeviceActivationService.h"
 #include "hardware/HardwareManager.h"
 #include "mcp/McpServer.h"
+#include "realtime/LocalAudioPipeline.h"
 #include "realtime/RealtimeVoiceService.h"
 #include "reminder/ReminderManager.h"
 #include "reminder/ReminderStore.h"
@@ -29,6 +30,12 @@ class App {
  private:
   void handleReminderEvents();
   void handleLogoTouchEvents();
+  void handleConversationWindow();
+  void startLogoVoiceTurn();
+  void startConversationVoiceTurn();
+  void startVoiceTurnFromInteraction(const __FlashStringHelper* source);
+  void openConversationWindow();
+  void closeConversationWindow(bool playExitCue);
   void handleAudioCueEvents();
   void handleRealtimeVoiceEvents();
   void handleSerialDiagnostics();
@@ -51,7 +58,8 @@ class App {
                                     hardware_.motors(), hardware_.audioOutput(),
                                     hardware_.imu()};
   ScenarioContext scenarioContext_;
-  RealtimeVoiceService realtimeVoiceService_{hardware_.audioInput(),
+  LocalAudioPipeline localAudioPipeline_{hardware_.audioInput()};
+  RealtimeVoiceService realtimeVoiceService_{localAudioPipeline_,
                                             hardware_.audioOutput()};
   DeviceActivationService deviceActivationService_{realtimeVoiceService_,
                                                   hardware_.faceDisplay()};
@@ -65,6 +73,9 @@ class App {
                                    deviceLocaleStore_};
   unsigned long bootMs_ = 0;
   uint8_t startupReportCount_ = 0;
+  bool voiceConversationActive_ = false;
+  bool conversationFollowUpPending_ = false;
+  unsigned long conversationFollowUpAtMs_ = 0;
 };
 
 }  // namespace tongdou

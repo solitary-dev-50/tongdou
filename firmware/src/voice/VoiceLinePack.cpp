@@ -28,6 +28,8 @@ VoiceClip VoiceLinePack::clip(VoiceLine line) const {
       return {111, "行，算你还有点良心。"};
     case VoiceLine::RecognitionCoffeeChoke:
       return {112, "咳……刚才被咖啡呛了一下。你再说一遍，我这次肯定认真听。"};
+    case VoiceLine::ConversationWindowTimeout:
+      return {115, "没动静？行，本豆省点电。叫我再干活。"};
     case VoiceLine::DanceShowDomestic:
       return {113, "左三下，右三下，铜豆扭扭不白忙。跳完了，拿表演费。要不用奶茶顶也行，嘿嘿。"};
     case VoiceLine::DanceShowGlobal:

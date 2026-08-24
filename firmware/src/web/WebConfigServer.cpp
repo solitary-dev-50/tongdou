@@ -842,7 +842,7 @@ String WebConfigServer::statusJson() const {
   const BatterySnapshot battery = hardwareSelfTest_.batterySnapshot();
   const String locale = deviceLocaleStore_.locale();
   String body;
-  body.reserve(980);
+  body.reserve(1220);
   const char* systemMode = "normal";
   if (state_ == NetworkState::Portal) {
     systemMode = "portal";
@@ -898,6 +898,18 @@ String WebConfigServer::statusJson() const {
   body += battery.standby ? "true" : "false";
   body += ",\"rawAdc\":";
   body += battery.rawAdc;
+  body += "},\"memory\":{\"internalFree\":";
+  body += ESP.getFreeHeap();
+  body += ",\"internalMinFree\":";
+  body += ESP.getMinFreeHeap();
+  body += ",\"internalLargest\":";
+  body += ESP.getMaxAllocHeap();
+  body += ",\"psramTotal\":";
+  body += ESP.getPsramSize();
+  body += ",\"psramFree\":";
+  body += ESP.getFreePsram();
+  body += ",\"psramLargest\":";
+  body += ESP.getMaxAllocPsram();
   body += "},\"capabilities\":{\"reminders\":";
   body += hardware.remindersAvailable ? "true" : "false";
   body += ",\"web\":";

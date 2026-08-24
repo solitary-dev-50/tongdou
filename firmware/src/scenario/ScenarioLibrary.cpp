@@ -77,6 +77,14 @@ constexpr ScenarioRule kRules[] = {
          MotionAction::ShrinkBack, VoiceLine::RecognitionCoffeeChoke, 1200},
     },
     {
+        ScenarioEventType::ConversationWindowTimeout,
+        true,
+        true,
+        PersonalityStyle::Gentle,
+        {true, FaceAction::Sleepy, LightAction::Off, MotionAction::None,
+         VoiceLine::ConversationWindowTimeout, 900},
+    },
+    {
         ScenarioEventType::OvertimeReminderDue,
         false,
         true,

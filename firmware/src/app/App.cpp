@@ -9,6 +9,7 @@ namespace {
 
 constexpr unsigned long kFirstStartupReportMs = 2500;
 constexpr unsigned long kSecondStartupReportMs = 8000;
+constexpr unsigned long kConversationPlaybackTailMs = 120;
 
 }  // namespace
 
@@ -25,6 +26,9 @@ void App::begin() {
 
   scenarioExecutor_.begin();
   Serial.println("scenario executor ready");
+
+  localAudioPipeline_.begin();
+  Serial.println("local audio pipeline ready");
 
   realtimeVoiceService_.begin();
   Serial.println("realtime voice ready");
@@ -67,6 +71,7 @@ void App::begin() {
 void App::update() {
   webConfigServer_.update();
   hardware_.update();
+  localAudioPipeline_.update();
   realtimeVoiceService_.update();
   deviceActivationService_.update();
   handleAudioCueEvents();
@@ -75,6 +80,7 @@ void App::update() {
   handleLogoTouchEvents();
   handleReminderEvents();
   handleRealtimeVoiceEvents();
+  handleConversationWindow();
   scenarioExecutor_.update();
 }
 
@@ -108,6 +114,113 @@ void App::handleLogoTouchEvents() {
   Serial.println(eventName);
   const ScenarioPlan plan = scenarioEngine_.select({scenarioEvent, 0}, scenarioContext_);
   scenarioExecutor_.execute(plan);
+
+  if (touchEvent == LogoTouchEvent::SingleTap) {
+    startLogoVoiceTurn();
+  } else if (touchEvent == LogoTouchEvent::LongPress) {
+    closeConversationWindow(false);
+  }
+}
+
+void App::startLogoVoiceTurn() {
+  closeConversationWindow(false);
+  startVoiceTurnFromInteraction(F("logo"));
+}
+
+void App::startConversationVoiceTurn() {
+  Serial.print(F("voice timeline app_start t="));
+  Serial.print(millis());
+  Serial.println(F(" source=conversation_follow_up pre_roll_samples=0"));
+
+  const bool started = realtimeVoiceService_.startConversationTurn();
+  const RealtimeVoiceSnapshot snapshot = realtimeVoiceService_.snapshot();
+  Serial.print(F("voice turn start source=conversation_follow_up ok="));
+  Serial.print(started ? "1" : "0");
+  Serial.print(F(" code="));
+  Serial.print(started ? String("ok") : snapshot.lastErrorCode);
+  Serial.print(F(" message="));
+  Serial.println(started ? String("voice turn started")
+                         : snapshot.lastErrorMessage);
+  if (!started) {
+    voiceConversationActive_ = false;
+  }
+}
+
+void App::startVoiceTurnFromInteraction(const __FlashStringHelper* source) {
+  Serial.print(F("voice timeline app_start t="));
+  Serial.print(millis());
+  Serial.print(F(" source="));
+  Serial.print(source);
+  Serial.println(F(" pre_roll_samples=0"));
+  const bool started = realtimeVoiceService_.startAutoTurn();
+  const RealtimeVoiceSnapshot snapshot = realtimeVoiceService_.snapshot();
+  const AppCommandResult result =
+      started ? AppCommandResult{true, "ok", "voice turn started"}
+              : AppCommandResult{false, snapshot.lastErrorCode,
+                                 snapshot.lastErrorMessage};
+  Serial.print(F("voice turn start source="));
+  Serial.print(source);
+  Serial.print(F(" ok="));
+  Serial.print(result.ok ? "1" : "0");
+  Serial.print(F(" code="));
+  Serial.print(result.code);
+  Serial.print(F(" message="));
+  Serial.println(result.message);
+  voiceConversationActive_ = result.ok;
+  conversationFollowUpPending_ = false;
+}
+
+void App::handleConversationWindow() {
+  if (realtimeVoiceService_.consumeConversationTimeoutEvent()) {
+    voiceConversationActive_ = false;
+    conversationFollowUpPending_ = false;
+    Serial.println(F("conversation window timeout source=server_no_voice"));
+    const ScenarioPlan plan = scenarioEngine_.select(
+        {ScenarioEventType::ConversationWindowTimeout, 0}, scenarioContext_);
+    scenarioExecutor_.execute(plan);
+  }
+
+  if (realtimeVoiceService_.consumeTurnCompletedEvent()) {
+    if (voiceConversationActive_) {
+      openConversationWindow();
+    }
+  }
+
+  if (conversationFollowUpPending_ &&
+      static_cast<long>(millis() - conversationFollowUpAtMs_) >= 0) {
+    conversationFollowUpPending_ = false;
+    startConversationVoiceTurn();
+  }
+}
+
+void App::openConversationWindow() {
+  conversationFollowUpPending_ = true;
+  conversationFollowUpAtMs_ = millis() + kConversationPlaybackTailMs;
+  Serial.print(F("conversation window open mode=immediate_upload t="));
+  Serial.print(millis());
+  Serial.print(F(" start_at="));
+  Serial.println(conversationFollowUpAtMs_);
+}
+
+void App::closeConversationWindow(bool playExitCue) {
+  if (!voiceConversationActive_ && !conversationFollowUpPending_) {
+    return;
+  }
+
+  voiceConversationActive_ = false;
+  conversationFollowUpPending_ = false;
+  const RealtimeVoiceSnapshot voice = realtimeVoiceService_.snapshot();
+  if (voice.state == RealtimeVoiceState::Listening ||
+      voice.state == RealtimeVoiceState::AwaitingResponse) {
+    realtimeVoiceService_.abortBackendSpeech();
+  }
+  Serial.print(F("conversation window close play_exit="));
+  Serial.println(playExitCue ? "1" : "0");
+  if (playExitCue) {
+    const ScenarioPlan plan = scenarioEngine_.select(
+        {ScenarioEventType::ConversationWindowTimeout, 0}, scenarioContext_);
+    scenarioExecutor_.execute(plan);
+  }
 }
 
 void App::handleReminderEvents() {
@@ -157,6 +270,9 @@ void App::handleRealtimeVoiceEvents() {
     return;
   }
 
+  voiceConversationActive_ = false;
+  conversationFollowUpPending_ = false;
+  playSystemCue(SystemAudioCue::Error, "voice_recognition_failed");
   const ScenarioPlan plan = scenarioEngine_.select(
       {ScenarioEventType::VoiceRecognitionFailed, 0}, scenarioContext_);
   scenarioExecutor_.execute(plan);

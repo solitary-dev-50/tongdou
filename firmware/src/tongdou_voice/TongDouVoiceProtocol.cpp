@@ -75,18 +75,18 @@ String TongDouVoiceProtocol::buildHello(const TongDouVoiceHelloConfig& config) c
   return serialize(doc);
 }
 
-String TongDouVoiceProtocol::buildListenStart(const String& sessionId,
-                                              const char* mode) const {
+String TongDouVoiceProtocol::buildListenStart(
+    const String& sessionId, TongDouVoiceListenMode mode) const {
   return buildListen(sessionId, "start", mode, nullptr);
 }
 
-String TongDouVoiceProtocol::buildListenStop(const String& sessionId,
-                                             const char* mode) const {
+String TongDouVoiceProtocol::buildListenStop(
+    const String& sessionId, TongDouVoiceListenMode mode) const {
   return buildListen(sessionId, "stop", mode, nullptr);
 }
 
 String TongDouVoiceProtocol::buildListenDetect(const String& sessionId, const String& text,
-                                               const char* mode) const {
+                                               TongDouVoiceListenMode mode) const {
   return buildListen(sessionId, "detect", mode, &text);
 }
 
@@ -131,14 +131,15 @@ bool TongDouVoiceProtocol::parseTextMessage(const String& payload,
 }
 
 String TongDouVoiceProtocol::buildListen(const String& sessionId, const char* state,
-                                         const char* mode, const String* text) const {
+                                         TongDouVoiceListenMode mode,
+                                         const String* text) const {
   JsonDocument doc;
   if (sessionId.length() > 0) {
     doc["session_id"] = sessionId;
   }
   doc["type"] = "listen";
   doc["state"] = state;
-  doc["mode"] = mode;
+  doc["mode"] = tongDouVoiceListenModeName(mode);
   if (text != nullptr) {
     doc["text"] = *text;
   }
@@ -178,6 +179,18 @@ const char* tongDouVoiceTtsStateName(TongDouVoiceTtsState state) {
     case TongDouVoiceTtsState::None:
     default:
       return "none";
+  }
+}
+
+const char* tongDouVoiceListenModeName(TongDouVoiceListenMode mode) {
+  switch (mode) {
+    case TongDouVoiceListenMode::Auto:
+      return "auto";
+    case TongDouVoiceListenMode::Realtime:
+      return "realtime";
+    case TongDouVoiceListenMode::Manual:
+    default:
+      return "manual";
   }
 }
 

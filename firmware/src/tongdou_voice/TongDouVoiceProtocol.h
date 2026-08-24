@@ -24,6 +24,12 @@ enum class TongDouVoiceTtsState : uint8_t {
   Stop,
 };
 
+enum class TongDouVoiceListenMode : uint8_t {
+  Manual,
+  Auto,
+  Realtime,
+};
+
 struct TongDouVoiceIncomingMessage {
   TongDouVoiceMessageType type = TongDouVoiceMessageType::Unknown;
   TongDouVoiceTtsState ttsState = TongDouVoiceTtsState::None;
@@ -37,21 +43,27 @@ struct TongDouVoiceIncomingMessage {
 class TongDouVoiceProtocol {
  public:
   String buildHello(const TongDouVoiceHelloConfig& config) const;
-  String buildListenStart(const String& sessionId, const char* mode = "manual") const;
-  String buildListenStop(const String& sessionId, const char* mode = "manual") const;
+  String buildListenStart(
+      const String& sessionId,
+      TongDouVoiceListenMode mode = TongDouVoiceListenMode::Manual) const;
+  String buildListenStop(
+      const String& sessionId,
+      TongDouVoiceListenMode mode = TongDouVoiceListenMode::Manual) const;
   String buildListenDetect(const String& sessionId, const String& text,
-                           const char* mode = "manual") const;
+                           TongDouVoiceListenMode mode =
+                               TongDouVoiceListenMode::Manual) const;
   String buildAbort(const String& sessionId) const;
 
   bool parseTextMessage(const String& payload, TongDouVoiceIncomingMessage& message,
                         String& error) const;
 
  private:
-  String buildListen(const String& sessionId, const char* state, const char* mode,
-                     const String* text) const;
+  String buildListen(const String& sessionId, const char* state,
+                     TongDouVoiceListenMode mode, const String* text) const;
 };
 
 const char* tongDouVoiceMessageTypeName(TongDouVoiceMessageType type);
 const char* tongDouVoiceTtsStateName(TongDouVoiceTtsState state);
+const char* tongDouVoiceListenModeName(TongDouVoiceListenMode mode);
 
 }  // namespace tongdou
