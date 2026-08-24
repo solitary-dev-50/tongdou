@@ -18,10 +18,14 @@ class McpServer {
 
   void begin();
   String handlePayloadText(const String& payloadText);
+  String handleVoicePayloadText(const String& payloadText);
 
  private:
   void addTools();
-  std::string handlePayload(JsonObjectConst payload);
+  String handlePayloadText(const String& payloadText,
+                           const McpToolRegistry& registry);
+  std::string handlePayload(JsonObjectConst payload,
+                            const McpToolRegistry& registry);
   std::string replyResult(const std::string& idJson, const std::string& resultJson) const;
   std::string replyError(const std::string& idJson, const std::string& message) const;
   std::string idJson(JsonObjectConst payload) const;
@@ -50,6 +54,7 @@ class McpServer {
   HardwareSelfTestService& hardwareSelfTest_;
   AppCommandService& appCommandService_;
   McpToolRegistry registry_;
+  McpToolRegistry voiceRegistry_;
   bool initialized_ = false;
 };
 

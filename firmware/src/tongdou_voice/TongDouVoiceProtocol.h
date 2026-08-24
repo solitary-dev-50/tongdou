@@ -38,6 +38,7 @@ struct TongDouVoiceIncomingMessage {
   String text;
   String emotion;
   String reason;
+  String mcpPayload;
   bool hasAudioParams = false;
   TongDouVoiceAudioParams audio;
 };
@@ -57,6 +58,7 @@ class TongDouVoiceProtocol {
   String buildAbort(const String& sessionId) const;
   String buildGoodbyeRequest(const String& sessionId,
                              const String& reason = "manual") const;
+  String buildMcpMessage(const String& payload) const;
 
   bool parseTextMessage(const String& payload, TongDouVoiceIncomingMessage& message,
                         String& error) const;

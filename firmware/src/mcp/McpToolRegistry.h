@@ -22,12 +22,14 @@ struct McpProperty {
   static McpProperty RequiredString(const char* name);
   static McpProperty RequiredInteger(const char* name);
   static McpProperty OptionalInteger(const char* name);
+  static McpProperty OptionalString(const char* name);
 };
 
 class McpToolArguments {
  public:
   explicit McpToolArguments(JsonObjectConst input);
 
+  bool has(const char* name) const;
   int getInt(const char* name, int defaultValue = 0) const;
   std::string getString(const char* name, const char* defaultValue = "") const;
 

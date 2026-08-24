@@ -2,6 +2,8 @@
 
 #include <Arduino.h>
 
+#include <functional>
+
 #include "hardware/AudioOutput.h"
 #include "tongdou_voice/TongDouVoiceConfig.h"
 #include "tongdou_voice/TongDouVoiceAudioCodec.h"
@@ -31,6 +33,9 @@ struct TongDouVoiceClientSnapshot {
   bool ready = false;
   uint32_t textMessagesReceived = 0;
   uint32_t binaryPacketsReceived = 0;
+  uint32_t mcpRequestsReceived = 0;
+  uint32_t mcpResponsesSent = 0;
+  uint32_t mcpFailures = 0;
   uint32_t uplinkPcmFramesEncoded = 0;
   uint32_t uplinkOpusPacketsSent = 0;
   uint32_t uplinkEncodeFailures = 0;
@@ -52,10 +57,13 @@ struct TongDouVoiceClientSnapshot {
 
 class TongDouVoiceClient {
  public:
+  using McpPayloadHandler = std::function<String(const String&)>;
+
   bool begin(const TongDouVoiceConnectionConfig& connectionConfig,
              const TongDouVoiceHelloConfig& helloConfig = TongDouVoiceHelloConfig{});
   void update();
   void disconnect();
+  void onMcpPayload(McpPayloadHandler callback);
 
   bool sendListenStart(TongDouVoiceListenMode mode = TongDouVoiceListenMode::Manual);
   bool sendListenStop(TongDouVoiceListenMode mode = TongDouVoiceListenMode::Manual);
@@ -93,6 +101,7 @@ class TongDouVoiceClient {
   TongDouVoiceHelloConfig helloConfig_;
   TongDouVoiceClientSnapshot snapshot_;
   TongDouVoicePerfTracer perfTracer_;
+  McpPayloadHandler mcpPayloadHandler_;
   unsigned long nextHelloRetryMs_ = 0;
 };
 

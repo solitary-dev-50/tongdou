@@ -87,6 +87,10 @@ void TongDouVoiceClient::disconnect() {
   setState(TongDouVoiceClientState::Offline);
 }
 
+void TongDouVoiceClient::onMcpPayload(McpPayloadHandler callback) {
+  mcpPayloadHandler_ = callback;
+}
+
 bool TongDouVoiceClient::sendListenStart(TongDouVoiceListenMode mode) {
   if (!ready() || conversationExitPending()) {
     return false;
@@ -309,6 +313,32 @@ void TongDouVoiceClient::handleTextMessage(const String& payload) {
       setState(conversationExitPending() ? TongDouVoiceClientState::Ending
                                          : TongDouVoiceClientState::Ready);
     }
+    return;
+  }
+
+  if (message.type == TongDouVoiceMessageType::Mcp) {
+    ++snapshot_.mcpRequestsReceived;
+    if (!mcpPayloadHandler_) {
+      ++snapshot_.mcpFailures;
+      snapshot_.lastError = "mcp_handler_missing";
+      Serial.println(F("voice mcp failed reason=handler_missing"));
+      return;
+    }
+
+    const String responsePayload = mcpPayloadHandler_(message.mcpPayload);
+    const String responseMessage = protocol_.buildMcpMessage(responsePayload);
+    if (responseMessage.length() == 0 || !sendText(responseMessage)) {
+      ++snapshot_.mcpFailures;
+      snapshot_.lastError = "mcp_response_send_failed";
+      Serial.println(F("voice mcp failed reason=response_send_failed"));
+      return;
+    }
+
+    ++snapshot_.mcpResponsesSent;
+    Serial.print(F("voice mcp response sent requests="));
+    Serial.print(snapshot_.mcpRequestsReceived);
+    Serial.print(F(" responses="));
+    Serial.println(snapshot_.mcpResponsesSent);
     return;
   }
 

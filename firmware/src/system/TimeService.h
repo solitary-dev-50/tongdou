@@ -14,6 +14,7 @@ class TimeService {
   bool ready() const;
   time_t now() const;
   String isoNow() const;
+  bool parseLocalDateTime(const String& value, uint32_t& epochSeconds) const;
 
  private:
   bool configuredNetworkTime_ = false;

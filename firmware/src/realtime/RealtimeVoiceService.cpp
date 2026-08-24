@@ -68,6 +68,12 @@ void RealtimeVoiceService::update() {
   sendAvailableAudioFrames(now);
 }
 
+void RealtimeVoiceService::setMcpPayloadHandler(
+    TongDouVoiceClient::McpPayloadHandler handler) {
+  mcpEnabled_ = static_cast<bool>(handler);
+  voiceClient_.onMcpPayload(handler);
+}
+
 void RealtimeVoiceService::configureBackend(const TongDouVoiceConnectionConfig& config) {
   backendConfig_ = config;
   if (backendConfig_.deviceId.length() == 0) {
@@ -89,7 +95,7 @@ bool RealtimeVoiceService::connectBackend() {
   hello.audio.sampleRate = 16000;
   hello.audio.channels = 1;
   hello.audio.frameDurationMs = 60;
-  hello.mcpEnabled = false;
+  hello.mcpEnabled = mcpEnabled_;
 
   backendStarted_ = voiceClient_.begin(backendConfig_, hello);
   if (!backendStarted_) {
@@ -374,6 +380,9 @@ RealtimeVoiceSnapshot RealtimeVoiceService::snapshot() const {
   copy.backendReady = backend.ready;
   copy.backendTextMessagesReceived = backend.textMessagesReceived;
   copy.backendBinaryPacketsReceived = backend.binaryPacketsReceived;
+  copy.backendMcpRequestsReceived = backend.mcpRequestsReceived;
+  copy.backendMcpResponsesSent = backend.mcpResponsesSent;
+  copy.backendMcpFailures = backend.mcpFailures;
   copy.backendUplinkPcmFramesEncoded = backend.uplinkPcmFramesEncoded;
   copy.backendUplinkOpusPacketsSent = backend.uplinkOpusPacketsSent;
   copy.backendUplinkEncodeFailures = backend.uplinkEncodeFailures;

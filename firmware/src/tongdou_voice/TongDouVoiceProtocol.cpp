@@ -114,6 +114,19 @@ String TongDouVoiceProtocol::buildGoodbyeRequest(const String& sessionId,
   return serialize(doc);
 }
 
+String TongDouVoiceProtocol::buildMcpMessage(const String& payload) const {
+  JsonDocument payloadDoc;
+  const DeserializationError parseError = deserializeJson(payloadDoc, payload);
+  if (parseError) {
+    return "";
+  }
+
+  JsonDocument doc;
+  doc["type"] = "mcp";
+  doc["payload"].set(payloadDoc.as<JsonVariantConst>());
+  return serialize(doc);
+}
+
 bool TongDouVoiceProtocol::parseTextMessage(const String& payload,
                                             TongDouVoiceIncomingMessage& message,
                                             String& error) const {
@@ -132,6 +145,15 @@ bool TongDouVoiceProtocol::parseTextMessage(const String& payload,
   message.text = root["text"] | "";
   message.emotion = root["emotion"] | "";
   message.reason = root["reason"] | "";
+
+  if (message.type == TongDouVoiceMessageType::Mcp) {
+    JsonVariantConst mcpPayload = root["payload"];
+    if (mcpPayload.isNull()) {
+      error = "mcp_payload_missing";
+      return false;
+    }
+    serializeJson(mcpPayload, message.mcpPayload);
+  }
 
   if (message.type == TongDouVoiceMessageType::Tts) {
     message.ttsState = parseTtsState(root["state"] | "");

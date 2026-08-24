@@ -36,6 +36,10 @@ void App::begin() {
   }
 
   realtimeVoiceService_.begin();
+  realtimeVoiceService_.setMcpPayloadHandler(
+      [this](const String& payload) {
+        return mcpServer_.handleVoicePayloadText(payload);
+      });
   Serial.println("realtime voice ready");
 
   deviceActivationService_.begin();

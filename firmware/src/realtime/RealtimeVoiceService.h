@@ -33,6 +33,9 @@ struct RealtimeVoiceSnapshot {
   bool backendReady = false;
   uint32_t backendTextMessagesReceived = 0;
   uint32_t backendBinaryPacketsReceived = 0;
+  uint32_t backendMcpRequestsReceived = 0;
+  uint32_t backendMcpResponsesSent = 0;
+  uint32_t backendMcpFailures = 0;
   uint32_t backendUplinkPcmFramesEncoded = 0;
   uint32_t backendUplinkOpusPacketsSent = 0;
   uint32_t backendUplinkEncodeFailures = 0;
@@ -70,6 +73,7 @@ class RealtimeVoiceService {
 
   void begin();
   void update();
+  void setMcpPayloadHandler(TongDouVoiceClient::McpPayloadHandler handler);
   void configureBackend(const TongDouVoiceConnectionConfig& config);
   bool connectBackend();
   bool sendDetectText(const String& text);
@@ -118,6 +122,7 @@ class RealtimeVoiceService {
   TongDouVoiceConnectionConfig backendConfig_;
   bool backendConfigured_ = false;
   bool backendStarted_ = false;
+  bool mcpEnabled_ = false;
   RealtimeVoiceSnapshot snapshot_;
   TongDouVoiceListenMode currentListenMode_ = TongDouVoiceListenMode::Manual;
   unsigned long captureUntilMs_ = 0;

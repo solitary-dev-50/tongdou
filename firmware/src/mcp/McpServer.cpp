@@ -43,6 +43,15 @@ void McpServer::begin() {
 }
 
 String McpServer::handlePayloadText(const String& payloadText) {
+  return handlePayloadText(payloadText, registry_);
+}
+
+String McpServer::handleVoicePayloadText(const String& payloadText) {
+  return handlePayloadText(payloadText, voiceRegistry_);
+}
+
+String McpServer::handlePayloadText(const String& payloadText,
+                                    const McpToolRegistry& registry) {
   begin();
 
   JsonDocument doc;
@@ -51,7 +60,7 @@ String McpServer::handlePayloadText(const String& payloadText) {
     return String(replyError("null", "Invalid JSON-RPC payload").c_str());
   }
 
-  return String(handlePayload(doc.as<JsonObjectConst>()).c_str());
+  return String(handlePayload(doc.as<JsonObjectConst>(), registry).c_str());
 }
 
 void McpServer::addTools() {
@@ -110,7 +119,10 @@ void McpServer::addTools() {
   };
 
   const std::vector<McpProperty> reminderCreateProperties = {
-      McpProperty::RequiredInteger("dueAt"), McpProperty::RequiredString("text")};
+      McpProperty::OptionalInteger("dueAt"),
+      McpProperty::OptionalInteger("delaySeconds"),
+      McpProperty::OptionalString("localDateTime"),
+      McpProperty::RequiredString("text")};
   const std::vector<McpProperty> reminderDeleteProperties = {
       McpProperty::RequiredInteger("id")};
   const std::vector<McpProperty> scenarioPlayProperties = {
@@ -134,10 +146,10 @@ void McpServer::addTools() {
                     {}, status);
 
   registry_.addTool("create_reminder",
-                    "Create a reminder. dueAt is Unix time in seconds.",
+                    "Create a reminder. Provide exactly one of dueAt, delaySeconds, or localDateTime.",
                     reminderCreateProperties, create);
   registry_.addTool("tongdou.reminder.create",
-                    "Create a reminder. dueAt is Unix time in seconds.",
+                    "Create a reminder. Provide exactly one of dueAt, delaySeconds, or localDateTime.",
                     reminderCreateProperties, create);
 
   registry_.addTool("list_reminders", "List active reminders.", {}, list);
@@ -147,6 +159,19 @@ void McpServer::addTools() {
                     reminderDeleteProperties, remove);
   registry_.addTool("tongdou.reminder.delete", "Delete a reminder by id.",
                     reminderDeleteProperties, remove);
+
+  voiceRegistry_.addTool(
+      "tongdou.reminder.create",
+      "用户要求记住或到点提醒某件事时调用。时间参数必须三选一：相对时间用 delaySeconds，例如五分钟后传 300；明确的本地日历时间用 localDateTime，格式 YYYY-MM-DD HH:MM:SS；只有已经从可信时钟获得绝对时间戳时才用 dueAt。不要自己心算 Unix 时间戳。text 只保留简短提醒内容，只有返回 ok=true 才能确认成功。",
+      reminderCreateProperties, create);
+  voiceRegistry_.addTool(
+      "tongdou.reminder.list",
+      "用户询问已经设置了哪些提醒时调用。不要凭对话记忆编造提醒。", {},
+      list);
+  voiceRegistry_.addTool(
+      "tongdou.reminder.delete",
+      "用户明确要求取消或删除已有提醒时调用，id 必须来自提醒列表或当前对话中刚创建成功的提醒。",
+      reminderDeleteProperties, remove);
 
   registry_.addTool("play_scenario", "Trigger a Tong Dou scenario by event name.",
                     scenarioPlayProperties, play);
@@ -217,7 +242,8 @@ void McpServer::addTools() {
                     voiceFailProperties, failVoice);
 }
 
-std::string McpServer::handlePayload(JsonObjectConst payload) {
+std::string McpServer::handlePayload(JsonObjectConst payload,
+                                     const McpToolRegistry& registry) {
   const char* jsonrpc = payload["jsonrpc"] | "";
   const char* method = payload["method"] | "";
   const std::string id = idJson(payload);
@@ -236,7 +262,7 @@ std::string McpServer::handlePayload(JsonObjectConst payload) {
   }
 
   if (strcmp(method, "tools/list") == 0) {
-    return replyResult(id, registry_.buildToolsListJson());
+    return replyResult(id, registry.buildToolsListJson());
   }
 
   if (strcmp(method, "tools/call") == 0) {
@@ -247,7 +273,7 @@ std::string McpServer::handlePayload(JsonObjectConst payload) {
     }
 
     JsonObjectConst arguments = params["arguments"].as<JsonObjectConst>();
-    const McpToolResult result = registry_.callTool(name, arguments);
+    const McpToolResult result = registry.callTool(name, arguments);
     return replyResult(id, mcpBuildTextResultJson(result));
   }
 
@@ -289,12 +315,57 @@ std::string McpServer::serializeVariant(JsonVariantConst value) const {
 }
 
 McpToolResult McpServer::createReminder(const McpToolArguments& arguments) {
-  const uint32_t dueAt = static_cast<uint32_t>(arguments.getInt("dueAt", 0));
   const String text(arguments.getString("text").c_str());
-  if (dueAt == 0 || text.length() == 0) {
-    return {toolErrorJson("invalid_request", "dueAt and text are required"), true};
+  if (text.length() == 0) {
+    return {toolErrorJson("invalid_request", "text is required"), true};
   }
-  if (timeService_.ready() && dueAt <= static_cast<uint32_t>(timeService_.now())) {
+  if (!timeService_.ready()) {
+    return {toolErrorJson("time_not_ready", "device time is not ready"), true};
+  }
+
+  const bool hasDueAt = arguments.has("dueAt");
+  const bool hasDelaySeconds = arguments.has("delaySeconds");
+  const bool hasLocalDateTime = arguments.has("localDateTime");
+  const uint8_t timeArgumentCount = static_cast<uint8_t>(hasDueAt) +
+                                    static_cast<uint8_t>(hasDelaySeconds) +
+                                    static_cast<uint8_t>(hasLocalDateTime);
+  if (timeArgumentCount != 1) {
+    return {toolErrorJson(
+                "invalid_time",
+                "provide exactly one of dueAt, delaySeconds, or localDateTime"),
+            true};
+  }
+
+  uint32_t dueAt = 0;
+  if (hasDueAt) {
+    const int value = arguments.getInt("dueAt", 0);
+    if (value <= 0) {
+      return {toolErrorJson("invalid_due_at", "dueAt is invalid"), true};
+    }
+    dueAt = static_cast<uint32_t>(value);
+  } else if (hasDelaySeconds) {
+    const int delaySeconds = arguments.getInt("delaySeconds", 0);
+    if (delaySeconds <= 0) {
+      return {toolErrorJson("invalid_delay", "delaySeconds must be positive"),
+              true};
+    }
+    const uint64_t calculated =
+        static_cast<uint64_t>(timeService_.now()) + delaySeconds;
+    if (calculated > UINT32_MAX) {
+      return {toolErrorJson("invalid_delay", "delaySeconds is too large"), true};
+    }
+    dueAt = static_cast<uint32_t>(calculated);
+  } else {
+    const String localDateTime(
+        arguments.getString("localDateTime").c_str());
+    if (!timeService_.parseLocalDateTime(localDateTime, dueAt)) {
+      return {toolErrorJson("invalid_local_time",
+                            "localDateTime must use YYYY-MM-DD HH:MM:SS"),
+              true};
+    }
+  }
+
+  if (dueAt <= static_cast<uint32_t>(timeService_.now())) {
     return {toolErrorJson("invalid_due_at", "dueAt is in the past"), true};
   }
 
