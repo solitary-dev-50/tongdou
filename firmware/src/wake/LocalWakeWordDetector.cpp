@@ -21,6 +21,9 @@ constexpr char kWakeCommandPinyin[] = "ni hao tong dou";
 constexpr int kWakeCommandId = 1;
 constexpr int kRecognitionTimeoutMs = 3000;
 constexpr float kDetectionThreshold = 0.20F;
+constexpr int32_t kWakeInputGain = 4;
+constexpr int32_t kPcm16Min = -32768;
+constexpr int32_t kPcm16Max = 32767;
 constexpr uint32_t kDetectorTaskStackWords = 6144;
 constexpr UBaseType_t kDetectorTaskPriority = 2;
 
@@ -37,10 +40,21 @@ void printWakeMemory(const char* phase) {
   Serial.println(heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL));
 }
 
+int16_t applyWakeInputGain(int16_t sample) {
+  int32_t scaled = static_cast<int32_t>(sample) * kWakeInputGain;
+  if (scaled > kPcm16Max) {
+    scaled = kPcm16Max;
+  } else if (scaled < kPcm16Min) {
+    scaled = kPcm16Min;
+  }
+  return static_cast<int16_t>(scaled);
+}
+
 }  // namespace
 
 void LocalWakeWordDetector::begin() {
   snapshot_ = {};
+  snapshot_.inputGain = static_cast<uint8_t>(kWakeInputGain);
   detectedEventPending_ = false;
   armed_ = false;
   printWakeMemory("before");
@@ -82,6 +96,8 @@ void LocalWakeWordDetector::begin() {
   printWakeMemory("after");
   Serial.print(F("wake detector ready phrase=你好，铜豆 frame_samples="));
   Serial.print(snapshot_.modelFrameSamples);
+  Serial.print(F(" input_gain="));
+  Serial.print(snapshot_.inputGain);
   Serial.print(F(" psram_queue_bytes="));
   Serial.println(snapshot_.psramUsedBytes);
 }
@@ -97,6 +113,16 @@ void LocalWakeWordDetector::setArmed(bool armed) {
   snapshot_.armed = armed;
   if (stateChanged) {
     receivedPcmSinceArmed_ = false;
+    if (armed) {
+      snapshot_.armSamplesOffered = 0;
+      snapshot_.armSamplesDropped = 0;
+      snapshot_.modelFramesProcessed = 0;
+      snapshot_.modelTimeouts = 0;
+      snapshot_.lastFrameMeanAbs = 0;
+      snapshot_.lastFramePeak = 0;
+      snapshot_.maxFrameMeanAbs = 0;
+      snapshot_.maxFramePeak = 0;
+    }
   }
   if (!armed) {
     detectedEventPending_ = false;
@@ -126,6 +152,34 @@ LocalWakeWordSnapshot LocalWakeWordDetector::snapshot() const {
   return copy;
 }
 
+void LocalWakeWordDetector::printDiagnostics(Print& out) const {
+  const LocalWakeWordSnapshot current = snapshot();
+  out.print(F("wake diagnostic ready="));
+  out.print(current.ready ? "1" : "0");
+  out.print(F(" armed="));
+  out.print(current.armed ? "1" : "0");
+  out.print(F(" arm_samples="));
+  out.print(current.armSamplesOffered);
+  out.print(F(" arm_dropped="));
+  out.print(current.armSamplesDropped);
+  out.print(F(" model_frames="));
+  out.print(current.modelFramesProcessed);
+  out.print(F(" timeout_resets="));
+  out.print(current.modelTimeouts);
+  out.print(F(" last_mean_abs="));
+  out.print(current.lastFrameMeanAbs);
+  out.print(F(" last_peak="));
+  out.print(current.lastFramePeak);
+  out.print(F(" max_mean_abs="));
+  out.print(current.maxFrameMeanAbs);
+  out.print(F(" max_peak="));
+  out.print(current.maxFramePeak);
+  out.print(F(" input_gain="));
+  out.print(current.inputGain);
+  out.print(F(" detections="));
+  out.println(current.detections);
+}
+
 void LocalWakeWordDetector::offerPcm16(const int16_t* samples,
                                        size_t sampleCount) {
   if (!armed_ || samples == nullptr || sampleCount == 0 || queue_ == nullptr) {
@@ -136,12 +190,14 @@ void LocalWakeWordDetector::offerPcm16(const int16_t* samples,
   const bool logFirstPcm = !receivedPcmSinceArmed_;
   receivedPcmSinceArmed_ = true;
   snapshot_.samplesOffered += static_cast<uint32_t>(sampleCount);
+  snapshot_.armSamplesOffered += static_cast<uint32_t>(sampleCount);
   for (size_t i = 0; i < sampleCount; ++i) {
     if (queueCount_ >= kQueueCapacitySamples) {
       ++snapshot_.samplesDropped;
+      ++snapshot_.armSamplesDropped;
       continue;
     }
-    queue_[queueWriteIndex_] = samples[i];
+    queue_[queueWriteIndex_] = applyWakeInputGain(samples[i]);
     queueWriteIndex_ = (queueWriteIndex_ + 1) % kQueueCapacitySamples;
     ++queueCount_;
   }
@@ -175,8 +231,35 @@ void LocalWakeWordDetector::detectorTaskLoop() {
       continue;
     }
 
+    int64_t absSum = 0;
+    int32_t peak = 0;
+    for (size_t i = 0; i < frameSamples; ++i) {
+      const int32_t sample = modelFrame_[i];
+      const int32_t magnitude = sample < 0 ? -sample : sample;
+      absSum += magnitude;
+      if (magnitude > peak) {
+        peak = magnitude;
+      }
+    }
+    const int32_t meanAbs =
+        static_cast<int32_t>(absSum / static_cast<int64_t>(frameSamples));
+    portENTER_CRITICAL(&lock_);
+    ++snapshot_.modelFramesProcessed;
+    snapshot_.lastFrameMeanAbs = meanAbs;
+    snapshot_.lastFramePeak = peak;
+    if (meanAbs > snapshot_.maxFrameMeanAbs) {
+      snapshot_.maxFrameMeanAbs = meanAbs;
+    }
+    if (peak > snapshot_.maxFramePeak) {
+      snapshot_.maxFramePeak = peak;
+    }
+    portEXIT_CRITICAL(&lock_);
+
     const esp_mn_state_t state = multinet_->detect(modelData_, modelFrame_);
     if (state == ESP_MN_STATE_TIMEOUT) {
+      portENTER_CRITICAL(&lock_);
+      ++snapshot_.modelTimeouts;
+      portEXIT_CRITICAL(&lock_);
       multinet_->clean(modelData_);
       continue;
     }

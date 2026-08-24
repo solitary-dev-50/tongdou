@@ -353,6 +353,11 @@ void App::handleSerialDiagnostics() {
     return;
   }
 
+  if (trimmed == F("wake") || trimmed == F("wake status")) {
+    localWakeWordDetector_.printDiagnostics(Serial);
+    return;
+  }
+
   Serial.println("unknown command, type help");
 }
 
@@ -423,6 +428,8 @@ void App::printStartupReport(const char* title) {
   Serial.print(wake.armed ? "1" : "0");
   Serial.print(" phrase=你好，铜豆 frame_samples=");
   Serial.print(wake.modelFrameSamples);
+  Serial.print(" input_gain=");
+  Serial.print(wake.inputGain);
   Serial.print(" psram_queue_bytes=");
   Serial.print(wake.psramUsedBytes);
   Serial.print(" samples_offered=");

@@ -19,6 +19,15 @@ struct LocalWakeWordSnapshot {
   uint32_t samplesOffered = 0;
   uint32_t samplesDropped = 0;
   uint32_t detections = 0;
+  uint32_t armSamplesOffered = 0;
+  uint32_t armSamplesDropped = 0;
+  uint32_t modelFramesProcessed = 0;
+  uint32_t modelTimeouts = 0;
+  int32_t lastFrameMeanAbs = 0;
+  int32_t lastFramePeak = 0;
+  int32_t maxFrameMeanAbs = 0;
+  int32_t maxFramePeak = 0;
+  uint8_t inputGain = 1;
   size_t modelFrameSamples = 0;
   size_t psramUsedBytes = 0;
   char lastError[64] = {};
@@ -30,6 +39,7 @@ class LocalWakeWordDetector : public PcmAudioSink {
   void setArmed(bool armed);
   bool consumeDetectedEvent();
   LocalWakeWordSnapshot snapshot() const;
+  void printDiagnostics(Print& out) const;
 
   void offerPcm16(const int16_t* samples, size_t sampleCount) override;
 
