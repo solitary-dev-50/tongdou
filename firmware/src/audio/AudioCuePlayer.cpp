@@ -2,7 +2,10 @@
 
 #include <cstring>
 
+#include <esp_heap_caps.h>
+
 #include "audio/OggOpusDemuxer.h"
+#include "resources/LocaleResourceStore.h"
 
 #include "audio/AudioCueResourceTable.inc"
 
@@ -49,6 +52,10 @@ bool AudioCuePlayer::begin() {
   return true;
 }
 
+void AudioCuePlayer::useLocaleResourceStore(LocaleResourceStore& store) {
+  localeResources_ = &store;
+}
+
 bool AudioCuePlayer::ready() const {
   return ready_;
 }
@@ -65,6 +72,14 @@ AudioCuePlaybackResult AudioCuePlayer::playLocalized(LocalizedAudioCue cue,
                                                      const String& locale) {
   const String primaryLocale = normalizedLocale(locale);
   const char* fileName = localizedName(cue);
+  if (localeResources_ != nullptr &&
+      localeResources_->matchesLocale(primaryLocale)) {
+    const AudioCuePlaybackResult external = playLocaleFile(fileName);
+    if (external.ok) {
+      return external;
+    }
+  }
+
   const String paths[kMaxLocaleFallbacks] = {
       makeLocalizedPath(primaryLocale, fileName),
       makeLocalizedPath("en-US", fileName),
@@ -89,6 +104,14 @@ AudioCuePlaybackResult AudioCuePlayer::playDigit(char digit, const String& local
   fileName += digit;
   fileName += ".ogg";
   const String primaryLocale = normalizedLocale(locale);
+  if (localeResources_ != nullptr &&
+      localeResources_->matchesLocale(primaryLocale)) {
+    const AudioCuePlaybackResult external = playLocaleFile(fileName.c_str());
+    if (external.ok) {
+      return external;
+    }
+  }
+
   const String paths[kMaxLocaleFallbacks] = {
       makeLocalizedPath(primaryLocale, fileName.c_str()),
       makeLocalizedPath("en-US", fileName.c_str()),
@@ -144,12 +167,52 @@ AudioCuePlaybackResult AudioCuePlayer::playPath(const char* path) {
     return fail("audio_cue_not_found");
   }
 
+  return playBuffer(file.data, file.size);
+}
+
+AudioCuePlaybackResult AudioCuePlayer::playLocaleFile(const char* fileName) {
+  if (localeResources_ == nullptr || fileName == nullptr) {
+    return fail("locale_resource_store_not_ready");
+  }
+
+  LocaleResourceFile file;
+  if (!localeResources_->findFile(fileName, file)) {
+    return fail("locale_audio_cue_not_found");
+  }
+
+  uint8_t* data = static_cast<uint8_t*>(
+      heap_caps_malloc(file.size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+  if (data == nullptr) {
+    return fail("locale_audio_buffer_allocation_failed");
+  }
+
+  const bool readOk = localeResources_->readFile(file, 0, data, file.size);
+  if (!readOk) {
+    heap_caps_free(data);
+    return fail("locale_audio_read_failed");
+  }
+
+  AudioCuePlaybackResult result = playBuffer(data, file.size);
+  heap_caps_free(data);
+  if (result.ok) {
+    Serial.print(F("audio cue source=locale_partition file="));
+    Serial.println(fileName);
+  }
+  return result;
+}
+
+AudioCuePlaybackResult AudioCuePlayer::playBuffer(const uint8_t* data,
+                                                  size_t size) {
+  if (data == nullptr || size == 0) {
+    return fail("audio_cue_buffer_invalid");
+  }
+
   closeDecoder();
   OggOpusDemuxer demuxer;
   AudioCuePlaybackResult result;
   bool decodeOk = true;
   demuxer.reset();
-  if (!demuxer.process(file.data, file.size, [&](const OggOpusPacket& packet) {
+  if (!demuxer.process(data, size, [&](const OggOpusPacket& packet) {
         if (!ensureDecoder(packet.sampleRate)) {
           decodeOk = false;
           return false;

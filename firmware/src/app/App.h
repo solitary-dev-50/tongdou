@@ -10,6 +10,7 @@
 #include "realtime/RealtimeVoiceService.h"
 #include "reminder/ReminderManager.h"
 #include "reminder/ReminderStore.h"
+#include "resources/LocaleResourceStore.h"
 #include "scenario/ScenarioEngine.h"
 #include "scenario/ScenarioExecutor.h"
 #include "scenario/ScenarioLibrary.h"
@@ -54,6 +55,7 @@ class App {
   HardwareManager hardware_;
   WifiConfigStore wifiConfigStore_;
   DeviceLocaleStore deviceLocaleStore_;
+  LocaleResourceStore localeResourceStore_;
   TimeService timeService_;
   ReminderStore reminderStore_;
   ReminderManager reminderManager_{timeService_, reminderStore_};

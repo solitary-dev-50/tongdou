@@ -8,6 +8,8 @@
 
 namespace tongdou {
 
+class LocaleResourceStore;
+
 enum class SystemAudioCue : uint8_t {
   Wake,
   Success,
@@ -39,6 +41,7 @@ class AudioCuePlayer {
   ~AudioCuePlayer();
 
   bool begin();
+  void useLocaleResourceStore(LocaleResourceStore& store);
   bool ready() const;
   const String& lastError() const;
 
@@ -57,6 +60,8 @@ class AudioCuePlayer {
   static const char* systemPath(SystemAudioCue cue);
   static const char* localizedName(LocalizedAudioCue cue);
   bool findFile(const char* path, CueFile& file) const;
+  AudioCuePlaybackResult playLocaleFile(const char* fileName);
+  AudioCuePlaybackResult playBuffer(const uint8_t* data, size_t size);
   bool ensureDecoder(uint32_t sampleRate);
   void closeDecoder();
   String makeLocalizedPath(const String& locale, const char* fileName) const;
@@ -65,6 +70,7 @@ class AudioCuePlayer {
   AudioCuePlaybackResult fail(const String& error);
 
   AudioOutput& audioOutput_;
+  LocaleResourceStore* localeResources_ = nullptr;
   OpusDecoder* decoder_ = nullptr;
   uint32_t decoderSampleRate_ = 0;
   bool ready_ = false;

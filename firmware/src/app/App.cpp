@@ -52,6 +52,17 @@ void App::begin() {
   Serial.print("device locale=");
   Serial.println(deviceLocaleStore_.locale());
 
+  localeResourceStore_.begin();
+  hardware_.audioCuePlayer().useLocaleResourceStore(localeResourceStore_);
+  Serial.print("locale resources ready=");
+  Serial.print(localeResourceStore_.ready() ? "1" : "0");
+  Serial.print(" locale=");
+  Serial.print(localeResourceStore_.locale());
+  Serial.print(" version=");
+  Serial.print(localeResourceStore_.version());
+  Serial.print(" error=");
+  Serial.println(localeResourceStore_.lastError());
+
   timeService_.begin();
   Serial.println("time service started");
 
