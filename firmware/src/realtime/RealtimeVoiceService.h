@@ -15,6 +15,7 @@ enum class RealtimeVoiceState : uint8_t {
   Idle,
   Listening,
   AwaitingResponse,
+  Ending,
   Failed,
 };
 
@@ -56,6 +57,9 @@ struct RealtimeVoiceSnapshot {
   String backendLastEmotion;
   String backendCodecLastError;
   String backendLastError;
+  bool conversationExitRequested = false;
+  bool backendGoodbyeReceived = false;
+  String backendGoodbyeReason;
   String lastErrorCode;
   String lastErrorMessage;
 };
@@ -70,6 +74,7 @@ class RealtimeVoiceService {
   bool connectBackend();
   bool sendDetectText(const String& text);
   bool abortBackendSpeech();
+  bool requestConversationExit();
   bool startTurn(uint16_t captureMs = 2500);
   bool startAutoTurn();
   bool startConversationTurn();
@@ -78,6 +83,7 @@ class RealtimeVoiceService {
   bool consumeFailureEvent();
   bool consumeTurnCompletedEvent();
   bool consumeConversationTimeoutEvent();
+  bool consumeConversationEndedEvent();
   TongDouVoiceAudioCodecSelfTestResult runCodecSelfTest();
   RealtimeVoiceSnapshot snapshot() const;
   const char* stateName() const;
@@ -98,6 +104,8 @@ class RealtimeVoiceService {
   void finishCapture();
   void completeAutoCaptureWhenBackendResponds();
   void updateBackendTurnCompletion();
+  void updateConversationExit();
+  void updateBackendConnectionFailure();
   void logFirstPcmFrame(const int16_t* samples, size_t sampleCount,
                         unsigned long nowMs);
 
@@ -112,6 +120,7 @@ class RealtimeVoiceService {
   RealtimeVoiceSnapshot snapshot_;
   TongDouVoiceListenMode currentListenMode_ = TongDouVoiceListenMode::Manual;
   unsigned long captureUntilMs_ = 0;
+  bool captureDeadlineEnabled_ = false;
   unsigned long nextCaptureMs_ = 0;
   unsigned long awaitingResponseStartedMs_ = 0;
   int16_t capturedPcmFrame_[kCapturedPcmFrameSamples] = {};
@@ -124,6 +133,10 @@ class RealtimeVoiceService {
   bool failurePending_ = false;
   bool turnCompletedPending_ = false;
   bool conversationTimeoutPending_ = false;
+  bool conversationEndedPending_ = false;
+  bool goodbyeLatched_ = false;
+  bool exitSoftwareDrainLogged_ = false;
+  bool backendWasConnected_ = false;
   TurnKind currentTurnKind_ = TurnKind::Regular;
 };
 

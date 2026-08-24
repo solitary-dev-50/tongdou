@@ -9,7 +9,6 @@ namespace {
 
 constexpr uint16_t kMinCaptureMs = 200;
 constexpr uint16_t kMaxCaptureMs = 8000;
-constexpr uint16_t kAutoListenBackstopMs = 20000;
 constexpr unsigned long kFrameIntervalMs = 5;
 constexpr unsigned long kAwaitingResponseTimeoutMs = 12000;
 constexpr uint16_t kDefaultResponseClipId = 200;
@@ -41,20 +40,24 @@ void RealtimeVoiceService::begin() {
 void RealtimeVoiceService::update() {
   if (backendStarted_) {
     voiceClient_.update();
+    updateConversationExit();
     voiceClient_.playNextDownlinkPacket(audioOutput_);
+    updateBackendConnectionFailure();
   }
 
   snapshot_.audioInputReady = audioPipeline_.ready();
   snapshot_.audioOutputReady = audioOutput_.ready();
   completeAutoCaptureWhenBackendResponds();
   updateBackendTurnCompletion();
+  updateConversationExit();
 
   if (snapshot_.state != RealtimeVoiceState::Listening) {
     return;
   }
 
   const unsigned long now = millis();
-  if (static_cast<long>(now - captureUntilMs_) >= 0) {
+  if (captureDeadlineEnabled_ &&
+      static_cast<long>(now - captureUntilMs_) >= 0) {
     finishCapture();
     return;
   }
@@ -131,19 +134,20 @@ bool RealtimeVoiceService::startTurn(uint16_t captureMs) {
 }
 
 bool RealtimeVoiceService::startAutoTurn() {
-  return startTurnWithMode(TongDouVoiceListenMode::Auto, kAutoListenBackstopMs,
-                           TurnKind::Regular);
+  return startTurnWithMode(TongDouVoiceListenMode::Auto, 0, TurnKind::Regular);
 }
 
 bool RealtimeVoiceService::startConversationTurn() {
-  return startTurnWithMode(TongDouVoiceListenMode::Auto, kAutoListenBackstopMs,
+  return startTurnWithMode(TongDouVoiceListenMode::Auto, 0,
                            TurnKind::ConversationFollowUp);
 }
 
 bool RealtimeVoiceService::startTurnWithMode(TongDouVoiceListenMode mode,
                                              uint16_t captureMs,
                                              TurnKind turnKind) {
-  if (snapshot_.state == RealtimeVoiceState::Listening) {
+  if (snapshot_.state == RealtimeVoiceState::Listening ||
+      snapshot_.state == RealtimeVoiceState::Ending ||
+      voiceClient_.conversationExitPending()) {
     failTurn("voice_busy", "voice turn is already listening");
     return false;
   }
@@ -159,6 +163,8 @@ bool RealtimeVoiceService::startTurnWithMode(TongDouVoiceListenMode mode,
   firstPcmFrameLogged_ = false;
   firstOpusPacketLogged_ = false;
   currentTurnKind_ = turnKind;
+  goodbyeLatched_ = false;
+  exitSoftwareDrainLogged_ = false;
 
   if (backendStarted_) {
     const TongDouVoiceClientSnapshot backend = voiceClient_.snapshot();
@@ -188,18 +194,22 @@ bool RealtimeVoiceService::startTurnWithMode(TongDouVoiceListenMode mode,
   ++snapshot_.turnId;
   snapshot_.state = RealtimeVoiceState::Listening;
   snapshot_.lastTurnOk = false;
+  snapshot_.conversationExitRequested = false;
+  snapshot_.backendGoodbyeReceived = false;
+  snapshot_.backendGoodbyeReason = "";
   snapshot_.lastErrorCode = "";
   snapshot_.lastErrorMessage = "";
   turnCompletedPending_ = false;
   conversationTimeoutPending_ = false;
+  conversationEndedPending_ = false;
   snapshot_.chunksSent = 0;
   snapshot_.samplesSent = 0;
   snapshot_.bytesSent = 0;
 
   const unsigned long now = millis();
-  const uint16_t safeCaptureMs =
-      mode == TongDouVoiceListenMode::Auto ? captureMs : clampCaptureMs(captureMs);
-  captureUntilMs_ = now + safeCaptureMs;
+  captureDeadlineEnabled_ = mode != TongDouVoiceListenMode::Auto;
+  const uint16_t safeCaptureMs = clampCaptureMs(captureMs);
+  captureUntilMs_ = captureDeadlineEnabled_ ? now + safeCaptureMs : 0;
   nextCaptureMs_ = now;
   Serial.print(F("voice timeline turn_start t="));
   Serial.print(now);
@@ -209,6 +219,28 @@ bool RealtimeVoiceService::startTurnWithMode(TongDouVoiceListenMode mode,
   if (!backendStarted_) {
     perfTracer_.listenStart();
   }
+  return true;
+}
+
+bool RealtimeVoiceService::requestConversationExit() {
+  if (!backendStarted_ || !voiceClient_.snapshot().connected) {
+    failTurn("voice_exit_backend_unavailable",
+             "voice backend is unavailable during manual exit");
+    return false;
+  }
+
+  audioPipeline_.stopUpload();
+  capturedPcmFrameUsed_ = 0;
+  if (!voiceClient_.requestConversationExit("manual")) {
+    failTurn("voice_exit_request_failed",
+             "failed to request conversation exit from backend");
+    return false;
+  }
+
+  snapshot_.state = RealtimeVoiceState::Ending;
+  snapshot_.conversationExitRequested = true;
+  turnCompletedPending_ = false;
+  conversationTimeoutPending_ = false;
   return true;
 }
 
@@ -260,6 +292,15 @@ bool RealtimeVoiceService::consumeConversationTimeoutEvent() {
   }
 
   conversationTimeoutPending_ = false;
+  return true;
+}
+
+bool RealtimeVoiceService::consumeConversationEndedEvent() {
+  if (!conversationEndedPending_) {
+    return false;
+  }
+
+  conversationEndedPending_ = false;
   return true;
 }
 
@@ -321,6 +362,9 @@ RealtimeVoiceSnapshot RealtimeVoiceService::snapshot() const {
   copy.backendLastEmotion = backend.lastEmotion;
   copy.backendCodecLastError = backend.codecStats.lastError;
   copy.backendLastError = backend.lastError;
+  copy.conversationExitRequested = backend.conversationExitRequested;
+  copy.backendGoodbyeReceived = backend.goodbyeReceived;
+  copy.backendGoodbyeReason = backend.goodbyeReason;
   return copy;
 }
 
@@ -330,6 +374,8 @@ const char* RealtimeVoiceService::stateName() const {
       return "listening";
     case RealtimeVoiceState::AwaitingResponse:
       return "awaiting_response";
+    case RealtimeVoiceState::Ending:
+      return "ending";
     case RealtimeVoiceState::Failed:
       return "failed";
     case RealtimeVoiceState::Idle:
@@ -530,6 +576,61 @@ void RealtimeVoiceService::updateBackendTurnCompletion() {
   snapshot_.lastErrorMessage = "";
   turnCompletedPending_ = true;
   currentTurnKind_ = TurnKind::Regular;
+}
+
+void RealtimeVoiceService::updateConversationExit() {
+  if (!backendStarted_) {
+    return;
+  }
+
+  const TongDouVoiceClientSnapshot backend = voiceClient_.snapshot();
+  if (backend.goodbyeReceived && !goodbyeLatched_) {
+    goodbyeLatched_ = true;
+    snapshot_.state = RealtimeVoiceState::Ending;
+    snapshot_.conversationExitRequested = true;
+    audioPipeline_.stopUpload();
+    capturedPcmFrameUsed_ = 0;
+    turnCompletedPending_ = false;
+    conversationTimeoutPending_ = false;
+    Serial.print(F("voice conversation ending reason="));
+    Serial.println(backend.goodbyeReason);
+  }
+
+  if (snapshot_.state != RealtimeVoiceState::Ending || !goodbyeLatched_ ||
+      !backend.ttsStopped || !voiceClient_.downlinkDrained()) {
+    return;
+  }
+
+  if (!exitSoftwareDrainLogged_) {
+    exitSoftwareDrainLogged_ = true;
+    Serial.println(F("voice goodbye software queue drained"));
+  }
+  if (!audioOutput_.streamDrained()) {
+    return;
+  }
+
+  Serial.println(F("voice goodbye speaker drained state=idle"));
+  snapshot_.state = RealtimeVoiceState::Idle;
+  snapshot_.lastTurnOk = true;
+  snapshot_.lastErrorCode = "";
+  snapshot_.lastErrorMessage = "";
+  conversationEndedPending_ = true;
+  currentTurnKind_ = TurnKind::Regular;
+}
+
+void RealtimeVoiceService::updateBackendConnectionFailure() {
+  const TongDouVoiceClientSnapshot backend = voiceClient_.snapshot();
+  const bool turnActive = snapshot_.state == RealtimeVoiceState::Listening ||
+                          snapshot_.state == RealtimeVoiceState::AwaitingResponse ||
+                          snapshot_.state == RealtimeVoiceState::Ending;
+  if (backendWasConnected_ && !backend.connected && turnActive &&
+      !goodbyeLatched_ && !backend.goodbyeReceived) {
+    audioOutput_.stopStream();
+    failTurn("voice_backend_disconnected",
+             "voice backend disconnected during an active conversation");
+    Serial.println(F("voice abnormal fallback reason=backend_disconnected"));
+  }
+  backendWasConnected_ = backend.connected;
 }
 
 }  // namespace tongdou

@@ -130,7 +130,7 @@ constexpr ScenarioRule kRules[] = {
         true,
         PersonalityStyle::Gentle,
         {true, FaceAction::Sleep, LightAction::Off, MotionAction::Stop,
-         VoiceLine::QuietReply, 900},
+         VoiceLine::None, 900},
     },
 };
 

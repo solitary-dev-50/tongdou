@@ -88,7 +88,7 @@ void TongDouVoiceClient::disconnect() {
 }
 
 bool TongDouVoiceClient::sendListenStart(TongDouVoiceListenMode mode) {
-  if (!ready()) {
+  if (!ready() || conversationExitPending()) {
     return false;
   }
   if (!sendText(protocol_.buildListenStart(snapshot_.sessionId, mode))) {
@@ -132,6 +132,24 @@ bool TongDouVoiceClient::sendAbort() {
     setState(TongDouVoiceClientState::Ready);
   }
   return sent;
+}
+
+bool TongDouVoiceClient::requestConversationExit(const String& reason) {
+  if (!socket_.connected() || snapshot_.goodbyeReceived) {
+    return false;
+  }
+  if (!snapshot_.conversationExitRequested &&
+      !sendText(protocol_.buildGoodbyeRequest(snapshot_.sessionId, reason))) {
+    return false;
+  }
+
+  snapshot_.conversationExitRequested = true;
+  snapshot_.ready = false;
+  snapshot_.goodbyeReason = reason;
+  setState(TongDouVoiceClientState::Ending);
+  Serial.print(F("voice conversation exit requested reason="));
+  Serial.println(reason);
+  return true;
 }
 
 bool TongDouVoiceClient::sendPcm16Frame(const int16_t* samples, size_t sampleCount) {
@@ -196,7 +214,8 @@ bool TongDouVoiceClient::playNextDownlinkPacket(AudioOutput& audioOutput) {
 
   ++snapshot_.downlinkPacketsPlayed;
   perfTracer_.speakerStart();
-  setState(TongDouVoiceClientState::Speaking);
+  setState(conversationExitPending() ? TongDouVoiceClientState::Ending
+                                     : TongDouVoiceClientState::Speaking);
   return true;
 }
 
@@ -213,7 +232,16 @@ TongDouVoiceClientState TongDouVoiceClient::state() const {
 }
 
 bool TongDouVoiceClient::ready() const {
-  return snapshot_.ready && socket_.connected() && audioCodec_.ready();
+  return snapshot_.ready && socket_.connected() && audioCodec_.ready() &&
+         !conversationExitPending();
+}
+
+bool TongDouVoiceClient::conversationExitPending() const {
+  return snapshot_.conversationExitRequested || snapshot_.goodbyeReceived;
+}
+
+bool TongDouVoiceClient::downlinkDrained() const {
+  return queues_.stats().downlinkQueued == 0;
 }
 
 void TongDouVoiceClient::handleSocketState(TongDouVoiceWebSocketState state) {
@@ -261,6 +289,10 @@ void TongDouVoiceClient::handleTextMessage(const String& payload) {
     }
     Serial.print("voice session=");
     Serial.println(snapshot_.sessionId);
+    snapshot_.conversationExitRequested = false;
+    snapshot_.goodbyeReceived = false;
+    snapshot_.goodbyeReason = "";
+    snapshot_.ttsStopped = true;
     snapshot_.ready = true;
     setState(TongDouVoiceClientState::Ready);
     return;
@@ -269,11 +301,27 @@ void TongDouVoiceClient::handleTextMessage(const String& payload) {
   if (message.type == TongDouVoiceMessageType::Tts) {
     if (message.ttsState == TongDouVoiceTtsState::Start ||
         message.ttsState == TongDouVoiceTtsState::SentenceStart) {
+      snapshot_.ttsStopped = false;
       setState(TongDouVoiceClientState::PreparingSpeak);
     } else if (message.ttsState == TongDouVoiceTtsState::Stop) {
+      snapshot_.ttsStopped = true;
       perfTracer_.ttsDone();
-      setState(TongDouVoiceClientState::Ready);
+      setState(conversationExitPending() ? TongDouVoiceClientState::Ending
+                                         : TongDouVoiceClientState::Ready);
     }
+    return;
+  }
+
+  if (message.type == TongDouVoiceMessageType::Goodbye) {
+    snapshot_.conversationExitRequested = true;
+    snapshot_.goodbyeReceived = true;
+    snapshot_.ready = false;
+    snapshot_.goodbyeReason = message.reason;
+    setState(TongDouVoiceClientState::Ending);
+    Serial.print(F("voice goodbye received session="));
+    Serial.print(snapshot_.sessionId);
+    Serial.print(F(" reason="));
+    Serial.println(snapshot_.goodbyeReason);
   }
 }
 
@@ -284,7 +332,8 @@ void TongDouVoiceClient::handleBinaryMessage(const uint8_t* payload, size_t leng
   ++snapshot_.binaryPacketsReceived;
   queues_.pushDownlink(payload, length);
   perfTracer_.firstTtsPacketReceived();
-  setState(TongDouVoiceClientState::Speaking);
+  setState(conversationExitPending() ? TongDouVoiceClientState::Ending
+                                     : TongDouVoiceClientState::Speaking);
 }
 
 void TongDouVoiceClient::setState(TongDouVoiceClientState state) {
@@ -334,6 +383,8 @@ const char* tongDouVoiceClientStateName(TongDouVoiceClientState state) {
       return "preparing_speak";
     case TongDouVoiceClientState::Speaking:
       return "speaking";
+    case TongDouVoiceClientState::Ending:
+      return "ending";
     case TongDouVoiceClientState::Failed:
       return "failed";
     case TongDouVoiceClientState::Offline:

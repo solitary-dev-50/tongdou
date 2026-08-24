@@ -118,7 +118,7 @@ void App::handleLogoTouchEvents() {
   if (touchEvent == LogoTouchEvent::SingleTap) {
     startLogoVoiceTurn();
   } else if (touchEvent == LogoTouchEvent::LongPress) {
-    closeConversationWindow(false);
+    requestConversationExitFromInteraction(F("logo_long_press"));
   }
 }
 
@@ -170,7 +170,27 @@ void App::startVoiceTurnFromInteraction(const __FlashStringHelper* source) {
   conversationFollowUpPending_ = false;
 }
 
+void App::requestConversationExitFromInteraction(
+    const __FlashStringHelper* source) {
+  if (!voiceConversationActive_ && !conversationFollowUpPending_) {
+    return;
+  }
+
+  conversationFollowUpPending_ = false;
+  const bool requested = realtimeVoiceService_.requestConversationExit();
+  Serial.print(F("conversation exit request source="));
+  Serial.print(source);
+  Serial.print(F(" ok="));
+  Serial.println(requested ? "1" : "0");
+}
+
 void App::handleConversationWindow() {
+  if (realtimeVoiceService_.consumeConversationEndedEvent()) {
+    voiceConversationActive_ = false;
+    conversationFollowUpPending_ = false;
+    Serial.println(F("conversation ended source=server_goodbye state=idle"));
+  }
+
   if (realtimeVoiceService_.consumeConversationTimeoutEvent()) {
     voiceConversationActive_ = false;
     conversationFollowUpPending_ = false;
@@ -181,7 +201,8 @@ void App::handleConversationWindow() {
   }
 
   if (realtimeVoiceService_.consumeTurnCompletedEvent()) {
-    if (voiceConversationActive_) {
+    if (voiceConversationActive_ &&
+        !realtimeVoiceService_.snapshot().conversationExitRequested) {
       openConversationWindow();
     }
   }

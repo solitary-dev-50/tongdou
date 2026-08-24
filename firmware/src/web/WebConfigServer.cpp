@@ -219,7 +219,10 @@ void WebConfigServer::setupRoutes() {
   server_.on("/api/voice/connect", HTTP_POST, [this]() { handleVoiceBackendConnect(); });
   server_.on("/api/voice/detect", HTTP_POST, [this]() { handleVoiceDetect(); });
   server_.on("/api/voice/start", HTTP_POST, [this]() { handleVoiceStart(); });
+  server_.on("/api/voice/start-auto", HTTP_POST,
+             [this]() { handleVoiceStartAuto(); });
   server_.on("/api/voice/abort", HTTP_POST, [this]() { handleVoiceAbort(); });
+  server_.on("/api/voice/exit", HTTP_POST, [this]() { handleVoiceExit(); });
   server_.on("/api/voice/codec-self-test", HTTP_POST,
              [this]() { handleVoiceCodecSelfTest(); });
   server_.onNotFound([this]() { handleNotFound(); });
@@ -801,8 +804,16 @@ void WebConfigServer::handleVoiceStart() {
   sendText(200, "application/json", callMcpTool("start_voice_turn", arguments));
 }
 
+void WebConfigServer::handleVoiceStartAuto() {
+  sendText(200, "application/json", callMcpTool("tongdou.voice.start_auto", "{}"));
+}
+
 void WebConfigServer::handleVoiceAbort() {
   sendText(200, "application/json", callMcpTool("voice_abort", "{}"));
+}
+
+void WebConfigServer::handleVoiceExit() {
+  sendText(200, "application/json", callMcpTool("voice_exit", "{}"));
 }
 
 void WebConfigServer::handleVoiceCodecSelfTest() {

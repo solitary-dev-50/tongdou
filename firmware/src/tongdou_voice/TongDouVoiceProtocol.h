@@ -15,6 +15,7 @@ enum class TongDouVoiceMessageType : uint8_t {
   Mcp,
   Server,
   Ping,
+  Goodbye,
 };
 
 enum class TongDouVoiceTtsState : uint8_t {
@@ -36,6 +37,7 @@ struct TongDouVoiceIncomingMessage {
   String sessionId;
   String text;
   String emotion;
+  String reason;
   bool hasAudioParams = false;
   TongDouVoiceAudioParams audio;
 };
@@ -53,6 +55,8 @@ class TongDouVoiceProtocol {
                            TongDouVoiceListenMode mode =
                                TongDouVoiceListenMode::Manual) const;
   String buildAbort(const String& sessionId) const;
+  String buildGoodbyeRequest(const String& sessionId,
+                             const String& reason = "manual") const;
 
   bool parseTextMessage(const String& payload, TongDouVoiceIncomingMessage& message,
                         String& error) const;

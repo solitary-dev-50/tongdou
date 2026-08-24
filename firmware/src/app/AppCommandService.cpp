@@ -11,6 +11,8 @@ String voiceStateName(RealtimeVoiceState state) {
       return "listening";
     case RealtimeVoiceState::AwaitingResponse:
       return "awaiting_response";
+    case RealtimeVoiceState::Ending:
+      return "ending";
     case RealtimeVoiceState::Failed:
       return "failed";
     case RealtimeVoiceState::Idle:
@@ -113,11 +115,39 @@ AppCommandResult AppCommandService::abortVoice() {
   return {true, "ok", "voice abort sent"};
 }
 
+AppCommandResult AppCommandService::exitVoiceConversation() {
+  if (!realtimeVoiceService_.requestConversationExit()) {
+    const RealtimeVoiceSnapshot snapshot = realtimeVoiceService_.snapshot();
+    return {false,
+            snapshot.lastErrorCode.length() > 0
+                ? snapshot.lastErrorCode
+                : String("voice_exit_failed"),
+            snapshot.lastErrorMessage.length() > 0
+                ? snapshot.lastErrorMessage
+                : String("voice conversation exit request failed")};
+  }
+  return {true, "ok", "voice conversation exit requested"};
+}
+
 AppCommandResult AppCommandService::startVoiceTurn(uint16_t captureMs) {
   if (!realtimeVoiceService_.startTurn(captureMs)) {
     return {false, "voice_start_failed", "voice turn failed to start"};
   }
   return {true, "ok", "voice turn started"};
+}
+
+AppCommandResult AppCommandService::startAutoVoiceTurn() {
+  if (!realtimeVoiceService_.startAutoTurn()) {
+    const RealtimeVoiceSnapshot snapshot = realtimeVoiceService_.snapshot();
+    return {false,
+            snapshot.lastErrorCode.length() > 0
+                ? snapshot.lastErrorCode
+                : String("voice_auto_start_failed"),
+            snapshot.lastErrorMessage.length() > 0
+                ? snapshot.lastErrorMessage
+                : String("automatic voice turn failed to start")};
+  }
+  return {true, "ok", "automatic voice turn started"};
 }
 
 AppCommandResult AppCommandService::playVoiceResponse(const String& text) {
@@ -177,6 +207,9 @@ String AppCommandService::voiceStatusJson() const {
   doc["backend"]["lastText"] = snapshot.backendLastText;
   doc["backend"]["lastEmotion"] = snapshot.backendLastEmotion;
   doc["backend"]["lastError"] = snapshot.backendLastError;
+  doc["conversation"]["exitRequested"] = snapshot.conversationExitRequested;
+  doc["conversation"]["goodbyeReceived"] = snapshot.backendGoodbyeReceived;
+  doc["conversation"]["goodbyeReason"] = snapshot.backendGoodbyeReason;
   doc["lastErrorCode"] = snapshot.lastErrorCode;
   doc["lastErrorMessage"] = snapshot.lastErrorMessage;
 

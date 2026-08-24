@@ -30,7 +30,9 @@ class AppCommandService {
   AppCommandResult connectVoiceBackend();
   AppCommandResult sendVoiceDetect(const String& text);
   AppCommandResult abortVoice();
+  AppCommandResult exitVoiceConversation();
   AppCommandResult startVoiceTurn(uint16_t captureMs = 2500);
+  AppCommandResult startAutoVoiceTurn();
   AppCommandResult playVoiceResponse(const String& text);
   AppCommandResult failVoiceTurn(const String& reason);
   String voiceStatusJson() const;

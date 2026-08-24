@@ -34,6 +34,8 @@ class App {
   void startLogoVoiceTurn();
   void startConversationVoiceTurn();
   void startVoiceTurnFromInteraction(const __FlashStringHelper* source);
+  void requestConversationExitFromInteraction(
+      const __FlashStringHelper* source);
   void openConversationWindow();
   void closeConversationWindow(bool playExitCue);
   void handleAudioCueEvents();

@@ -12,6 +12,9 @@ namespace {
 constexpr i2s_port_t kSpeakerPort = I2S_NUM_1;
 constexpr uint32_t kSampleRate = 16000;
 constexpr size_t kFramesPerChunk = 64;
+constexpr uint8_t kDmaBufferCount = 4;
+constexpr uint16_t kDmaBufferFrames = 256;
+constexpr unsigned long kDrainSafetyMarginMs = 8;
 constexpr float kPi = 3.14159265358979323846F;
 constexpr int16_t kToneAmplitude = 10000;
 
@@ -28,8 +31,8 @@ void AudioOutput::begin() {
   config.channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT;
   config.communication_format = I2S_COMM_FORMAT_STAND_I2S;
   config.intr_alloc_flags = ESP_INTR_FLAG_LEVEL1;
-  config.dma_buf_count = 4;
-  config.dma_buf_len = 256;
+  config.dma_buf_count = kDmaBufferCount;
+  config.dma_buf_len = kDmaBufferFrames;
   config.use_apll = false;
   config.tx_desc_auto_clear = true;
   config.fixed_mclk = 0;
@@ -87,6 +90,7 @@ void AudioOutput::playTestTone(uint16_t frequencyHz, uint16_t durationMs) {
   }
 
   i2s_zero_dma_buffer(kSpeakerPort);
+  streamActive_ = false;
 }
 
 void AudioOutput::playClip(uint16_t clipId, const char* text) {
@@ -134,6 +138,13 @@ bool AudioOutput::writePcm16Mono(const int16_t* samples, size_t sampleCount,
     offset += framesThisChunk;
   }
 
+  const unsigned long maximumBufferedMs =
+      (static_cast<unsigned long>(kDmaBufferCount) * kDmaBufferFrames * 1000UL +
+       sampleRate - 1) /
+      sampleRate;
+  streamDrainAtMs_ = millis() + maximumBufferedMs + kDrainSafetyMarginMs;
+  streamActive_ = true;
+
   return true;
 }
 
@@ -143,10 +154,17 @@ void AudioOutput::stopStream() {
   }
 
   i2s_zero_dma_buffer(kSpeakerPort);
+  streamActive_ = false;
+  streamDrainAtMs_ = 0;
 }
 
 bool AudioOutput::ready() const {
   return ready_;
+}
+
+bool AudioOutput::streamDrained() const {
+  return !streamActive_ ||
+         static_cast<long>(millis() - streamDrainAtMs_) >= 0;
 }
 
 }  // namespace tongdou

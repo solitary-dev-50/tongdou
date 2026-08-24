@@ -33,6 +33,9 @@ TongDouVoiceMessageType parseType(const char* type) {
   if (strcmp(type, "ping") == 0) {
     return TongDouVoiceMessageType::Ping;
   }
+  if (strcmp(type, "goodbye") == 0) {
+    return TongDouVoiceMessageType::Goodbye;
+  }
   return TongDouVoiceMessageType::Unknown;
 }
 
@@ -71,6 +74,7 @@ String TongDouVoiceProtocol::buildHello(const TongDouVoiceHelloConfig& config) c
   doc["version"] = config.version;
   doc["transport"] = config.transport;
   doc["features"]["mcp"] = config.mcpEnabled;
+  doc["features"]["goodbye"] = config.goodbyeEnabled;
   writeAudioParams(doc["audio_params"].to<JsonObject>(), config.audio);
   return serialize(doc);
 }
@@ -99,6 +103,17 @@ String TongDouVoiceProtocol::buildAbort(const String& sessionId) const {
   return serialize(doc);
 }
 
+String TongDouVoiceProtocol::buildGoodbyeRequest(const String& sessionId,
+                                                 const String& reason) const {
+  JsonDocument doc;
+  if (sessionId.length() > 0) {
+    doc["session_id"] = sessionId;
+  }
+  doc["type"] = "goodbye";
+  doc["reason"] = reason;
+  return serialize(doc);
+}
+
 bool TongDouVoiceProtocol::parseTextMessage(const String& payload,
                                             TongDouVoiceIncomingMessage& message,
                                             String& error) const {
@@ -116,6 +131,7 @@ bool TongDouVoiceProtocol::parseTextMessage(const String& payload,
   message.sessionId = root["session_id"] | "";
   message.text = root["text"] | "";
   message.emotion = root["emotion"] | "";
+  message.reason = root["reason"] | "";
 
   if (message.type == TongDouVoiceMessageType::Tts) {
     message.ttsState = parseTtsState(root["state"] | "");
@@ -162,6 +178,8 @@ const char* tongDouVoiceMessageTypeName(TongDouVoiceMessageType type) {
       return "server";
     case TongDouVoiceMessageType::Ping:
       return "ping";
+    case TongDouVoiceMessageType::Goodbye:
+      return "goodbye";
     case TongDouVoiceMessageType::Unknown:
     default:
       return "unknown";

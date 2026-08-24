@@ -12,10 +12,13 @@ class AudioOutput {
   bool writePcm16Mono(const int16_t* samples, size_t sampleCount, uint32_t sampleRate);
   void stopStream();
   bool ready() const;
+  bool streamDrained() const;
 
  private:
   bool ready_ = false;
   uint32_t currentSampleRate_ = 0;
+  unsigned long streamDrainAtMs_ = 0;
+  bool streamActive_ = false;
 };
 
 }  // namespace tongdou

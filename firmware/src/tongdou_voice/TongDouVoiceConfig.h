@@ -15,6 +15,7 @@ struct TongDouVoiceHelloConfig {
   uint8_t version = 1;
   String transport = "websocket";
   bool mcpEnabled = false;
+  bool goodbyeEnabled = true;
   TongDouVoiceAudioParams audio;
 };
 

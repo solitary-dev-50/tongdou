@@ -20,6 +20,7 @@ enum class TongDouVoiceClientState : uint8_t {
   Listening,
   PreparingSpeak,
   Speaking,
+  Ending,
   Failed,
 };
 
@@ -40,6 +41,10 @@ struct TongDouVoiceClientSnapshot {
   TongDouVoiceTtsState lastTtsState = TongDouVoiceTtsState::None;
   String lastText;
   String lastEmotion;
+  bool conversationExitRequested = false;
+  bool goodbyeReceived = false;
+  bool ttsStopped = true;
+  String goodbyeReason;
   String lastError;
   TongDouVoiceAudioParams downstreamAudio;
   TongDouVoiceAudioCodecStats codecStats;
@@ -56,6 +61,7 @@ class TongDouVoiceClient {
   bool sendListenStop(TongDouVoiceListenMode mode = TongDouVoiceListenMode::Manual);
   bool sendListenDetect(const String& text);
   bool sendAbort();
+  bool requestConversationExit(const String& reason = "manual");
   bool sendPcm16Frame(const int16_t* samples, size_t sampleCount);
   bool sendAudioPacket(const uint8_t* payload, size_t length);
   bool playNextDownlinkPacket(AudioOutput& audioOutput);
@@ -63,6 +69,8 @@ class TongDouVoiceClient {
   TongDouVoiceClientSnapshot snapshot() const;
   TongDouVoiceClientState state() const;
   bool ready() const;
+  bool conversationExitPending() const;
+  bool downlinkDrained() const;
 
  private:
   void handleSocketState(TongDouVoiceWebSocketState state);

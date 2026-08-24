@@ -85,8 +85,15 @@ void McpServer::addTools() {
   const auto voiceAbortTool = [this](const McpToolArguments& arguments) -> McpToolResult {
     return voiceAbort(arguments);
   };
+  const auto voiceExitTool = [this](const McpToolArguments& arguments) -> McpToolResult {
+    return voiceExit(arguments);
+  };
   const auto startVoice = [this](const McpToolArguments& arguments) -> McpToolResult {
     return startVoiceTurn(arguments);
+  };
+  const auto startAutoVoice =
+      [this](const McpToolArguments& arguments) -> McpToolResult {
+    return startAutoVoiceTurn(arguments);
   };
   const auto voiceStatusTool = [this](const McpToolArguments& arguments) -> McpToolResult {
     return voiceStatus(arguments);
@@ -173,12 +180,21 @@ void McpServer::addTools() {
   registry_.addTool("tongdou.voice.abort", "Abort current backend speech.", {},
                     voiceAbortTool);
 
+  registry_.addTool("voice_exit", "Request a normal server-owned conversation exit.", {},
+                    voiceExitTool);
+  registry_.addTool("tongdou.voice.exit",
+                    "Request a normal server-owned conversation exit.", {},
+                    voiceExitTool);
+
   registry_.addTool("start_voice_turn", "Start a realtime voice turn.",
                     voiceStartProperties,
                     startVoice);
   registry_.addTool("tongdou.voice.start", "Start a realtime voice turn.",
                     voiceStartProperties,
                     startVoice);
+  registry_.addTool("tongdou.voice.start_auto",
+                    "Start the normal automatic continuous-listening voice turn.", {},
+                    startAutoVoice);
 
   registry_.addTool("voice_status", "Get realtime voice turn status.", {},
                     voiceStatusTool);
@@ -348,10 +364,20 @@ McpToolResult McpServer::voiceAbort(const McpToolArguments&) {
   return {commandResultJson(result), !result.ok};
 }
 
+McpToolResult McpServer::voiceExit(const McpToolArguments&) {
+  const AppCommandResult result = appCommandService_.exitVoiceConversation();
+  return {commandResultJson(result), !result.ok};
+}
+
 McpToolResult McpServer::startVoiceTurn(const McpToolArguments& arguments) {
   const int captureMs = arguments.getInt("captureMs", 2500);
   const AppCommandResult result =
       appCommandService_.startVoiceTurn(static_cast<uint16_t>(captureMs));
+  return {commandResultJson(result), !result.ok};
+}
+
+McpToolResult McpServer::startAutoVoiceTurn(const McpToolArguments&) {
+  const AppCommandResult result = appCommandService_.startAutoVoiceTurn();
   return {commandResultJson(result), !result.ok};
 }
 
