@@ -54,6 +54,8 @@ struct RealtimeVoiceSnapshot {
   int32_t backendCodecNativeError = 0;
   String backendCodecNativeErrorText;
   String backendSessionId;
+  String backendLocaleResourceBaseUrl;
+  uint16_t backendLocaleResourceFormatVersion = 0;
   String backendLastMessageType;
   String backendLastTtsState;
   String backendLastText;

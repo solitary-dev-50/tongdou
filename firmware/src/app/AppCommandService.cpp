@@ -182,6 +182,10 @@ String AppCommandService::voiceStatusJson() const {
   doc["backend"]["connected"] = snapshot.backendConnected;
   doc["backend"]["ready"] = snapshot.backendReady;
   doc["backend"]["sessionId"] = snapshot.backendSessionId;
+  doc["backend"]["localeResourceBaseUrl"] =
+      snapshot.backendLocaleResourceBaseUrl;
+  doc["backend"]["localeResourceFormatVersion"] =
+      snapshot.backendLocaleResourceFormatVersion;
   doc["backend"]["textMessagesReceived"] = snapshot.backendTextMessagesReceived;
   doc["backend"]["binaryPacketsReceived"] = snapshot.backendBinaryPacketsReceived;
   doc["backend"]["mcpRequestsReceived"] = snapshot.backendMcpRequestsReceived;

@@ -401,6 +401,9 @@ RealtimeVoiceSnapshot RealtimeVoiceService::snapshot() const {
   copy.backendCodecNativeError = backend.codecStats.lastNativeError;
   copy.backendCodecNativeErrorText = backend.codecStats.lastNativeErrorText;
   copy.backendSessionId = backend.sessionId;
+  copy.backendLocaleResourceBaseUrl = backend.localeResourceBaseUrl;
+  copy.backendLocaleResourceFormatVersion =
+      backend.localeResourceFormatVersion;
   copy.backendLastMessageType = tongDouVoiceMessageTypeName(backend.lastMessageType);
   copy.backendLastTtsState = tongDouVoiceTtsStateName(backend.lastTtsState);
   copy.backendLastText = backend.lastText;

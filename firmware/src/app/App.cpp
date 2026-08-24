@@ -93,6 +93,7 @@ void App::update() {
   hardware_.update();
   localAudioPipeline_.update();
   realtimeVoiceService_.update();
+  updateLocaleResourceEndpoint();
   deviceActivationService_.update();
   handleAudioCueEvents();
   handleStartupReport();
@@ -104,6 +105,19 @@ void App::update() {
   handleConversationWindow();
   updateWakeWordArming();
   scenarioExecutor_.update();
+}
+
+void App::updateLocaleResourceEndpoint() {
+  const unsigned long nowMs = millis();
+  if (static_cast<long>(nowMs - nextLocaleResourceEndpointSyncMs_) < 0) {
+    return;
+  }
+
+  nextLocaleResourceEndpointSyncMs_ = nowMs + 1000;
+  const RealtimeVoiceSnapshot voice = realtimeVoiceService_.snapshot();
+  localeResourceUpdateService_.setEndpoint(
+      voice.backendLocaleResourceBaseUrl,
+      voice.backendLocaleResourceFormatVersion);
 }
 
 void App::handleLocalWakeWordEvents() {

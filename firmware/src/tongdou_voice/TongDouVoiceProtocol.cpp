@@ -146,6 +146,14 @@ bool TongDouVoiceProtocol::parseTextMessage(const String& payload,
   message.emotion = root["emotion"] | "";
   message.reason = root["reason"] | "";
 
+  JsonObjectConst localeResources =
+      root["locale_resources"].as<JsonObjectConst>();
+  if (!localeResources.isNull()) {
+    message.localeResourceBaseUrl = localeResources["base_url"] | "";
+    message.localeResourceFormatVersion =
+        localeResources["format_version"] | 0;
+  }
+
   if (message.type == TongDouVoiceMessageType::Mcp) {
     JsonVariantConst mcpPayload = root["payload"];
     if (mcpPayload.isNull()) {

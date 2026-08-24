@@ -293,6 +293,13 @@ void TongDouVoiceClient::handleTextMessage(const String& payload) {
     }
     Serial.print("voice session=");
     Serial.println(snapshot_.sessionId);
+    snapshot_.localeResourceBaseUrl = message.localeResourceBaseUrl;
+    snapshot_.localeResourceFormatVersion =
+        message.localeResourceFormatVersion;
+    Serial.print(F("locale resources endpoint="));
+    Serial.print(snapshot_.localeResourceBaseUrl);
+    Serial.print(F(" format="));
+    Serial.println(snapshot_.localeResourceFormatVersion);
     snapshot_.conversationExitRequested = false;
     snapshot_.goodbyeReceived = false;
     snapshot_.goodbyeReason = "";

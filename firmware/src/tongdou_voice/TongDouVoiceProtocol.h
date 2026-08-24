@@ -39,6 +39,8 @@ struct TongDouVoiceIncomingMessage {
   String emotion;
   String reason;
   String mcpPayload;
+  String localeResourceBaseUrl;
+  uint16_t localeResourceFormatVersion = 0;
   bool hasAudioParams = false;
   TongDouVoiceAudioParams audio;
 };

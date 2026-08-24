@@ -6,6 +6,7 @@
 #include "diagnostic/HardwareSelfTestService.h"
 #include "mcp/McpServer.h"
 #include "reminder/ReminderStore.h"
+#include "resources/LocaleResourceUpdateService.h"
 #include "system/DeviceLocaleStore.h"
 #include "system/TimeService.h"
 #include "system/WifiConfigStore.h"
@@ -27,7 +28,8 @@ class WebConfigServer {
   WebConfigServer(ScenarioConfigApi& scenarioApi, WifiConfigStore& wifiStore,
                   TimeService& timeService, ReminderStore& reminderStore, McpServer& mcpServer,
                   HardwareSelfTestService& hardwareSelfTest,
-                  DeviceLocaleStore& deviceLocaleStore);
+                  DeviceLocaleStore& deviceLocaleStore,
+                  LocaleResourceUpdateService& localeResourceUpdateService);
 
   void begin();
   void update();
@@ -81,6 +83,7 @@ class WebConfigServer {
   McpServer& mcpServer_;
   HardwareSelfTestService& hardwareSelfTest_;
   DeviceLocaleStore& deviceLocaleStore_;
+  LocaleResourceUpdateService& localeResourceUpdateService_;
   WebServer server_{80};
   DNSServer dnsServer_;
   NetworkState state_ = NetworkState::Idle;

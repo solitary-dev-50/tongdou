@@ -11,6 +11,7 @@
 #include "reminder/ReminderManager.h"
 #include "reminder/ReminderStore.h"
 #include "resources/LocaleResourceStore.h"
+#include "resources/LocaleResourceUpdateService.h"
 #include "scenario/ScenarioEngine.h"
 #include "scenario/ScenarioExecutor.h"
 #include "scenario/ScenarioLibrary.h"
@@ -44,6 +45,7 @@ class App {
   void closeConversationWindow(bool playExitCue);
   void handleAudioCueEvents();
   void handleRealtimeVoiceEvents();
+  void updateLocaleResourceEndpoint();
   void handleSerialDiagnostics();
   void handleStartupReport();
   void playSystemCue(SystemAudioCue cue, const char* label);
@@ -56,6 +58,8 @@ class App {
   WifiConfigStore wifiConfigStore_;
   DeviceLocaleStore deviceLocaleStore_;
   LocaleResourceStore localeResourceStore_;
+  LocaleResourceUpdateService localeResourceUpdateService_{
+      localeResourceStore_};
   TimeService timeService_;
   ReminderStore reminderStore_;
   ReminderManager reminderManager_{timeService_, reminderStore_};
@@ -78,12 +82,14 @@ class App {
   ScenarioConfigApi scenarioConfigApi_{scenarioConfigStore_};
   WebConfigServer webConfigServer_{scenarioConfigApi_, wifiConfigStore_, timeService_,
                                    reminderStore_, mcpServer_, hardware_.selfTest(),
-                                   deviceLocaleStore_};
+                                   deviceLocaleStore_,
+                                   localeResourceUpdateService_};
   unsigned long bootMs_ = 0;
   uint8_t startupReportCount_ = 0;
   bool voiceConversationActive_ = false;
   bool conversationFollowUpPending_ = false;
   unsigned long conversationFollowUpAtMs_ = 0;
+  unsigned long nextLocaleResourceEndpointSyncMs_ = 0;
 };
 
 }  // namespace tongdou

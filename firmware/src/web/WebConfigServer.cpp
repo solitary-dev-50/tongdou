@@ -78,14 +78,17 @@ WebConfigServer::WebConfigServer(ScenarioConfigApi& scenarioApi, WifiConfigStore
                                  TimeService& timeService, ReminderStore& reminderStore,
                                  McpServer& mcpServer,
                                  HardwareSelfTestService& hardwareSelfTest,
-                                 DeviceLocaleStore& deviceLocaleStore)
+                                 DeviceLocaleStore& deviceLocaleStore,
+                                 LocaleResourceUpdateService&
+                                     localeResourceUpdateService)
     : scenarioApi_(scenarioApi),
       wifiStore_(wifiStore),
       timeService_(timeService),
       reminderStore_(reminderStore),
       mcpServer_(mcpServer),
       hardwareSelfTest_(hardwareSelfTest),
-      deviceLocaleStore_(deviceLocaleStore) {}
+      deviceLocaleStore_(deviceLocaleStore),
+      localeResourceUpdateService_(localeResourceUpdateService) {}
 
 void WebConfigServer::begin() {
   scenarioApi_.begin();
@@ -359,7 +362,7 @@ function applyI18n(){document.documentElement.lang=currentLocale;document.title=
 function localeName(v){return {'en-GB':'English UK','en-CA':'English Canada','fr-FR':'Français','fr-CA':'Français Canada','nl-NL':'Nederlands','ru-RU':'Русский','zh-CN':'中文'}[v]||v}
 function capText(c){let a=[];if(c.reminders)a.push(tr('reminders'));if(c.web)a.push(tr('web'));if(c.visual)a.push(tr('visual'));if(c.sound)a.push(tr('sound'));if(c.voiceInput)a.push(tr('voiceInput'));return a.join(' / ')||tr('none')}
 async function loadStatus(){try{let r=await fetch('/api/status');let j=await r.json();currentLocale=j.locale||currentLocale;if($('locale').value!==currentLocale)$('locale').value=currentLocale;applyI18n();$('wifi').textContent=j.wifiConnected?tr('wifiConnected'):(j.portal?tr('portalMode'):tr('connecting'));$('ip').textContent=j.ip||'-';$('time').textContent=j.timeReady?j.now:tr('timeNotReady');$('localeStatus').textContent=localeName(currentLocale);$('battery').textContent=`${tr('usb')} ${j.battery.usb?tr('yes'):tr('no')} / ${tr('charging')} ${j.battery.charging?tr('yes'):tr('no')} / ADC ${j.battery.rawAdc}`;$('hardware').textContent=j.hardware.degraded?(j.hardware.motorFault?tr('motorFault'):tr('degraded')):tr('normal');$('capability').textContent=capText(j.capabilities)}catch(e){$('wifi').textContent=tr('readFailed')}}
-async function saveLocale(){let v=$('locale').value;currentLocale=v;applyI18n();$('localeMsg').textContent=tr('savingLanguage');let r=await fetch('/api/locale',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'locale='+encodeURIComponent(v)});$('localeMsg').textContent=await r.text();$('localeStatus').textContent=localeName(v)}
+async function saveLocale(){let v=$('locale').value;$('localeMsg').textContent=tr('savingLanguage');try{let r=await fetch('/api/locale',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'locale='+encodeURIComponent(v)});$('localeMsg').textContent=await r.text();if(r.ok){currentLocale=v;applyI18n();$('localeStatus').textContent=localeName(v)}else{$('locale').value=currentLocale}}catch(e){$('locale').value=currentLocale;$('localeMsg').textContent=tr('readFailed')}}
 async function syncTime(){let e=Math.floor(Date.now()/1000);let r=await fetch('/api/time/sync',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'epoch='+e});$('msg').textContent=await r.text();loadStatus()}
 async function scanWifi(){let m=$('msg'),l=$('wifiList'),d=$('wifiOptions'),btn=$('scanBtn');m.textContent=tr('scanStart');l.innerHTML='';if(btn)btn.disabled=true;try{let r=await fetch('/api/wifi/scan');let a=await r.json();d.innerHTML='';if(!a.length){m.textContent=tr('scanEmpty');return}a.sort((x,y)=>y.rssi-x.rssi);a.slice(0,16).forEach(n=>{let o=document.createElement('option');o.value=n.ssid;d.appendChild(o);let b=document.createElement('button');b.type='button';b.className='secondary';b.textContent=n.ssid+'  '+n.rssi+' dBm';b.onclick=()=>{$('ssid').value=n.ssid;$('password').focus()};l.appendChild(b)});m.textContent=tr('scanDone')}catch(e){m.textContent=tr('scanFailed')}finally{if(btn)btn.disabled=false}}
 async function saveWifi(e){e.preventDefault();let s=$('ssid').value.trim(),p=$('password').value;if(!s){$('msg').textContent=tr('missingSsid');return}$('msg').textContent=tr('savingWifi');let r=await fetch('/api/setup/wifi',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'ssid='+encodeURIComponent(s)+'&password='+encodeURIComponent(p)});$('msg').textContent=await r.text();setTimeout(loadStatus,1200)}
@@ -557,6 +560,14 @@ void WebConfigServer::handleLocaleSave() {
     return;
   }
 
+  const LocaleResourceUpdateResult updateResult =
+      localeResourceUpdateService_.downloadAndInstall(locale);
+  if (!updateResult.ok) {
+    sendText(503, "text/plain; charset=utf-8",
+             String("语言资源更新失败：") + updateResult.error);
+    return;
+  }
+
   if (!deviceLocaleStore_.save(locale)) {
     sendText(500, "text/plain; charset=utf-8", "语言保存失败");
     return;
@@ -564,7 +575,7 @@ void WebConfigServer::handleLocaleSave() {
 
   localeChangedEvent_ = true;
   sendText(200, "text/plain; charset=utf-8",
-           String("语言已保存：") + localeDisplayName(locale));
+           String("语言资源已更新并启用：") + localeDisplayName(locale));
 }
 
 void WebConfigServer::handleTimeSync() {

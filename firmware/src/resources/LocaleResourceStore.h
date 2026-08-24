@@ -17,9 +17,12 @@ class LocaleResourceStore {
   bool ready() const;
   const String& locale() const;
   uint32_t version() const;
+  uint32_t capacity() const;
   const String& lastError() const;
 
   bool matchesLocale(const String& locale) const;
+  bool installPack(const uint8_t* data, size_t size,
+                   const String& expectedLocale);
   bool findFile(const char* name, LocaleResourceFile& file) const;
   bool readFile(const LocaleResourceFile& file, uint32_t offset, void* output,
                 size_t size) const;
@@ -52,7 +55,14 @@ class LocaleResourceStore {
   static_assert(sizeof(PackHeader) == 72, "locale pack header layout changed");
   static_assert(sizeof(PackEntry) == 40, "locale pack entry layout changed");
 
-  bool validateHeader(const PackHeader& header);
+  bool validateHeader(const PackHeader& header, uint32_t availableSize,
+                      String& error) const;
+  bool validateDirectoryEntries(const PackHeader& header,
+                                const PackEntry* entries,
+                                String& error) const;
+  bool validateMemoryPack(const uint8_t* data, size_t size,
+                          const String& expectedLocale,
+                          String& error) const;
   bool loadDirectory(const PackHeader& header);
   bool validateContent(const PackHeader& header);
   void fail(const String& error);

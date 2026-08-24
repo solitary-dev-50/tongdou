@@ -29,6 +29,8 @@ enum class TongDouVoiceClientState : uint8_t {
 struct TongDouVoiceClientSnapshot {
   TongDouVoiceClientState state = TongDouVoiceClientState::Offline;
   String sessionId;
+  String localeResourceBaseUrl;
+  uint16_t localeResourceFormatVersion = 0;
   bool connected = false;
   bool ready = false;
   uint32_t textMessagesReceived = 0;
