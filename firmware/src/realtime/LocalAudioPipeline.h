@@ -5,6 +5,7 @@
 #include <freertos/semphr.h>
 #include <freertos/task.h>
 
+#include "audio/PcmAudioSink.h"
 #include "hardware/AudioInput.h"
 
 namespace tongdou {
@@ -34,6 +35,7 @@ class LocalAudioPipeline {
   void stopUpload();
   bool readUploadFrame(int16_t* buffer, size_t frameSamples);
   size_t readUploadSamples(int16_t* buffer, size_t maxSamples);
+  void setMonitor(PcmAudioSink* monitor);
 
  private:
   static constexpr size_t kReadFrameSamples = 160;
@@ -51,6 +53,7 @@ class LocalAudioPipeline {
   size_t uploadReadIndex_ = 0;
   size_t uploadWriteIndex_ = 0;
   size_t uploadCount_ = 0;
+  PcmAudioSink* monitor_ = nullptr;
 };
 
 }  // namespace tongdou

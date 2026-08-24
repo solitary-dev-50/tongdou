@@ -30,6 +30,11 @@ void App::begin() {
   localAudioPipeline_.begin();
   Serial.println("local audio pipeline ready");
 
+  localWakeWordDetector_.begin();
+  if (localWakeWordDetector_.snapshot().ready) {
+    localAudioPipeline_.setMonitor(&localWakeWordDetector_);
+  }
+
   realtimeVoiceService_.begin();
   Serial.println("realtime voice ready");
 
@@ -78,10 +83,38 @@ void App::update() {
   handleStartupReport();
   handleSerialDiagnostics();
   handleLogoTouchEvents();
+  handleLocalWakeWordEvents();
   handleReminderEvents();
   handleRealtimeVoiceEvents();
   handleConversationWindow();
+  updateWakeWordArming();
   scenarioExecutor_.update();
+}
+
+void App::handleLocalWakeWordEvents() {
+  if (!localWakeWordDetector_.consumeDetectedEvent()) {
+    return;
+  }
+
+  closeConversationWindow(false);
+  constexpr char kWakeText[] = "你好，铜豆";
+  const bool started = realtimeVoiceService_.startWakeGreeting(kWakeText);
+  Serial.print(F("voice wake start source=local_word ok="));
+  Serial.println(started ? "1" : "0");
+  voiceConversationActive_ = started;
+  conversationFollowUpPending_ = false;
+  if (!started) {
+    playSystemCue(SystemAudioCue::Error, "local_wake_backend_failed");
+  }
+}
+
+void App::updateWakeWordArming() {
+  const RealtimeVoiceSnapshot voice = realtimeVoiceService_.snapshot();
+  const bool shouldArm = voice.backendReady &&
+                         voice.state == RealtimeVoiceState::Idle &&
+                         !voiceConversationActive_ &&
+                         !conversationFollowUpPending_;
+  localWakeWordDetector_.setArmed(shouldArm);
 }
 
 void App::handleLogoTouchEvents() {
@@ -147,6 +180,7 @@ void App::startConversationVoiceTurn() {
 }
 
 void App::startVoiceTurnFromInteraction(const __FlashStringHelper* source) {
+  localWakeWordDetector_.setArmed(false);
   Serial.print(F("voice timeline app_start t="));
   Serial.print(millis());
   Serial.print(F(" source="));
@@ -375,6 +409,33 @@ void App::printStartupReport(const char* title) {
   Serial.println("application begin");
   Serial.println("  scenario executor ready");
   Serial.println("  realtime voice ready");
+  const LocalAudioPipelineSnapshot localAudio = localAudioPipeline_.snapshot();
+  Serial.print("  local audio ready=");
+  Serial.print(localAudio.ready ? "1" : "0");
+  Serial.print(" samples_read=");
+  Serial.print(localAudio.samplesRead);
+  Serial.print(" upload_active=");
+  Serial.println(localAudio.uploadActive ? "1" : "0");
+  const LocalWakeWordSnapshot wake = localWakeWordDetector_.snapshot();
+  Serial.print("  local wake ready=");
+  Serial.print(wake.ready ? "1" : "0");
+  Serial.print(" armed=");
+  Serial.print(wake.armed ? "1" : "0");
+  Serial.print(" phrase=你好，铜豆 frame_samples=");
+  Serial.print(wake.modelFrameSamples);
+  Serial.print(" psram_queue_bytes=");
+  Serial.print(wake.psramUsedBytes);
+  Serial.print(" samples_offered=");
+  Serial.print(wake.samplesOffered);
+  Serial.print(" samples_dropped=");
+  Serial.print(wake.samplesDropped);
+  Serial.print(" detections=");
+  Serial.print(wake.detections);
+  if (wake.lastError[0] != '\0') {
+    Serial.print(" error=");
+    Serial.print(wake.lastError);
+  }
+  Serial.println();
   Serial.println("  device activation ready");
   Serial.println("  wifi config ready");
   Serial.print("  device locale=");

@@ -19,6 +19,7 @@
 #include "web/ScenarioConfigApi.h"
 #include "web/ScenarioConfigStore.h"
 #include "web/WebConfigServer.h"
+#include "wake/LocalWakeWordDetector.h"
 
 namespace tongdou {
 
@@ -30,6 +31,8 @@ class App {
  private:
   void handleReminderEvents();
   void handleLogoTouchEvents();
+  void handleLocalWakeWordEvents();
+  void updateWakeWordArming();
   void handleConversationWindow();
   void startLogoVoiceTurn();
   void startConversationVoiceTurn();
@@ -61,6 +64,7 @@ class App {
                                     hardware_.imu()};
   ScenarioContext scenarioContext_;
   LocalAudioPipeline localAudioPipeline_{hardware_.audioInput()};
+  LocalWakeWordDetector localWakeWordDetector_;
   RealtimeVoiceService realtimeVoiceService_{localAudioPipeline_,
                                             hardware_.audioOutput()};
   DeviceActivationService deviceActivationService_{realtimeVoiceService_,

@@ -139,6 +139,16 @@ size_t LocalAudioPipeline::readUploadSamples(int16_t* buffer, size_t maxSamples)
   return samplesToRead;
 }
 
+void LocalAudioPipeline::setMonitor(PcmAudioSink* monitor) {
+  if (mutex_ != nullptr) {
+    xSemaphoreTake(mutex_, portMAX_DELAY);
+  }
+  monitor_ = monitor;
+  if (mutex_ != nullptr) {
+    xSemaphoreGive(mutex_);
+  }
+}
+
 void LocalAudioPipeline::audioTaskEntry(void* context) {
   static_cast<LocalAudioPipeline*>(context)->audioTaskLoop();
 }
@@ -163,6 +173,7 @@ void LocalAudioPipeline::audioTaskLoop() {
       continue;
     }
 
+    PcmAudioSink* monitor = nullptr;
     if (mutex_ != nullptr) {
       xSemaphoreTake(mutex_, portMAX_DELAY);
     }
@@ -171,8 +182,12 @@ void LocalAudioPipeline::audioTaskLoop() {
     if (snapshot_.uploadActive) {
       storeUploadSamples(samples, samplesRead);
     }
+    monitor = monitor_;
     if (mutex_ != nullptr) {
       xSemaphoreGive(mutex_);
+    }
+    if (monitor != nullptr) {
+      monitor->offerPcm16(samples, samplesRead);
     }
   }
 }

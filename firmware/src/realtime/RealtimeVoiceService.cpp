@@ -113,6 +113,42 @@ bool RealtimeVoiceService::sendDetectText(const String& text) {
   return voiceClient_.sendListenDetect(text);
 }
 
+bool RealtimeVoiceService::startWakeGreeting(const String& text) {
+  if (text.length() == 0 || snapshot_.state != RealtimeVoiceState::Idle ||
+      !backendStarted_ || !voiceClient_.ready()) {
+    snapshot_.lastErrorCode = "wake_backend_not_ready";
+    snapshot_.lastErrorMessage = "voice backend is not ready for wake greeting";
+    return false;
+  }
+
+  const TongDouVoiceClientSnapshot backend = voiceClient_.snapshot();
+  backendDownlinkPacketsAtTurnStart_ = backend.downlinkPacketsPlayed;
+  backendBinaryPacketsAtTurnStart_ = backend.binaryPacketsReceived;
+  awaitingResponseStartedMs_ = millis();
+  currentTurnKind_ = TurnKind::Regular;
+  turnCompletedPending_ = false;
+  conversationTimeoutPending_ = false;
+  conversationEndedPending_ = false;
+  snapshot_.conversationExitRequested = false;
+  snapshot_.backendGoodbyeReceived = false;
+  snapshot_.backendGoodbyeReason = "";
+
+  if (!voiceClient_.sendListenDetect(text)) {
+    snapshot_.lastErrorCode = "wake_detect_send_failed";
+    snapshot_.lastErrorMessage = "failed to send wake phrase to voice backend";
+    return false;
+  }
+
+  ++snapshot_.turnId;
+  snapshot_.state = RealtimeVoiceState::AwaitingResponse;
+  snapshot_.lastTurnOk = false;
+  snapshot_.lastErrorCode = "";
+  snapshot_.lastErrorMessage = "";
+  Serial.print(F("voice wake detect sent text="));
+  Serial.println(text);
+  return true;
+}
+
 bool RealtimeVoiceService::abortBackendSpeech() {
   if (!backendStarted_) {
     return false;
