@@ -1,0 +1,44 @@
+{
+  "generator": "edge-tts 7.2.6",
+  "audio": {
+    "container": "ogg",
+    "codec": "opus",
+    "sampleRate": 16000,
+    "channels": 1,
+    "bitrate": "24k"
+  },
+  "locales": {
+    "en-CA": {
+      "voice": "en-CA-ClaraNeural",
+      "text": "Online voice is currently unavailable. Please check the reminder on the screen."
+    },
+    "en-GB": {
+      "voice": "en-GB-SoniaNeural",
+      "text": "Online voice is currently unavailable. Please check the reminder on the screen."
+    },
+    "en-US": {
+      "voice": "en-US-JennyNeural",
+      "text": "Online voice is currently unavailable. Please check the reminder on the screen."
+    },
+    "fr-CA": {
+      "voice": "fr-CA-SylvieNeural",
+      "text": "La voix en ligne est actuellement indisponible. Veuillez consulter le rappel à l’écran."
+    },
+    "fr-FR": {
+      "voice": "fr-FR-DeniseNeural",
+      "text": "La voix en ligne est actuellement indisponible. Veuillez consulter le rappel à l’écran."
+    },
+    "nl-NL": {
+      "voice": "nl-NL-ColetteNeural",
+      "text": "Online spraak is momenteel niet beschikbaar. Bekijk de herinnering op het scherm."
+    },
+    "ru-RU": {
+      "voice": "ru-RU-SvetlanaNeural",
+      "text": "Онлайн-озвучивание сейчас недоступно. Проверьте напоминание на экране."
+    },
+    "zh-CN": {
+      "voice": "zh-CN-XiaoxiaoNeural",
+      "text": "当前无法使用在线语音，请查看屏幕上的提醒内容。"
+    }
+  }
+}

@@ -19,6 +19,11 @@ namespace tongdou {
 namespace {
 
 constexpr uint8_t kMaxLocaleFallbacks = 2;
+constexpr unsigned long kSpeechDrainTimeoutMs = 500;
+constexpr uint16_t kOfflineAlertToneHz = 1047;
+constexpr uint16_t kOfflineAlertToneMs = 120;
+constexpr unsigned long kOfflineAlertGapMs = 100;
+constexpr uint8_t kOfflineAlertToneCount = 3;
 
 struct EmbeddedAudioCue {
   const char* path;
@@ -154,6 +159,33 @@ AudioCuePlaybackResult AudioCuePlayer::playActivationCode(const String& code,
   return result;
 }
 
+OfflineNoticePlaybackResult AudioCuePlayer::playOfflineNotice(
+    const String& locale) {
+  OfflineNoticePlaybackResult result;
+  result.speech = playLocalized(LocalizedAudioCue::OfflineNotice, locale);
+  if (result.speech.ok) {
+    const unsigned long deadlineMs = millis() + kSpeechDrainTimeoutMs;
+    while (!audioOutput_.streamDrained() &&
+           static_cast<long>(millis() - deadlineMs) < 0) {
+      delay(1);
+    }
+    result.speechDrained = audioOutput_.streamDrained();
+    if (!result.speechDrained) {
+      audioOutput_.stopStream();
+    }
+  }
+
+  for (uint8_t index = 0; index < kOfflineAlertToneCount; ++index) {
+    if (audioOutput_.playTone(kOfflineAlertToneHz, kOfflineAlertToneMs)) {
+      ++result.tonesPlayed;
+    }
+    if (index + 1 < kOfflineAlertToneCount) {
+      delay(kOfflineAlertGapMs);
+    }
+  }
+  return result;
+}
+
 AudioCuePlaybackResult AudioCuePlayer::playPath(const char* path) {
   if (!ready_) {
     return fail("audio_cue_player_not_ready");
@@ -282,8 +314,10 @@ const char* AudioCuePlayer::localizedName(LocalizedAudioCue cue) {
     case LocalizedAudioCue::ActivationError:
       return "activation_error.ogg";
     case LocalizedAudioCue::PinError:
-    default:
       return "pin_error.ogg";
+    case LocalizedAudioCue::OfflineNotice:
+    default:
+      return "offline_notice.ogg";
   }
 }
 

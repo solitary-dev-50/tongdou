@@ -5,6 +5,11 @@ This directory stores local audio cues used by the official TongDou firmware.
 These files are temporary test assets copied from `xiaozhi-esp32` so the firmware
 can verify local prompt playback before TongDou's own sound set is ready.
 
+`offline_notice.ogg` is generated separately from
+`offline_notice_manifest.json` with `edge-tts 7.2.6`, then converted to
+16 kHz mono Ogg Opus by FFmpeg. It is also a temporary test asset and must be
+replaced or relicensed before a public production release.
+
 Source repository:
 
 - `https://github.com/78/xiaozhi-esp32`
@@ -53,5 +58,6 @@ unique filename. For example:
 - `locales/<locale>/<locale_prefix>_activation_code.ogg`: activation or pairing code intro.
 - `locales/<locale>/<locale_prefix>_activation_error.ogg`: activation or registration error.
 - `locales/<locale>/<locale_prefix>_pin_error.ogg`: pin or code error.
+- `locales/<locale>/<locale_prefix>_offline_notice.ogg`: online voice unavailable notice.
 - `locales/<locale>/<locale_prefix>_digit_0.ogg` to `<locale_prefix>_digit_9.ogg`:
   digit prompts for code playback.

@@ -58,8 +58,19 @@ void AudioOutput::begin() {
 }
 
 void AudioOutput::playTestTone(uint16_t frequencyHz, uint16_t durationMs) {
+  playTone(frequencyHz, durationMs);
+}
+
+bool AudioOutput::playTone(uint16_t frequencyHz, uint16_t durationMs) {
   if (!ready_ || frequencyHz == 0 || durationMs == 0) {
-    return;
+    return false;
+  }
+
+  if (currentSampleRate_ != kSampleRate) {
+    if (i2s_set_sample_rates(kSpeakerPort, kSampleRate) != ESP_OK) {
+      return false;
+    }
+    currentSampleRate_ = kSampleRate;
   }
 
   const uint32_t totalFrames = (static_cast<uint32_t>(durationMs) * kSampleRate) / 1000U;
@@ -84,13 +95,32 @@ void AudioOutput::playTestTone(uint16_t frequencyHz, uint16_t durationMs) {
     }
 
     size_t bytesWritten = 0;
-    i2s_write(kSpeakerPort, samples, framesThisChunk * 2 * sizeof(samples[0]),
-              &bytesWritten, portMAX_DELAY);
+    const size_t requestedBytes =
+        framesThisChunk * 2 * sizeof(samples[0]);
+    if (i2s_write(kSpeakerPort, samples, requestedBytes, &bytesWritten,
+                  portMAX_DELAY) != ESP_OK ||
+        bytesWritten != requestedBytes) {
+      i2s_zero_dma_buffer(kSpeakerPort);
+      streamActive_ = false;
+      streamDrainAtMs_ = 0;
+      return false;
+    }
     writtenFrames += framesThisChunk;
   }
 
+  const unsigned long maximumBufferedMs =
+      (static_cast<unsigned long>(kDmaBufferCount) * kDmaBufferFrames * 1000UL +
+       kSampleRate - 1) /
+      kSampleRate;
+  streamDrainAtMs_ = millis() + maximumBufferedMs + kDrainSafetyMarginMs;
+  streamActive_ = true;
+  while (!streamDrained()) {
+    delay(1);
+  }
   i2s_zero_dma_buffer(kSpeakerPort);
   streamActive_ = false;
+  streamDrainAtMs_ = 0;
+  return true;
 }
 
 void AudioOutput::playClip(uint16_t clipId, const char* text) {

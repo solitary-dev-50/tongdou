@@ -3,6 +3,8 @@ tmp/
 tmp_video_frames/
 outputs/
 *.log
+**/__pycache__/
+**/*.py[cod]
 
 # Internal demo firmware for filming only.
 local_demo_firmware/

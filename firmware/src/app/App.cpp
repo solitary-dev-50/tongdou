@@ -10,6 +10,7 @@ namespace {
 constexpr unsigned long kFirstStartupReportMs = 2500;
 constexpr unsigned long kSecondStartupReportMs = 8000;
 constexpr unsigned long kConversationPlaybackTailMs = 120;
+constexpr unsigned long kLocaleResourceRepairRetryMs = 60000;
 
 }  // namespace
 
@@ -94,6 +95,7 @@ void App::update() {
   localAudioPipeline_.update();
   realtimeVoiceService_.update();
   updateLocaleResourceEndpoint();
+  handleLocaleResourceRepair();
   deviceActivationService_.update();
   handleAudioCueEvents();
   handleStartupReport();
@@ -115,9 +117,61 @@ void App::updateLocaleResourceEndpoint() {
 
   nextLocaleResourceEndpointSyncMs_ = nowMs + 1000;
   const RealtimeVoiceSnapshot voice = realtimeVoiceService_.snapshot();
+  const String oldBaseUrl = localeResourceUpdateService_.baseUrl();
+  const uint16_t oldFormatVersion =
+      localeResourceUpdateService_.formatVersion();
   localeResourceUpdateService_.setEndpoint(
       voice.backendLocaleResourceBaseUrl,
       voice.backendLocaleResourceFormatVersion);
+  if (oldBaseUrl != localeResourceUpdateService_.baseUrl() ||
+      oldFormatVersion != localeResourceUpdateService_.formatVersion()) {
+    nextLocaleResourceRepairMs_ = 0;
+  }
+}
+
+void App::handleLocaleResourceRepair() {
+  const String locale = deviceLocaleStore_.locale();
+  if (localeResourceStore_.matchesLocale(locale)) {
+    nextLocaleResourceRepairMs_ = 0;
+    return;
+  }
+
+  const unsigned long nowMs = millis();
+  if (nextLocaleResourceRepairMs_ != 0 &&
+      static_cast<long>(nowMs - nextLocaleResourceRepairMs_) < 0) {
+    return;
+  }
+
+  const RealtimeVoiceSnapshot voice = realtimeVoiceService_.snapshot();
+  if (WiFi.status() != WL_CONNECTED || !voice.backendReady ||
+      voice.state != RealtimeVoiceState::Idle || voiceConversationActive_ ||
+      conversationFollowUpPending_ || !hardware_.audioOutput().streamDrained() ||
+      localeResourceUpdateService_.baseUrl().length() == 0 ||
+      localeResourceUpdateService_.formatVersion() == 0) {
+    return;
+  }
+
+  nextLocaleResourceRepairMs_ = nowMs + kLocaleResourceRepairRetryMs;
+  Serial.print(F("locale repair start locale="));
+  Serial.print(locale);
+  Serial.print(F(" current="));
+  Serial.print(localeResourceStore_.locale());
+  Serial.print(F(" error="));
+  Serial.println(localeResourceStore_.lastError());
+  const LocaleResourceUpdateResult result =
+      localeResourceUpdateService_.downloadAndInstall(locale);
+  Serial.print(F("locale repair done ok="));
+  Serial.print(result.ok ? "1" : "0");
+  Serial.print(F(" bytes="));
+  Serial.print(result.downloadedBytes);
+  if (!result.ok) {
+    Serial.print(F(" error="));
+    Serial.print(result.error);
+  }
+  Serial.println();
+  if (result.ok) {
+    nextLocaleResourceRepairMs_ = 0;
+  }
 }
 
 void App::handleLocalWakeWordEvents() {
@@ -387,6 +441,19 @@ void App::handleSerialDiagnostics() {
     return;
   }
 
+  if (trimmed == F("locale resources")) {
+    Serial.println(F("locale resources:"));
+    Serial.print(F("  ready="));
+    Serial.println(localeResourceStore_.ready() ? "1" : "0");
+    Serial.print(F("  locale="));
+    Serial.println(localeResourceStore_.locale());
+    Serial.print(F("  version="));
+    Serial.println(localeResourceStore_.version());
+    Serial.print(F("  error="));
+    Serial.println(localeResourceStore_.lastError());
+    return;
+  }
+
   Serial.println("unknown command, type help");
 }
 
@@ -476,6 +543,14 @@ void App::printStartupReport(const char* title) {
   Serial.println("  wifi config ready");
   Serial.print("  device locale=");
   Serial.println(deviceLocaleStore_.locale());
+  Serial.print("  locale resources ready=");
+  Serial.print(localeResourceStore_.ready() ? "1" : "0");
+  Serial.print(" locale=");
+  Serial.print(localeResourceStore_.locale());
+  Serial.print(" version=");
+  Serial.print(localeResourceStore_.version());
+  Serial.print(" error=");
+  Serial.println(localeResourceStore_.lastError());
   Serial.println("  time service started");
   Serial.println("  reminder store ready");
   Serial.println("  reminder manager ready");

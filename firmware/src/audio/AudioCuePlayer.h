@@ -25,6 +25,7 @@ enum class LocalizedAudioCue : uint8_t {
   ActivationCode,
   ActivationError,
   PinError,
+  OfflineNotice,
 };
 
 struct AudioCuePlaybackResult {
@@ -33,6 +34,12 @@ struct AudioCuePlaybackResult {
   uint32_t samples = 0;
   uint32_t sampleRate = 0;
   String error;
+};
+
+struct OfflineNoticePlaybackResult {
+  AudioCuePlaybackResult speech;
+  bool speechDrained = false;
+  uint8_t tonesPlayed = 0;
 };
 
 class AudioCuePlayer {
@@ -49,6 +56,7 @@ class AudioCuePlayer {
   AudioCuePlaybackResult playLocalized(LocalizedAudioCue cue, const String& locale);
   AudioCuePlaybackResult playDigit(char digit, const String& locale);
   AudioCuePlaybackResult playActivationCode(const String& code, const String& locale);
+  OfflineNoticePlaybackResult playOfflineNotice(const String& locale);
   AudioCuePlaybackResult playPath(const char* path);
 
  private:

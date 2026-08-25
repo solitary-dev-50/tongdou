@@ -19,6 +19,7 @@ REQUIRED_FILES = {
     "activation_code.ogg",
     "activation_error.ogg",
     "pin_error.ogg",
+    "offline_notice.ogg",
     *(f"digit_{digit}.ogg" for digit in range(10)),
 }
 

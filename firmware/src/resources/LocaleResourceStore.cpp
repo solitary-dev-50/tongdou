@@ -15,6 +15,7 @@ constexpr size_t kFlashWriteChunkSize = 1024;
 constexpr const char* kRequiredFiles[] = {
     "welcome.ogg",          "wifi_config.ogg",      "upgrade.ogg",
     "activation_code.ogg", "activation_error.ogg", "pin_error.ogg",
+    "offline_notice.ogg",
     "digit_0.ogg",          "digit_1.ogg",           "digit_2.ogg",
     "digit_3.ogg",          "digit_4.ogg",           "digit_5.ogg",
     "digit_6.ogg",          "digit_7.ogg",           "digit_8.ogg",

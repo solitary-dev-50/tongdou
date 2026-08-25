@@ -112,7 +112,7 @@ void HardwareSelfTestService::printHelp(Print& out) const {
   out.println(F("  radar calibrate"));
   out.println(F("  mic"));
   out.println(F("  speaker"));
-  out.println(F("  audio cue wake|success|error|low_battery|wifi|welcome [locale]"));
+  out.println(F("  audio cue wake|success|error|low_battery|wifi|welcome|offline [locale]"));
   out.println(F("  audio code <digits> [locale]"));
   out.println(F("  led red|green|blue|off"));
   out.println(F("  motor fault"));
@@ -574,6 +574,14 @@ void HardwareSelfTestService::testAudioCue(const String& command, Print& out) {
     result = audioCuePlayer_.playLocalized(LocalizedAudioCue::Welcome, locale);
   } else if (cueName == F("activation")) {
     result = audioCuePlayer_.playLocalized(LocalizedAudioCue::ActivationCode, locale);
+  } else if (cueName == F("offline")) {
+    const OfflineNoticePlaybackResult offline =
+        audioCuePlayer_.playOfflineNotice(locale);
+    printAudioCueResult(offline.speech, out);
+    printBool(out, F("  speech_drained="), offline.speechDrained);
+    out.print(F("  tones_played="));
+    out.println(offline.tonesPlayed);
+    return;
   } else {
     out.println(F("audio cue unknown"));
     return;

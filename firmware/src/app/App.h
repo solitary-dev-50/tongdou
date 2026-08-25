@@ -46,6 +46,7 @@ class App {
   void handleAudioCueEvents();
   void handleRealtimeVoiceEvents();
   void updateLocaleResourceEndpoint();
+  void handleLocaleResourceRepair();
   void handleSerialDiagnostics();
   void handleStartupReport();
   void playSystemCue(SystemAudioCue cue, const char* label);
@@ -90,6 +91,7 @@ class App {
   bool conversationFollowUpPending_ = false;
   unsigned long conversationFollowUpAtMs_ = 0;
   unsigned long nextLocaleResourceEndpointSyncMs_ = 0;
+  unsigned long nextLocaleResourceRepairMs_ = 0;
 };
 
 }  // namespace tongdou
