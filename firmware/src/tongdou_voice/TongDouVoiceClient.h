@@ -41,6 +41,12 @@ struct TongDouVoiceClientSnapshot {
   uint32_t uplinkPcmFramesEncoded = 0;
   uint32_t uplinkOpusPacketsSent = 0;
   uint32_t uplinkEncodeFailures = 0;
+  uint32_t uplinkStateRejects = 0;
+  uint32_t uplinkSocketDisconnects = 0;
+  uint32_t uplinkTransportFailures = 0;
+  uint32_t uplinkSlowSends = 0;
+  uint32_t lastUplinkSendElapsedMs = 0;
+  uint32_t maxUplinkSendElapsedMs = 0;
   uint32_t downlinkPacketsPlayed = 0;
   uint32_t downlinkPlaybackFailures = 0;
   TongDouVoiceQueueStats queueStats;

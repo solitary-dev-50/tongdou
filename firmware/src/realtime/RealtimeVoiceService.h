@@ -39,6 +39,17 @@ struct RealtimeVoiceSnapshot {
   uint32_t backendUplinkPcmFramesEncoded = 0;
   uint32_t backendUplinkOpusPacketsSent = 0;
   uint32_t backendUplinkEncodeFailures = 0;
+  uint32_t backendUplinkStateRejects = 0;
+  uint32_t backendUplinkSocketDisconnects = 0;
+  uint32_t backendUplinkTransportFailures = 0;
+  uint32_t backendUplinkSlowSends = 0;
+  uint32_t backendLastUplinkSendElapsedMs = 0;
+  uint32_t backendMaxUplinkSendElapsedMs = 0;
+  uint32_t uploadSamplesQueued = 0;
+  uint32_t uploadSamplesDropped = 0;
+  uint32_t maxUploadSamplesQueued = 0;
+  uint32_t uploadBufferCapacitySamples = 0;
+  uint32_t uploadBufferPsramBytes = 0;
   uint32_t backendDownlinkPacketsPlayed = 0;
   uint32_t backendDownlinkPlaybackFailures = 0;
   uint16_t backendDownlinkQueued = 0;
@@ -121,6 +132,7 @@ class RealtimeVoiceService {
   void updateReminderAnnouncement();
   void updateConversationExit();
   void updateBackendConnectionFailure();
+  void recoverBrokenUplink(const String& code);
   void failReminderAnnouncement(const String& code, const String& message);
   void logFirstPcmFrame(const int16_t* samples, size_t sampleCount,
                         unsigned long nowMs);
@@ -159,6 +171,8 @@ class RealtimeVoiceService {
   bool goodbyeLatched_ = false;
   bool exitSoftwareDrainLogged_ = false;
   bool backendWasConnected_ = false;
+  uint32_t maxUploadSamplesQueued_ = 0;
+  uint32_t uploadSamplesDroppedAtTurnStart_ = 0;
   TurnKind currentTurnKind_ = TurnKind::Regular;
 };
 

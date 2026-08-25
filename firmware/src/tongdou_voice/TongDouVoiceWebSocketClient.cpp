@@ -41,18 +41,30 @@ void TongDouVoiceWebSocketClient::disconnect() {
 }
 
 bool TongDouVoiceWebSocketClient::sendText(const String& payload) {
-  if (!connected()) {
+  if (!transportConnected()) {
+    setState(TongDouVoiceWebSocketState::Disconnected);
     return false;
   }
   String copy = payload;
-  return socket_.sendTXT(copy);
+  const bool sent = socket_.sendTXT(copy);
+  if (!sent) {
+    disconnect();
+  }
+  return sent;
 }
 
 bool TongDouVoiceWebSocketClient::sendBinary(const uint8_t* payload, size_t length) {
-  if (!connected() || payload == nullptr || length == 0) {
+  if (!transportConnected() || payload == nullptr || length == 0) {
+    if (!transportConnected()) {
+      setState(TongDouVoiceWebSocketState::Disconnected);
+    }
     return false;
   }
-  return socket_.sendBIN(const_cast<uint8_t*>(payload), length);
+  const bool sent = socket_.sendBIN(const_cast<uint8_t*>(payload), length);
+  if (!sent) {
+    disconnect();
+  }
+  return sent;
 }
 
 void TongDouVoiceWebSocketClient::onText(TextCallback callback) {
@@ -73,6 +85,10 @@ TongDouVoiceWebSocketState TongDouVoiceWebSocketClient::state() const {
 
 bool TongDouVoiceWebSocketClient::connected() const {
   return state_ == TongDouVoiceWebSocketState::Connected;
+}
+
+bool TongDouVoiceWebSocketClient::transportConnected() {
+  return connected() && socket_.isConnected();
 }
 
 void TongDouVoiceWebSocketClient::handleEvent(WStype_t type, uint8_t* payload,

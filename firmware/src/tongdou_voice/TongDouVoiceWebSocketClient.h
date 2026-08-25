@@ -34,6 +34,7 @@ class TongDouVoiceWebSocketClient {
 
   TongDouVoiceWebSocketState state() const;
   bool connected() const;
+  bool transportConnected();
 
  private:
   void handleEvent(WStype_t type, uint8_t* payload, size_t length);

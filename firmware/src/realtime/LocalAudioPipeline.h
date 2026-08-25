@@ -13,9 +13,12 @@ namespace tongdou {
 struct LocalAudioPipelineSnapshot {
   bool ready = false;
   bool uploadActive = false;
+  bool uploadBufferReady = false;
   uint32_t samplesRead = 0;
   uint32_t uploadSamplesQueued = 0;
   uint32_t uploadSamplesDropped = 0;
+  uint32_t uploadBufferCapacitySamples = 0;
+  uint32_t uploadBufferPsramBytes = 0;
 };
 
 class LocalAudioPipeline {
@@ -39,7 +42,9 @@ class LocalAudioPipeline {
 
  private:
   static constexpr size_t kReadFrameSamples = 160;
-  static constexpr size_t kUploadQueueCapacitySamples = 19200;
+  static constexpr size_t kUploadQueueSeconds = 6;
+  static constexpr size_t kUploadQueueCapacitySamples =
+      16000 * kUploadQueueSeconds;
 
   static void audioTaskEntry(void* context);
   void audioTaskLoop();
@@ -49,7 +54,7 @@ class LocalAudioPipeline {
   SemaphoreHandle_t mutex_ = nullptr;
   TaskHandle_t taskHandle_ = nullptr;
   LocalAudioPipelineSnapshot snapshot_;
-  int16_t uploadQueue_[kUploadQueueCapacitySamples] = {};
+  int16_t* uploadQueue_ = nullptr;
   size_t uploadReadIndex_ = 0;
   size_t uploadWriteIndex_ = 0;
   size_t uploadCount_ = 0;

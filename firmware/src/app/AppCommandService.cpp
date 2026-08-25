@@ -218,6 +218,22 @@ String AppCommandService::voiceStatusJson() const {
   doc["backend"]["uplinkPcmFramesEncoded"] = snapshot.backendUplinkPcmFramesEncoded;
   doc["backend"]["uplinkOpusPacketsSent"] = snapshot.backendUplinkOpusPacketsSent;
   doc["backend"]["uplinkEncodeFailures"] = snapshot.backendUplinkEncodeFailures;
+  doc["backend"]["uplinkStateRejects"] = snapshot.backendUplinkStateRejects;
+  doc["backend"]["uplinkSocketDisconnects"] =
+      snapshot.backendUplinkSocketDisconnects;
+  doc["backend"]["uplinkTransportFailures"] =
+      snapshot.backendUplinkTransportFailures;
+  doc["backend"]["uplinkSlowSends"] = snapshot.backendUplinkSlowSends;
+  doc["backend"]["lastUplinkSendElapsedMs"] =
+      snapshot.backendLastUplinkSendElapsedMs;
+  doc["backend"]["maxUplinkSendElapsedMs"] =
+      snapshot.backendMaxUplinkSendElapsedMs;
+  doc["capture"]["uploadSamplesQueued"] = snapshot.uploadSamplesQueued;
+  doc["capture"]["uploadSamplesDropped"] = snapshot.uploadSamplesDropped;
+  doc["capture"]["maxUploadSamplesQueued"] = snapshot.maxUploadSamplesQueued;
+  doc["capture"]["uploadBufferCapacitySamples"] =
+      snapshot.uploadBufferCapacitySamples;
+  doc["capture"]["uploadBufferPsramBytes"] = snapshot.uploadBufferPsramBytes;
   doc["backend"]["downlinkPacketsPlayed"] = snapshot.backendDownlinkPacketsPlayed;
   doc["backend"]["downlinkPlaybackFailures"] = snapshot.backendDownlinkPlaybackFailures;
   doc["backend"]["downlinkQueued"] = snapshot.backendDownlinkQueued;

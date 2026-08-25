@@ -127,7 +127,7 @@ bool TongDouVoiceClient::sendListenDetect(const String& text) {
 }
 
 bool TongDouVoiceClient::sendAbort() {
-  if (!socket_.connected()) {
+  if (!socket_.transportConnected()) {
     return false;
   }
   const bool sent = sendText(protocol_.buildAbort(snapshot_.sessionId));
@@ -194,13 +194,55 @@ bool TongDouVoiceClient::sendPcm16Frame(const int16_t* samples, size_t sampleCou
 
 bool TongDouVoiceClient::sendAudioPacket(const uint8_t* payload, size_t length) {
   if (snapshot_.state != TongDouVoiceClientState::Listening) {
+    ++snapshot_.uplinkStateRejects;
+    snapshot_.lastError = "voice_audio_state_rejected";
+    Serial.print(F("voice uplink rejected reason=client_state state="));
+    Serial.print(tongDouVoiceClientStateName(snapshot_.state));
+    Serial.print(F(" packet="));
+    Serial.println(snapshot_.uplinkPcmFramesEncoded);
     return false;
   }
+
+  if (!socket_.transportConnected()) {
+    ++snapshot_.uplinkSocketDisconnects;
+    snapshot_.lastError = "voice_audio_socket_disconnected";
+    Serial.print(F("voice uplink rejected reason=socket_disconnected packet="));
+    Serial.println(snapshot_.uplinkPcmFramesEncoded);
+    return false;
+  }
+
+  const unsigned long sendStartedMs = millis();
   const bool sent = socket_.sendBinary(payload, length);
+  const uint32_t sendElapsedMs = millis() - sendStartedMs;
+  snapshot_.lastUplinkSendElapsedMs = sendElapsedMs;
+  if (sendElapsedMs > snapshot_.maxUplinkSendElapsedMs) {
+    snapshot_.maxUplinkSendElapsedMs = sendElapsedMs;
+  }
+  if (sendElapsedMs >= 120) {
+    ++snapshot_.uplinkSlowSends;
+    Serial.print(F("voice uplink slow packet="));
+    Serial.print(snapshot_.uplinkPcmFramesEncoded);
+    Serial.print(F(" bytes="));
+    Serial.print(length);
+    Serial.print(F(" elapsed_ms="));
+    Serial.println(sendElapsedMs);
+  }
   if (sent) {
     perfTracer_.firstAudioSent();
+    return true;
   }
-  return sent;
+
+  ++snapshot_.uplinkTransportFailures;
+  snapshot_.lastError = "voice_audio_transport_write_failed";
+  Serial.print(F("voice uplink failed reason=transport_write packet="));
+  Serial.print(snapshot_.uplinkPcmFramesEncoded);
+  Serial.print(F(" bytes="));
+  Serial.print(length);
+  Serial.print(F(" elapsed_ms="));
+  Serial.print(sendElapsedMs);
+  Serial.print(F(" socket_connected="));
+  Serial.println(socket_.transportConnected() ? 1 : 0);
+  return false;
 }
 
 bool TongDouVoiceClient::playNextDownlinkPacket(AudioOutput& audioOutput) {

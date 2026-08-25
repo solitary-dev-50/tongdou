@@ -1,5 +1,7 @@
 #include "realtime/LocalAudioPipeline.h"
 
+#include <esp_heap_caps.h>
+
 namespace tongdou {
 namespace {
 
@@ -17,7 +19,25 @@ void LocalAudioPipeline::begin() {
   }
 
   snapshot_ = {};
-  snapshot_.ready = audioInput_.ready();
+  if (uploadQueue_ == nullptr) {
+    uploadQueue_ = static_cast<int16_t*>(heap_caps_malloc(
+        kUploadQueueCapacitySamples * sizeof(int16_t),
+        MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+  }
+  snapshot_.uploadBufferReady = uploadQueue_ != nullptr;
+  snapshot_.uploadBufferCapacitySamples =
+      uploadQueue_ != nullptr ? kUploadQueueCapacitySamples : 0;
+  snapshot_.uploadBufferPsramBytes =
+      uploadQueue_ != nullptr
+          ? kUploadQueueCapacitySamples * sizeof(int16_t)
+          : 0;
+  snapshot_.ready = audioInput_.ready() && snapshot_.uploadBufferReady;
+  Serial.print(F("local audio upload buffer ready="));
+  Serial.print(snapshot_.uploadBufferReady ? 1 : 0);
+  Serial.print(F(" samples="));
+  Serial.print(snapshot_.uploadBufferCapacitySamples);
+  Serial.print(F(" psram_bytes="));
+  Serial.println(snapshot_.uploadBufferPsramBytes);
   if (taskHandle_ == nullptr) {
     const BaseType_t result = xTaskCreatePinnedToCore(
         audioTaskEntry, "local_audio", kAudioTaskStackWords, this,
@@ -34,7 +54,7 @@ void LocalAudioPipeline::update() {
     return;
   }
   xSemaphoreTake(mutex_, portMAX_DELAY);
-  snapshot_.ready = audioInput_.ready();
+  snapshot_.ready = audioInput_.ready() && snapshot_.uploadBufferReady;
   xSemaphoreGive(mutex_);
 }
 
@@ -89,7 +109,7 @@ void LocalAudioPipeline::stopUpload() {
 }
 
 bool LocalAudioPipeline::readUploadFrame(int16_t* buffer, size_t frameSamples) {
-  if (buffer == nullptr || frameSamples == 0) {
+  if (buffer == nullptr || frameSamples == 0 || uploadQueue_ == nullptr) {
     return false;
   }
 
@@ -114,7 +134,7 @@ bool LocalAudioPipeline::readUploadFrame(int16_t* buffer, size_t frameSamples) {
 }
 
 size_t LocalAudioPipeline::readUploadSamples(int16_t* buffer, size_t maxSamples) {
-  if (buffer == nullptr || maxSamples == 0) {
+  if (buffer == nullptr || maxSamples == 0 || uploadQueue_ == nullptr) {
     return 0;
   }
 
@@ -177,7 +197,7 @@ void LocalAudioPipeline::audioTaskLoop() {
     if (mutex_ != nullptr) {
       xSemaphoreTake(mutex_, portMAX_DELAY);
     }
-    snapshot_.ready = true;
+    snapshot_.ready = uploadQueue_ != nullptr;
     snapshot_.samplesRead += static_cast<uint32_t>(samplesRead);
     if (snapshot_.uploadActive) {
       storeUploadSamples(samples, samplesRead);
@@ -195,6 +215,9 @@ void LocalAudioPipeline::audioTaskLoop() {
 void LocalAudioPipeline::storeUploadSamples(const int16_t* samples,
                                             size_t sampleCount) {
   if (samples == nullptr || sampleCount == 0) {
+    return;
+  }
+  if (uploadQueue_ == nullptr) {
     return;
   }
 

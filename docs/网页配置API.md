@@ -640,6 +640,9 @@ command=selftest
 - `set_personality`
 - `start_voice_turn`
 - `voice_status`
+- `tongdou.voice.start_auto`
+- `tongdou.voice.abort`
+- `tongdou.voice.exit`
 - `play_voice_response`
 - `fail_voice_turn`
 - `tongdou.audio.get_volume`
@@ -678,6 +681,15 @@ command=selftest
 ```
 
 `volume` 表示绝对音量，范围 `0` 到 `100`；`delta` 表示相对增减。两者必须二选一，不能同时传，也不能都不传。设置会立即作用于服务器回复、本地提示音和测试音，并在断电后保留。
+
+`voice_status` 和 `GET /api/voice/status` 的上行诊断重点字段：
+
+- `backend.uplinkPcmFramesEncoded`：已经完成 Opus 编码的帧数。
+- `backend.uplinkOpusPacketsSent`：已经成功写入网络的音频包数。
+- `backend.uplinkStateRejects`、`uplinkSocketDisconnects`、`uplinkTransportFailures`：分别表示客户端状态不允许发送、底层连接已断、网络写入失败。
+- `backend.uplinkSlowSends`、`lastUplinkSendElapsedMs`、`maxUplinkSendElapsedMs`：网络写入慢次数和耗时。
+- `capture.maxUploadSamplesQueued`、`uploadSamplesDropped`：当前回合上传队列峰值和丢失采样数。
+- `capture.uploadBufferCapacitySamples`、`uploadBufferPsramBytes`：PSRAM 上传缓冲容量，当前正式值分别为 96000 个采样点和 192000 字节。
 
 边界：
 

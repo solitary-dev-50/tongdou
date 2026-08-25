@@ -229,6 +229,9 @@ bool RealtimeVoiceService::startConversationTurn() {
 bool RealtimeVoiceService::startTurnWithMode(TongDouVoiceListenMode mode,
                                              uint16_t captureMs,
                                              TurnKind turnKind) {
+  if (failurePending_) {
+    return false;
+  }
   if (snapshot_.state == RealtimeVoiceState::Listening ||
       snapshot_.state == RealtimeVoiceState::Ending ||
       voiceClient_.conversationExitPending()) {
@@ -242,6 +245,8 @@ bool RealtimeVoiceService::startTurnWithMode(TongDouVoiceListenMode mode,
 
   sender_.reset();
   audioPipeline_.clearUploadQueue();
+  uploadSamplesDroppedAtTurnStart_ =
+      audioPipeline_.snapshot().uploadSamplesDropped;
   capturedPcmFrameUsed_ = 0;
   turnStartedMs_ = millis();
   firstPcmFrameLogged_ = false;
@@ -289,6 +294,7 @@ bool RealtimeVoiceService::startTurnWithMode(TongDouVoiceListenMode mode,
   snapshot_.chunksSent = 0;
   snapshot_.samplesSent = 0;
   snapshot_.bytesSent = 0;
+  maxUploadSamplesQueued_ = 0;
 
   const unsigned long now = millis();
   captureDeadlineEnabled_ = mode != TongDouVoiceListenMode::Auto;
@@ -349,6 +355,8 @@ void RealtimeVoiceService::failTurn(const String& code, const String& message) {
     return;
   }
   audioPipeline_.stopUpload();
+  capturedPcmFrameUsed_ = 0;
+  captureDeadlineEnabled_ = false;
   snapshot_.state = RealtimeVoiceState::Failed;
   snapshot_.lastTurnOk = false;
   snapshot_.lastErrorCode = code;
@@ -362,6 +370,10 @@ bool RealtimeVoiceService::consumeFailureEvent() {
   }
 
   failurePending_ = false;
+  if (snapshot_.state == RealtimeVoiceState::Failed) {
+    snapshot_.state = RealtimeVoiceState::Idle;
+    currentTurnKind_ = TurnKind::Regular;
+  }
   return true;
 }
 
@@ -448,6 +460,19 @@ RealtimeVoiceSnapshot RealtimeVoiceService::snapshot() const {
   copy.backendUplinkPcmFramesEncoded = backend.uplinkPcmFramesEncoded;
   copy.backendUplinkOpusPacketsSent = backend.uplinkOpusPacketsSent;
   copy.backendUplinkEncodeFailures = backend.uplinkEncodeFailures;
+  copy.backendUplinkStateRejects = backend.uplinkStateRejects;
+  copy.backendUplinkSocketDisconnects = backend.uplinkSocketDisconnects;
+  copy.backendUplinkTransportFailures = backend.uplinkTransportFailures;
+  copy.backendUplinkSlowSends = backend.uplinkSlowSends;
+  copy.backendLastUplinkSendElapsedMs = backend.lastUplinkSendElapsedMs;
+  copy.backendMaxUplinkSendElapsedMs = backend.maxUplinkSendElapsedMs;
+  const LocalAudioPipelineSnapshot audioInput = audioPipeline_.snapshot();
+  copy.uploadSamplesQueued = audioInput.uploadSamplesQueued;
+  copy.uploadSamplesDropped =
+      audioInput.uploadSamplesDropped - uploadSamplesDroppedAtTurnStart_;
+  copy.maxUploadSamplesQueued = maxUploadSamplesQueued_;
+  copy.uploadBufferCapacitySamples = audioInput.uploadBufferCapacitySamples;
+  copy.uploadBufferPsramBytes = audioInput.uploadBufferPsramBytes;
   copy.backendDownlinkPacketsPlayed = backend.downlinkPacketsPlayed;
   copy.backendDownlinkPlaybackFailures = backend.downlinkPlaybackFailures;
   copy.backendDownlinkQueued = backend.queueStats.downlinkQueued;
@@ -505,13 +530,16 @@ const char* RealtimeVoiceService::stateName() const {
 }
 
 void RealtimeVoiceService::sendAvailableAudioFrames(unsigned long nowMs) {
-  while (audioPipeline_.readUploadFrame(capturedPcmFrame_,
-                                        kCapturedPcmFrameSamples)) {
+  const LocalAudioPipelineSnapshot audioInput = audioPipeline_.snapshot();
+  if (audioInput.uploadSamplesQueued > maxUploadSamplesQueued_) {
+    maxUploadSamplesQueued_ = audioInput.uploadSamplesQueued;
+  }
+
+  if (audioPipeline_.readUploadFrame(capturedPcmFrame_,
+                                     kCapturedPcmFrameSamples)) {
     capturedPcmFrameUsed_ = kCapturedPcmFrameSamples;
     logFirstPcmFrame(capturedPcmFrame_, capturedPcmFrameUsed_, nowMs);
-    if (!sendCapturedFrame(false)) {
-      return;
-    }
+    sendCapturedFrame(false);
   }
 
   nextCaptureMs_ = nowMs + kFrameIntervalMs;
@@ -533,7 +561,12 @@ bool RealtimeVoiceService::sendCapturedFrame(bool padWithSilence) {
 
   if (backendStarted_) {
     if (!voiceClient_.sendPcm16Frame(capturedPcmFrame_, kCapturedPcmFrameSamples)) {
-      failTurn("voice_audio_send_failed", "failed to encode or send voice audio");
+      const TongDouVoiceClientSnapshot backend = voiceClient_.snapshot();
+      const String code = backend.lastError.length() > 0
+                              ? backend.lastError
+                              : String("voice_audio_send_failed");
+      recoverBrokenUplink(code);
+      failTurn(code, "failed to encode or send voice audio");
       capturedPcmFrameUsed_ = 0;
       return false;
     }
@@ -556,6 +589,36 @@ bool RealtimeVoiceService::sendCapturedFrame(bool padWithSilence) {
   }
   capturedPcmFrameUsed_ = 0;
   return true;
+}
+
+void RealtimeVoiceService::recoverBrokenUplink(const String& code) {
+  if (!backendStarted_) {
+    return;
+  }
+
+  const bool transportBroken =
+      code == "voice_audio_socket_disconnected" ||
+      code == "voice_audio_transport_write_failed";
+  if (transportBroken) {
+    Serial.print(F("voice uplink recovery action=reconnect code="));
+    Serial.println(code);
+    voiceClient_.disconnect();
+    return;
+  }
+
+  if (voiceClient_.snapshot().connected) {
+    const bool aborted = voiceClient_.sendAbort();
+    Serial.print(F("voice uplink recovery action=abort code="));
+    Serial.print(code);
+    Serial.print(F(" ok="));
+    Serial.println(aborted ? 1 : 0);
+    if (!aborted) {
+      voiceClient_.disconnect();
+    }
+    return;
+  }
+
+  voiceClient_.disconnect();
 }
 
 void RealtimeVoiceService::finishCapture() {
@@ -642,8 +705,7 @@ void RealtimeVoiceService::completeAutoCaptureWhenBackendResponds() {
   const bool backendIsResponding =
       backendState == TongDouVoiceClientState::PreparingSpeak ||
       backendState == TongDouVoiceClientState::Speaking ||
-      (backendState == TongDouVoiceClientState::Ready &&
-       backend.binaryPacketsReceived > backendBinaryPacketsAtTurnStart_);
+      backendState == TongDouVoiceClientState::Ready;
   if (!backendIsResponding) {
     return;
   }
@@ -658,7 +720,12 @@ void RealtimeVoiceService::completeAutoCaptureWhenBackendResponds() {
   snapshot_.bytesSent = stats.bytesSent;
   awaitingResponseStartedMs_ = millis();
 
-  Serial.println(F("voice auto backend response detected"));
+  Serial.print(F("voice auto backend response detected state="));
+  Serial.print(tongDouVoiceClientStateName(backendState));
+  Serial.print(F(" audio_received="));
+  Serial.println(backend.binaryPacketsReceived > backendBinaryPacketsAtTurnStart_
+                     ? 1
+                     : 0);
 }
 
 void RealtimeVoiceService::updateBackendTurnCompletion() {
