@@ -73,7 +73,7 @@ constexpr ScenarioRule kRules[] = {
         true,
         true,
         PersonalityStyle::Gentle,
-        {true, FaceAction::Nervous, LightAction::RedShortBlink,
+        {true, FaceAction::Nervous, LightAction::WarmShortFlash,
          MotionAction::ShrinkBack, VoiceLine::RecognitionCoffeeChoke, 1200},
     },
     {

@@ -65,6 +65,8 @@ struct RealtimeVoiceSnapshot {
   bool conversationExitRequested = false;
   bool backendGoodbyeReceived = false;
   String backendGoodbyeReason;
+  bool speechOutputActive = false;
+  bool reminderAnnouncementActive = false;
   String lastErrorCode;
   String lastErrorMessage;
 };

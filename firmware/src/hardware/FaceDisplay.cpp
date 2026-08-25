@@ -357,6 +357,12 @@ void FaceDisplay::drawExpression(FaceExpression expression) {
       line(99, 22, 104, 27);
       line(104, 27, 101, 33);
       break;
+    case FaceExpression::Listening:
+      rect(31, 20, 26, 28);
+      rect(71, 20, 26, 28);
+      fillRoundRect(43, 29, 8, 10, 2);
+      fillRoundRect(77, 29, 8, 10, 2);
+      break;
   }
 }
 

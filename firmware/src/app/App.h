@@ -9,6 +9,7 @@
 #include "mcp/McpServer.h"
 #include "realtime/LocalAudioPipeline.h"
 #include "realtime/RealtimeVoiceService.h"
+#include "realtime/VoiceVisualFeedback.h"
 #include "reminder/ReminderManager.h"
 #include "reminder/ReminderAlertService.h"
 #include "reminder/ReminderStore.h"
@@ -77,6 +78,9 @@ class App {
   AudioVolumeService audioVolumeService_{hardware_.audioOutput()};
   RealtimeVoiceService realtimeVoiceService_{localAudioPipeline_,
                                             hardware_.audioOutput()};
+  VoiceVisualFeedback voiceVisualFeedback_{realtimeVoiceService_,
+                                           hardware_.faceDisplay(),
+                                           hardware_.led()};
   ReminderAlertService reminderAlertService_{hardware_.faceDisplay(),
                                              hardware_.audioCuePlayer(),
                                              realtimeVoiceService_};

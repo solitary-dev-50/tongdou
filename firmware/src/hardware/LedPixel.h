@@ -12,9 +12,11 @@ class LedPixel {
   void show(const RgbColor& color);
   void off();
   bool ready() const;
+  uint32_t revision() const;
 
  private:
   bool ready_ = false;
+  uint32_t revision_ = 0;
 };
 
 }  // namespace tongdou

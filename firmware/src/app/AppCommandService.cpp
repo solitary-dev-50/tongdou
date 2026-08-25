@@ -241,6 +241,9 @@ String AppCommandService::voiceStatusJson() const {
   doc["conversation"]["exitRequested"] = snapshot.conversationExitRequested;
   doc["conversation"]["goodbyeReceived"] = snapshot.backendGoodbyeReceived;
   doc["conversation"]["goodbyeReason"] = snapshot.backendGoodbyeReason;
+  doc["visual"]["speechOutputActive"] = snapshot.speechOutputActive;
+  doc["visual"]["reminderAnnouncementActive"] =
+      snapshot.reminderAnnouncementActive;
   doc["lastErrorCode"] = snapshot.lastErrorCode;
   doc["lastErrorMessage"] = snapshot.lastErrorMessage;
 

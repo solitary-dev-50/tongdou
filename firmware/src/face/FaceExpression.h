@@ -24,6 +24,7 @@ enum class FaceExpression : uint8_t {
   Fierce,
   Proud,
   Nervous,
+  Listening,
 };
 
 struct FaceFrame {

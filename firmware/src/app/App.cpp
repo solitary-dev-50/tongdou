@@ -47,6 +47,7 @@ void App::begin() {
       [this](const String& payload) {
         return mcpServer_.handleVoicePayloadText(payload);
       });
+  voiceVisualFeedback_.begin();
   Serial.println("realtime voice ready");
 
   deviceActivationService_.begin();
@@ -116,6 +117,7 @@ void App::update() {
   handleConversationWindow();
   updateWakeWordArming();
   scenarioExecutor_.update();
+  voiceVisualFeedback_.update(reminderAlertService_.blocksVoiceInteraction());
   reminderAlertService_.update();
 }
 

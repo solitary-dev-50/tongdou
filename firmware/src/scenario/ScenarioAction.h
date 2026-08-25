@@ -34,6 +34,7 @@ enum class LightAction : uint8_t {
   RedShortBlink,
   WeakBreath,
   DimWarm,
+  WarmShortFlash,
 };
 
 enum class MotionAction : uint8_t {

@@ -69,6 +69,7 @@ void LedPixel::show(const RgbColor& color) {
   rmt_write_items(kRmtChannel, items, kLedBitCount, true);
   rmt_wait_tx_done(kRmtChannel, pdMS_TO_TICKS(10));
   delayMicroseconds(kResetDelayUs);
+  ++revision_;
 }
 
 void LedPixel::off() {
@@ -82,6 +83,10 @@ void LedPixel::off() {
 
 bool LedPixel::ready() const {
   return ready_;
+}
+
+uint32_t LedPixel::revision() const {
+  return revision_;
 }
 
 }  // namespace tongdou

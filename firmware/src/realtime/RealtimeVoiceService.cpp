@@ -475,6 +475,16 @@ RealtimeVoiceSnapshot RealtimeVoiceService::snapshot() const {
   copy.conversationExitRequested = backend.conversationExitRequested;
   copy.backendGoodbyeReceived = backend.goodbyeReceived;
   copy.backendGoodbyeReason = backend.goodbyeReason;
+  copy.speechOutputActive =
+      backend.state == TongDouVoiceClientState::PreparingSpeak ||
+      backend.state == TongDouVoiceClientState::Speaking ||
+      !backend.ttsStopped || backend.queueStats.downlinkQueued > 0 ||
+      ((snapshot_.state == RealtimeVoiceState::AwaitingResponse ||
+        snapshot_.state == RealtimeVoiceState::Ending) &&
+       !audioOutput_.streamDrained() &&
+       backend.downlinkPacketsPlayed > backendDownlinkPacketsAtTurnStart_);
+  copy.reminderAnnouncementActive =
+      currentTurnKind_ == TurnKind::ReminderAnnouncement;
   return copy;
 }
 

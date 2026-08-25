@@ -41,9 +41,10 @@ constexpr FaceAction kFaces[] = {
 };
 
 constexpr LightAction kLights[] = {
-    LightAction::None,        LightAction::Off,          LightAction::SoftWhite,
-    LightAction::WarmWake,    LightAction::RedShortBlink, LightAction::WeakBreath,
-    LightAction::DimWarm,
+    LightAction::None,          LightAction::Off,
+    LightAction::SoftWhite,     LightAction::WarmWake,
+    LightAction::RedShortBlink, LightAction::WeakBreath,
+    LightAction::DimWarm,       LightAction::WarmShortFlash,
 };
 
 constexpr MotionAction kMotions[] = {

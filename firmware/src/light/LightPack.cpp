@@ -17,6 +17,12 @@ constexpr LightFrame kRedShortBlink[] = {
     {{42, 0, 0}, 140},
     {{0, 0, 0}, 0},
 };
+constexpr LightFrame kWarmShortFlash[] = {
+    {{28, 10, 2}, 100},
+    {{0, 0, 0}, 80},
+    {{18, 6, 1}, 100},
+    {{0, 0, 0}, 0},
+};
 constexpr LightFrame kWeakBreath[] = {
     {{4, 4, 4}, 260},
     {{10, 9, 7}, 420},
@@ -41,6 +47,8 @@ LightSequence LightPack::sequence(LightAction action) const {
       return makeSequence(kWarmWake);
     case LightAction::RedShortBlink:
       return makeSequence(kRedShortBlink);
+    case LightAction::WarmShortFlash:
+      return makeSequence(kWarmShortFlash);
     case LightAction::WeakBreath:
       return makeSequence(kWeakBreath);
     case LightAction::DimWarm:
