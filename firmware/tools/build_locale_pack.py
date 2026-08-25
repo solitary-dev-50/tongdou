@@ -11,7 +11,7 @@ FORMAT_VERSION = 1
 HEADER_FORMAT = "<8sH8sHIIIII32s"
 ENTRY_FORMAT = "<32sII"
 MAX_FILES = 32
-PACK_SIZE = 0x20000
+PACK_SIZE = 0x1C000
 REQUIRED_FILES = {
     "welcome.ogg",
     "wifi_config.ogg",

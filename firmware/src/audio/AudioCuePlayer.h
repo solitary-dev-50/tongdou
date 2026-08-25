@@ -68,13 +68,12 @@ class AudioCuePlayer {
   static const char* systemPath(SystemAudioCue cue);
   static const char* localizedName(LocalizedAudioCue cue);
   bool findFile(const char* path, CueFile& file) const;
+  AudioCuePlaybackResult playCurrentLocaleFile(const char* fileName,
+                                               const String& locale);
   AudioCuePlaybackResult playLocaleFile(const char* fileName);
   AudioCuePlaybackResult playBuffer(const uint8_t* data, size_t size);
   bool ensureDecoder(uint32_t sampleRate);
   void closeDecoder();
-  String makeLocalizedPath(const String& locale, const char* fileName) const;
-  String normalizedLocale(const String& locale) const;
-  String localeFilePrefix(const String& locale) const;
   AudioCuePlaybackResult fail(const String& error);
 
   AudioOutput& audioOutput_;

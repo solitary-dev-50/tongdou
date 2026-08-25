@@ -14,16 +14,28 @@ Preferences preferences;
 }  // namespace
 
 void DeviceLocaleStore::begin() {
+  locale_ = kDefaultLocale;
   ready_ = preferences.begin(kNamespace, false);
+  if (!ready_) {
+    return;
+  }
+
+  if (!preferences.isKey(kLocaleKey)) {
+    preferences.putString(kLocaleKey, kDefaultLocale);
+    return;
+  }
+
+  const String saved = preferences.getString(kLocaleKey, "");
+  if (supported(saved)) {
+    locale_ = saved;
+    return;
+  }
+
+  preferences.putString(kLocaleKey, kDefaultLocale);
 }
 
 String DeviceLocaleStore::locale() const {
-  if (!ready_) {
-    return kDefaultLocale;
-  }
-
-  const String saved = preferences.getString(kLocaleKey, kDefaultLocale);
-  return supported(saved) ? saved : kDefaultLocale;
+  return locale_.length() > 0 ? locale_ : String(kDefaultLocale);
 }
 
 bool DeviceLocaleStore::save(const String& locale) {
@@ -31,7 +43,11 @@ bool DeviceLocaleStore::save(const String& locale) {
     return false;
   }
 
-  return preferences.putString(kLocaleKey, locale) > 0;
+  if (preferences.putString(kLocaleKey, locale) == 0) {
+    return false;
+  }
+  locale_ = locale;
+  return true;
 }
 
 bool DeviceLocaleStore::ready() const {

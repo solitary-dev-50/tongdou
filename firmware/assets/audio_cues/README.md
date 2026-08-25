@@ -1,6 +1,7 @@
 # Audio cues
 
-This directory stores local audio cues used by the official TongDou firmware.
+This directory stores source audio used to build TongDou locale packs and the
+small language-independent sounds embedded in the application image.
 
 These files are temporary test assets copied from `xiaozhi-esp32` so the firmware
 can verify local prompt playback before TongDou's own sound set is ready.
@@ -20,6 +21,11 @@ Source license:
 
 Before public release, replace these temporary files with TongDou-owned audio
 assets and re-check licensing.
+
+Only the five files under `system/` are embedded in the application image.
+Files under `locales/` are build inputs: the factory image writes one `en-GB`
+pack to the dedicated `locale` partition, and the server provides later
+language replacements. They are not linked into the application image.
 
 ## Directory layout
 

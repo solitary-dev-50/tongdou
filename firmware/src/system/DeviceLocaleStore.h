@@ -16,6 +16,7 @@ class DeviceLocaleStore {
 
  private:
   bool ready_ = false;
+  String locale_;
 };
 
 }  // namespace tongdou

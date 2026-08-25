@@ -123,129 +123,132 @@ void HardwareSelfTestService::printHelp(Print& out) const {
 bool HardwareSelfTestService::handleCommand(const String& command, Print& out) {
   String cmd = command;
   cmd.trim();
-  cmd.toLowerCase();
   if (cmd.length() == 0) {
     return false;
   }
 
-  if (cmd == F("help") || cmd == F("?")) {
+  String normalized = cmd;
+  normalized.toLowerCase();
+
+  if (normalized == F("help") || normalized == F("?")) {
     printHelp(out);
     return true;
   }
-  if (cmd == F("selftest")) {
+  if (normalized == F("selftest")) {
     printReport(out);
     return true;
   }
-  if (cmd == F("status")) {
+  if (normalized == F("status")) {
     printStatus(out);
     return true;
   }
-  if (cmd == F("battery")) {
+  if (normalized == F("battery")) {
     printBattery(out);
     return true;
   }
-  if (cmd == F("i2c scan")) {
+  if (normalized == F("i2c scan")) {
     printI2cScan(out);
     return true;
   }
-  if (cmd == F("imu")) {
+  if (normalized == F("imu")) {
     printImu(out);
     return true;
   }
-  if (cmd == F("logo touch")) {
+  if (normalized == F("logo touch")) {
     printLogoTouch(out);
     return true;
   }
-  if (cmd == F("radar")) {
+  if (normalized == F("radar")) {
     printRadar(out);
     return true;
   }
-  if (cmd == F("radar target")) {
+  if (normalized == F("radar target")) {
     printRadarTarget(out);
     return true;
   }
-  if (cmd == F("radar sample")) {
+  if (normalized == F("radar sample")) {
     printRadarSamples(out);
     return true;
   }
-  if (cmd == F("radar config")) {
+  if (normalized == F("radar config")) {
     printRadarConfig(out);
     return true;
   }
-  if (cmd == F("radar near")) {
+  if (normalized == F("radar near")) {
     applyRadarNearConfig(out);
     return true;
   }
-  if (cmd == F("radar resolution")) {
+  if (normalized == F("radar resolution")) {
     printRadarResolution(out);
     return true;
   }
-  if (cmd == F("radar res20")) {
+  if (normalized == F("radar res20")) {
     applyRadarResolution20cm(out);
     return true;
   }
-  if (cmd == F("radar calibrate")) {
+  if (normalized == F("radar calibrate")) {
     startRadarCalibration(out);
     return true;
   }
-  if (cmd == F("mic")) {
+  if (normalized == F("mic")) {
     printMic(out);
     return true;
   }
-  if (cmd == F("speaker")) {
+  if (normalized == F("speaker")) {
     testSpeaker(out);
     return true;
   }
-  if (cmd.startsWith(F("audio cue ")) || cmd.startsWith(F("audio code "))) {
+  if (normalized.startsWith(F("audio cue ")) ||
+      normalized.startsWith(F("audio code "))) {
     testAudioCue(cmd, out);
     return true;
   }
-  if (cmd == F("motor fault")) {
+  if (normalized == F("motor fault")) {
     printMotorFault(out);
     return true;
   }
-  if (cmd == F("motor fault simulate on")) {
+  if (normalized == F("motor fault simulate on")) {
     setMotorFaultSimulation(true, out);
     return true;
   }
-  if (cmd == F("motor fault simulate off")) {
+  if (normalized == F("motor fault simulate off")) {
     setMotorFaultSimulation(false, out);
     return true;
   }
-  if (cmd == F("led red")) {
+  if (normalized == F("led red")) {
     testLed({64, 0, 0}, out);
     return true;
   }
-  if (cmd == F("led green")) {
+  if (normalized == F("led green")) {
     testLed({0, 64, 0}, out);
     return true;
   }
-  if (cmd == F("led blue")) {
+  if (normalized == F("led blue")) {
     testLed({0, 0, 64}, out);
     return true;
   }
-  if (cmd == F("led off")) {
+  if (normalized == F("led off")) {
     led_.off();
     out.println(F("led off"));
     return true;
   }
-  if (cmd == F("motor forward")) {
+  if (normalized == F("motor forward")) {
     testMotor(WheelDrive::Forward, WheelDrive::Forward, out);
     return true;
   }
-  if (cmd == F("motor reverse")) {
+  if (normalized == F("motor reverse")) {
     testMotor(WheelDrive::Reverse, WheelDrive::Reverse, out);
     return true;
   }
-  if (cmd == F("motor turn left")) {
+  if (normalized == F("motor turn left")) {
     testMotor(WheelDrive::Reverse, WheelDrive::Forward, out);
     return true;
   }
-  if (cmd == F("motor turn right")) {
+  if (normalized == F("motor turn right")) {
     testMotor(WheelDrive::Forward, WheelDrive::Reverse, out);
     return true;
   }
-  if (cmd == F("motor stop")) {
+  if (normalized == F("motor stop")) {
     stopMotorPulse();
     out.println(F("motor stop"));
     return true;

@@ -18,7 +18,6 @@ TONGDOU_AUDIO_CUE_TABLE(DECLARE_AUDIO_CUE)
 namespace tongdou {
 namespace {
 
-constexpr uint8_t kMaxLocaleFallbacks = 2;
 constexpr unsigned long kSpeechDrainTimeoutMs = 500;
 constexpr uint16_t kOfflineAlertToneHz = 1047;
 constexpr uint16_t kOfflineAlertToneMs = 120;
@@ -75,29 +74,7 @@ AudioCuePlaybackResult AudioCuePlayer::playSystem(SystemAudioCue cue) {
 
 AudioCuePlaybackResult AudioCuePlayer::playLocalized(LocalizedAudioCue cue,
                                                      const String& locale) {
-  const String primaryLocale = normalizedLocale(locale);
-  const char* fileName = localizedName(cue);
-  if (localeResources_ != nullptr &&
-      localeResources_->matchesLocale(primaryLocale)) {
-    const AudioCuePlaybackResult external = playLocaleFile(fileName);
-    if (external.ok) {
-      return external;
-    }
-  }
-
-  const String paths[kMaxLocaleFallbacks] = {
-      makeLocalizedPath(primaryLocale, fileName),
-      makeLocalizedPath("en-US", fileName),
-  };
-
-  for (const String& path : paths) {
-    CueFile file;
-    if (findFile(path.c_str(), file)) {
-      return playPath(path.c_str());
-    }
-  }
-
-  return fail("audio_cue_not_found");
+  return playCurrentLocaleFile(localizedName(cue), locale);
 }
 
 AudioCuePlaybackResult AudioCuePlayer::playDigit(char digit, const String& locale) {
@@ -108,28 +85,7 @@ AudioCuePlaybackResult AudioCuePlayer::playDigit(char digit, const String& local
   String fileName = "digit_";
   fileName += digit;
   fileName += ".ogg";
-  const String primaryLocale = normalizedLocale(locale);
-  if (localeResources_ != nullptr &&
-      localeResources_->matchesLocale(primaryLocale)) {
-    const AudioCuePlaybackResult external = playLocaleFile(fileName.c_str());
-    if (external.ok) {
-      return external;
-    }
-  }
-
-  const String paths[kMaxLocaleFallbacks] = {
-      makeLocalizedPath(primaryLocale, fileName.c_str()),
-      makeLocalizedPath("en-US", fileName.c_str()),
-  };
-
-  for (const String& path : paths) {
-    CueFile file;
-    if (findFile(path.c_str(), file)) {
-      return playPath(path.c_str());
-    }
-  }
-
-  return fail("audio_cue_not_found");
+  return playCurrentLocaleFile(fileName.c_str(), locale);
 }
 
 AudioCuePlaybackResult AudioCuePlayer::playActivationCode(const String& code,
@@ -200,6 +156,19 @@ AudioCuePlaybackResult AudioCuePlayer::playPath(const char* path) {
   }
 
   return playBuffer(file.data, file.size);
+}
+
+AudioCuePlaybackResult AudioCuePlayer::playCurrentLocaleFile(
+    const char* fileName, const String& locale) {
+  if (localeResources_ == nullptr) {
+    return fail("locale_resource_store_not_ready");
+  }
+  if (!localeResources_->matchesLocale(locale)) {
+    return fail(localeResources_->lastError().length() > 0
+                    ? localeResources_->lastError()
+                    : String("locale_resource_locale_mismatch"));
+  }
+  return playLocaleFile(fileName);
 }
 
 AudioCuePlaybackResult AudioCuePlayer::playLocaleFile(const char* fileName) {
@@ -361,53 +330,6 @@ void AudioCuePlayer::closeDecoder() {
     decoder_ = nullptr;
   }
   decoderSampleRate_ = 0;
-}
-
-String AudioCuePlayer::makeLocalizedPath(const String& locale, const char* fileName) const {
-  String path = "locales/";
-  path += locale;
-  path += "/";
-  path += localeFilePrefix(locale);
-  path += "_";
-  path += fileName;
-  return path;
-}
-
-String AudioCuePlayer::normalizedLocale(const String& locale) const {
-  String value = locale;
-  value.trim();
-  value.toLowerCase();
-  if (value.length() == 0) {
-    return "en-GB";
-  }
-  if (value == "en-gb") {
-    return "en-GB";
-  }
-  if (value == "en-ca") {
-    return "en-CA";
-  }
-  if (value == "fr-fr") {
-    return "fr-FR";
-  }
-  if (value == "fr-ca") {
-    return "fr-CA";
-  }
-  if (value == "nl-nl") {
-    return "nl-NL";
-  }
-  if (value == "ru-ru") {
-    return "ru-RU";
-  }
-  if (value == "zh-cn") {
-    return "zh-CN";
-  }
-  return "en-GB";
-}
-
-String AudioCuePlayer::localeFilePrefix(const String& locale) const {
-  String prefix = locale;
-  prefix.replace("-", "_");
-  return prefix;
 }
 
 AudioCuePlaybackResult AudioCuePlayer::fail(const String& error) {
