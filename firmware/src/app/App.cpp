@@ -11,6 +11,7 @@ constexpr unsigned long kFirstStartupReportMs = 2500;
 constexpr unsigned long kSecondStartupReportMs = 8000;
 constexpr unsigned long kConversationPlaybackTailMs = 120;
 constexpr unsigned long kLocaleResourceRepairRetryMs = 60000;
+constexpr unsigned long kReminderCompletionCommitRetryMs = 1000;
 
 }  // namespace
 
@@ -104,6 +105,9 @@ void App::update() {
   hardware_.update();
   localAudioPipeline_.update();
   realtimeVoiceService_.update();
+  handleReminderAlertCompletion();
+  handleRealtimeVoiceEvents();
+  handleConversationWindow();
   updateLocaleResourceEndpoint();
   handleLocaleResourceRepair();
   deviceActivationService_.update();
@@ -113,8 +117,6 @@ void App::update() {
   handleLogoTouchEvents();
   handleLocalWakeWordEvents();
   handleReminderEvents();
-  handleRealtimeVoiceEvents();
-  handleConversationWindow();
   updateWakeWordArming();
   scenarioExecutor_.update();
   voiceVisualFeedback_.update(reminderAlertService_.blocksVoiceInteraction());
@@ -157,7 +159,8 @@ void App::handleLocaleResourceRepair() {
   const RealtimeVoiceSnapshot voice = realtimeVoiceService_.snapshot();
   if (WiFi.status() != WL_CONNECTED || !voice.backendReady ||
       voice.state != RealtimeVoiceState::Idle || voiceConversationActive_ ||
-      conversationFollowUpPending_ || !hardware_.audioOutput().streamDrained() ||
+      conversationFollowUpPending_ || reminderResponseStartPending_ ||
+      !hardware_.audioOutput().streamDrained() ||
       localeResourceUpdateService_.baseUrl().length() == 0 ||
       localeResourceUpdateService_.formatVersion() == 0) {
     return;
@@ -215,6 +218,7 @@ void App::updateWakeWordArming() {
                          voice.state == RealtimeVoiceState::Idle &&
                          !voiceConversationActive_ &&
                          !conversationFollowUpPending_ &&
+                         !reminderResponseStartPending_ &&
                          !reminderAlertService_.blocksVoiceInteraction();
   localWakeWordDetector_.setArmed(shouldArm);
 }
@@ -287,6 +291,34 @@ void App::startConversationVoiceTurn() {
   }
 }
 
+void App::startReminderResponseVoiceTurn() {
+  localWakeWordDetector_.setArmed(false);
+  Serial.print(F("voice timeline app_start t="));
+  Serial.print(millis());
+  Serial.print(F(" source=reminder_response reminder="));
+  Serial.print(reminderResponseId_);
+  Serial.println(F(" pre_roll_samples=0"));
+
+  const bool started = realtimeVoiceService_.startReminderResponseTurn();
+  const RealtimeVoiceSnapshot snapshot = realtimeVoiceService_.snapshot();
+  Serial.print(F("reminder response start id="));
+  Serial.print(reminderResponseId_);
+  Serial.print(F(" interrupted_conversation="));
+  Serial.print(reminderInterruptedConversation_ ? "1" : "0");
+  Serial.print(F(" ok="));
+  Serial.print(started ? "1" : "0");
+  Serial.print(F(" code="));
+  Serial.println(started ? String("ok") : snapshot.lastErrorCode);
+
+  reminderResponseStartPending_ = false;
+  reminderInterruptedConversation_ = false;
+  voiceConversationActive_ = started;
+  if (!started) {
+    reminderResponseId_ = 0;
+    mcpServer_.clearReminderResponseContext();
+  }
+}
+
 void App::startVoiceTurnFromInteraction(const __FlashStringHelper* source) {
   localWakeWordDetector_.setArmed(false);
   Serial.print(F("voice timeline app_start t="));
@@ -314,11 +346,15 @@ void App::startVoiceTurnFromInteraction(const __FlashStringHelper* source) {
 
 void App::requestConversationExitFromInteraction(
     const __FlashStringHelper* source) {
-  if (!voiceConversationActive_ && !conversationFollowUpPending_) {
+  if (!voiceConversationActive_ && !conversationFollowUpPending_ &&
+      !reminderResponseStartPending_) {
     return;
   }
 
   conversationFollowUpPending_ = false;
+  reminderResponseStartPending_ = false;
+  reminderResponseId_ = 0;
+  mcpServer_.clearReminderResponseContext();
   const bool requested = realtimeVoiceService_.requestConversationExit();
   Serial.print(F("conversation exit request source="));
   Serial.print(source);
@@ -330,16 +366,31 @@ void App::handleConversationWindow() {
   if (realtimeVoiceService_.consumeConversationEndedEvent()) {
     voiceConversationActive_ = false;
     conversationFollowUpPending_ = false;
+    reminderResponseStartPending_ = false;
+    reminderResponseId_ = 0;
+    mcpServer_.clearReminderResponseContext();
     Serial.println(F("conversation ended source=server_goodbye state=idle"));
   }
 
   if (realtimeVoiceService_.consumeConversationTimeoutEvent()) {
     voiceConversationActive_ = false;
     conversationFollowUpPending_ = false;
+    reminderResponseId_ = 0;
+    mcpServer_.clearReminderResponseContext();
     Serial.println(F("conversation window timeout source=server_no_voice"));
     const ScenarioPlan plan = scenarioEngine_.select(
         {ScenarioEventType::ConversationWindowTimeout, 0}, scenarioContext_);
     scenarioExecutor_.execute(plan);
+  }
+
+  if (realtimeVoiceService_.consumeReminderResponseTimeoutEvent()) {
+    voiceConversationActive_ = false;
+    conversationFollowUpPending_ = false;
+    reminderResponseStartPending_ = false;
+    Serial.print(F("reminder response closed reason=no_voice id="));
+    Serial.println(reminderResponseId_);
+    reminderResponseId_ = 0;
+    mcpServer_.clearReminderResponseContext();
   }
 
   if (realtimeVoiceService_.consumeTurnCompletedEvent()) {
@@ -347,6 +398,11 @@ void App::handleConversationWindow() {
         !realtimeVoiceService_.snapshot().conversationExitRequested) {
       openConversationWindow();
     }
+  }
+
+  if (reminderResponseStartPending_ &&
+      static_cast<long>(millis() - reminderResponseStartAtMs_) >= 0) {
+    startReminderResponseVoiceTurn();
   }
 
   if (conversationFollowUpPending_ &&
@@ -366,12 +422,16 @@ void App::openConversationWindow() {
 }
 
 void App::closeConversationWindow(bool playExitCue) {
-  if (!voiceConversationActive_ && !conversationFollowUpPending_) {
+  if (!voiceConversationActive_ && !conversationFollowUpPending_ &&
+      !reminderResponseStartPending_) {
     return;
   }
 
   voiceConversationActive_ = false;
   conversationFollowUpPending_ = false;
+  reminderResponseStartPending_ = false;
+  reminderResponseId_ = 0;
+  mcpServer_.clearReminderResponseContext();
   const RealtimeVoiceSnapshot voice = realtimeVoiceService_.snapshot();
   if (voice.state == RealtimeVoiceState::Listening ||
       voice.state == RealtimeVoiceState::AwaitingResponse) {
@@ -386,7 +446,70 @@ void App::closeConversationWindow(bool playExitCue) {
   }
 }
 
+void App::handleReminderAlertCompletion() {
+  if (reminderCompletionCommitPendingId_ == 0) {
+    ReminderAlertCompletion completion;
+    if (!reminderAlertService_.consumeCompletedEvent(completion)) {
+      return;
+    }
+    reminderCompletionCommitPendingId_ = completion.reminderId;
+    reminderCompletionOnline_ = completion.online;
+    reminderCompletionCommitRetryAtMs_ = 0;
+    reminderCompletionCommitFailureLogged_ = false;
+  }
+
+  const unsigned long nowMs = millis();
+  if (reminderCompletionCommitRetryAtMs_ != 0 &&
+      static_cast<long>(nowMs - reminderCompletionCommitRetryAtMs_) < 0) {
+    return;
+  }
+
+  if (!reminderManager_.markDelivered(
+          reminderCompletionCommitPendingId_)) {
+    if (!reminderCompletionCommitFailureLogged_) {
+      Serial.print(F("reminder completion commit failed id="));
+      Serial.println(reminderCompletionCommitPendingId_);
+      reminderCompletionCommitFailureLogged_ = true;
+    }
+    reminderCompletionCommitRetryAtMs_ =
+        nowMs + kReminderCompletionCommitRetryMs;
+    return;
+  }
+
+  const uint32_t completedId = reminderCompletionCommitPendingId_;
+  const bool completedOnline = reminderCompletionOnline_;
+  reminderCompletionCommitPendingId_ = 0;
+  reminderCompletionOnline_ = false;
+  reminderCompletionCommitRetryAtMs_ = 0;
+  reminderCompletionCommitFailureLogged_ = false;
+
+  const RealtimeVoiceSnapshot voice = realtimeVoiceService_.snapshot();
+  if (!completedOnline || !voice.backendReady ||
+      voice.state != RealtimeVoiceState::Idle) {
+    Serial.print(F("reminder response unavailable id="));
+    Serial.print(completedId);
+    Serial.print(F(" online="));
+    Serial.print(completedOnline ? "1" : "0");
+    Serial.print(F(" backend_ready="));
+    Serial.println(voice.backendReady ? "1" : "0");
+    reminderInterruptedConversation_ = false;
+    return;
+  }
+
+  reminderResponseId_ = completedId;
+  mcpServer_.setReminderResponseContext(completedId);
+  reminderResponseStartPending_ = true;
+  reminderResponseStartAtMs_ = millis() + kConversationPlaybackTailMs;
+  Serial.print(F("reminder response scheduled id="));
+  Serial.print(completedId);
+  Serial.print(F(" start_at="));
+  Serial.println(reminderResponseStartAtMs_);
+}
+
 void App::handleReminderEvents() {
+  if (reminderCompletionCommitPendingId_ != 0) {
+    return;
+  }
   if (!reminderAlertService_.canStart()) {
     return;
   }
@@ -396,7 +519,19 @@ void App::handleReminderEvents() {
     return;
   }
 
+  reminderInterruptedConversation_ =
+      voiceConversationActive_ || conversationFollowUpPending_ ||
+      reminderResponseStartPending_;
   closeConversationWindow(false);
+  const RadarSnapshot radar = hardware_.radar().read();
+  Serial.print(F("reminder delivery context id="));
+  Serial.print(dueReminder.id);
+  Serial.print(F(" event="));
+  Serial.print(dueReminder.eventId);
+  Serial.print(F(" kind="));
+  Serial.print(reminderOccurrenceKindName(dueReminder.kind));
+  Serial.print(F(" radar_occupied="));
+  Serial.println(radar.occupied ? "1" : "0");
   const ScenarioPlan plan = scenarioEngine_.select(
       {ScenarioEventType::ReminderDue, 0}, scenarioContext_);
   scenarioExecutor_.execute(plan);
@@ -445,6 +580,10 @@ void App::handleRealtimeVoiceEvents() {
 
   voiceConversationActive_ = false;
   conversationFollowUpPending_ = false;
+  reminderResponseStartPending_ = false;
+  reminderResponseId_ = 0;
+  reminderInterruptedConversation_ = false;
+  mcpServer_.clearReminderResponseContext();
   playSystemCue(SystemAudioCue::Error, "voice_recognition_failed");
   const ScenarioPlan plan = scenarioEngine_.select(
       {ScenarioEventType::VoiceRecognitionFailed, 0}, scenarioContext_);

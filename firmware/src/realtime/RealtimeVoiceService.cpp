@@ -12,6 +12,7 @@ constexpr uint16_t kMaxCaptureMs = 8000;
 constexpr unsigned long kFrameIntervalMs = 5;
 constexpr unsigned long kAwaitingResponseTimeoutMs = 12000;
 constexpr unsigned long kReminderResponseTimeoutMs = 15000;
+constexpr uint16_t kReminderResponseCaptureMs = 8000;
 constexpr uint16_t kDefaultResponseClipId = 200;
 
 uint16_t clampCaptureMs(uint16_t captureMs) {
@@ -136,6 +137,7 @@ bool RealtimeVoiceService::startWakeGreeting(const String& text) {
   currentTurnKind_ = TurnKind::Regular;
   turnCompletedPending_ = false;
   conversationTimeoutPending_ = false;
+  reminderResponseTimeoutPending_ = false;
   conversationEndedPending_ = false;
   snapshot_.conversationExitRequested = false;
   snapshot_.backendGoodbyeReceived = false;
@@ -226,6 +228,12 @@ bool RealtimeVoiceService::startConversationTurn() {
                            TurnKind::ConversationFollowUp);
 }
 
+bool RealtimeVoiceService::startReminderResponseTurn() {
+  return startTurnWithMode(TongDouVoiceListenMode::Manual,
+                           kReminderResponseCaptureMs,
+                           TurnKind::ReminderResponse);
+}
+
 bool RealtimeVoiceService::startTurnWithMode(TongDouVoiceListenMode mode,
                                              uint16_t captureMs,
                                              TurnKind turnKind) {
@@ -290,6 +298,7 @@ bool RealtimeVoiceService::startTurnWithMode(TongDouVoiceListenMode mode,
   snapshot_.lastErrorMessage = "";
   turnCompletedPending_ = false;
   conversationTimeoutPending_ = false;
+  reminderResponseTimeoutPending_ = false;
   conversationEndedPending_ = false;
   snapshot_.chunksSent = 0;
   snapshot_.samplesSent = 0;
@@ -331,6 +340,7 @@ bool RealtimeVoiceService::requestConversationExit() {
   snapshot_.conversationExitRequested = true;
   turnCompletedPending_ = false;
   conversationTimeoutPending_ = false;
+  reminderResponseTimeoutPending_ = false;
   return true;
 }
 
@@ -392,6 +402,15 @@ bool RealtimeVoiceService::consumeConversationTimeoutEvent() {
   }
 
   conversationTimeoutPending_ = false;
+  return true;
+}
+
+bool RealtimeVoiceService::consumeReminderResponseTimeoutEvent() {
+  if (!reminderResponseTimeoutPending_) {
+    return false;
+  }
+
+  reminderResponseTimeoutPending_ = false;
   return true;
 }
 
@@ -746,6 +765,16 @@ void RealtimeVoiceService::updateBackendTurnCompletion() {
       currentTurnKind_ = TurnKind::Regular;
       conversationTimeoutPending_ = true;
       Serial.println(F("conversation follow-up timeout"));
+      return;
+    }
+    if (currentTurnKind_ == TurnKind::ReminderResponse) {
+      snapshot_.state = RealtimeVoiceState::Idle;
+      snapshot_.lastTurnOk = true;
+      snapshot_.lastErrorCode = "";
+      snapshot_.lastErrorMessage = "";
+      currentTurnKind_ = TurnKind::Regular;
+      reminderResponseTimeoutPending_ = true;
+      Serial.println(F("reminder response timeout state=idle"));
       return;
     }
     failTurn("voice_response_timeout", "voice backend returned no response");

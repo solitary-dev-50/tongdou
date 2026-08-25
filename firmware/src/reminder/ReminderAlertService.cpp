@@ -12,6 +12,8 @@ ReminderAlertService::ReminderAlertService(FaceDisplay& faceDisplay,
 void ReminderAlertService::begin() {
   phase_ = Phase::Idle;
   displayActive_ = false;
+  completionPending_ = false;
+  completionOnline_ = false;
 }
 
 void ReminderAlertService::update() {
@@ -22,6 +24,7 @@ void ReminderAlertService::update() {
   if (phase_ == Phase::OnlineAnnouncement) {
     if (voiceService_.consumeReminderCompletedEvent()) {
       phase_ = Phase::Displaying;
+      complete(true);
       Serial.print(F("reminder alert online complete id="));
       Serial.println(reminder_.id);
       return;
@@ -83,12 +86,24 @@ bool ReminderAlertService::start(const ReminderRecord& reminder,
 }
 
 bool ReminderAlertService::canStart() const {
-  return phase_ == Phase::Idle || phase_ == Phase::Displaying;
+  return !completionPending_ &&
+         (phase_ == Phase::Idle || phase_ == Phase::Displaying);
 }
 
 bool ReminderAlertService::blocksVoiceInteraction() const {
   return phase_ == Phase::WaitingForBackend ||
          phase_ == Phase::OnlineAnnouncement;
+}
+
+bool ReminderAlertService::consumeCompletedEvent(
+    ReminderAlertCompletion& completion) {
+  if (!completionPending_) {
+    return false;
+  }
+  completion.reminderId = reminder_.id;
+  completion.online = completionOnline_;
+  completionPending_ = false;
+  return true;
 }
 
 void ReminderAlertService::dismissDisplayedReminder() {
@@ -115,6 +130,7 @@ void ReminderAlertService::playOfflineFallback(const String& reason) {
   const OfflineNoticePlaybackResult result =
       audioCuePlayer_.playOfflineNotice(locale_);
   phase_ = Phase::Displaying;
+  complete(false);
   Serial.print(F("reminder alert fallback id="));
   Serial.print(reminder_.id);
   Serial.print(F(" reason="));
@@ -125,6 +141,11 @@ void ReminderAlertService::playOfflineFallback(const String& reason) {
   Serial.print(result.speechDrained ? 1 : 0);
   Serial.print(F(" tones="));
   Serial.println(result.tonesPlayed);
+}
+
+void ReminderAlertService::complete(bool online) {
+  completionOnline_ = online;
+  completionPending_ = true;
 }
 
 }  // namespace tongdou

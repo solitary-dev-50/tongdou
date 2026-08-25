@@ -19,6 +19,8 @@ class McpServer {
   void begin();
   String handlePayloadText(const String& payloadText);
   String handleVoicePayloadText(const String& payloadText);
+  void setReminderResponseContext(uint32_t reminderId);
+  void clearReminderResponseContext();
 
  private:
   void addTools();
@@ -30,7 +32,11 @@ class McpServer {
   std::string replyError(const std::string& idJson, const std::string& message) const;
   std::string idJson(JsonObjectConst payload) const;
   std::string serializeVariant(JsonVariantConst value) const;
+  bool resolveReminderDueAt(const McpToolArguments& arguments,
+                            uint32_t& dueAt, std::string& errorCode,
+                            std::string& errorMessage) const;
   McpToolResult createReminder(const McpToolArguments& arguments);
+  McpToolResult snoozeReminder(const McpToolArguments& arguments);
   McpToolResult deleteReminder(const McpToolArguments& arguments);
   McpToolResult playScenario(const McpToolArguments& arguments);
   McpToolResult setPersonality(const McpToolArguments& arguments);
@@ -57,6 +63,7 @@ class McpServer {
   AppCommandService& appCommandService_;
   McpToolRegistry registry_;
   McpToolRegistry voiceRegistry_;
+  uint32_t reminderResponseContextId_ = 0;
   bool initialized_ = false;
 };
 

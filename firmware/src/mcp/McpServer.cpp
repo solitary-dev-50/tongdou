@@ -51,6 +51,14 @@ String McpServer::handleVoicePayloadText(const String& payloadText) {
   return handlePayloadText(payloadText, voiceRegistry_);
 }
 
+void McpServer::setReminderResponseContext(uint32_t reminderId) {
+  reminderResponseContextId_ = reminderId;
+}
+
+void McpServer::clearReminderResponseContext() {
+  reminderResponseContextId_ = 0;
+}
+
 String McpServer::handlePayloadText(const String& payloadText,
                                     const McpToolRegistry& registry) {
   begin();
@@ -76,6 +84,9 @@ void McpServer::addTools() {
   };
   const auto remove = [this](const McpToolArguments& arguments) -> McpToolResult {
     return deleteReminder(arguments);
+  };
+  const auto snooze = [this](const McpToolArguments& arguments) -> McpToolResult {
+    return snoozeReminder(arguments);
   };
   const auto play = [this](const McpToolArguments& arguments) -> McpToolResult {
     return playScenario(arguments);
@@ -130,9 +141,16 @@ void McpServer::addTools() {
       McpProperty::OptionalInteger("dueAt"),
       McpProperty::OptionalInteger("delaySeconds"),
       McpProperty::OptionalString("localDateTime"),
-      McpProperty::RequiredString("text")};
+      McpProperty::RequiredString("text"),
+      McpProperty::OptionalInteger("advanceSeconds"),
+      McpProperty::OptionalString("advanceText")};
   const std::vector<McpProperty> reminderDeleteProperties = {
       McpProperty::RequiredInteger("id")};
+  const std::vector<McpProperty> reminderSnoozeProperties = {
+      McpProperty::OptionalInteger("id"),
+      McpProperty::OptionalInteger("dueAt"),
+      McpProperty::OptionalInteger("delaySeconds"),
+      McpProperty::OptionalString("localDateTime")};
   const std::vector<McpProperty> scenarioPlayProperties = {
       McpProperty::RequiredString("event")};
   const std::vector<McpProperty> personalityProperties = {
@@ -170,10 +188,18 @@ void McpServer::addTools() {
                     reminderDeleteProperties, remove);
   registry_.addTool("tongdou.reminder.delete", "Delete a reminder by id.",
                     reminderDeleteProperties, remove);
+  registry_.addTool(
+      "snooze_reminder",
+      "Snooze a reminder occurrence while keeping its event's other occurrences.",
+      reminderSnoozeProperties, snooze);
+  registry_.addTool(
+      "tongdou.reminder.snooze",
+      "Snooze a reminder occurrence while keeping its event's other occurrences.",
+      reminderSnoozeProperties, snooze);
 
   voiceRegistry_.addTool(
       "tongdou.reminder.create",
-      "用户要求记住或到点提醒某件事时调用。时间参数必须三选一：相对时间用 delaySeconds，例如五分钟后传 300；明确的本地日历时间用 localDateTime，格式 YYYY-MM-DD HH:MM:SS；只有已经从可信时钟获得绝对时间戳时才用 dueAt。不要自己心算 Unix 时间戳。text 只保留简短提醒内容，只有返回 ok=true 才能确认成功。",
+      "用户要求创建新提醒或新事件时调用。时间参数表示事件正点，必须三选一：相对时间用 delaySeconds，明确本地时间用 localDateTime，只有可信绝对时间戳才用 dueAt。用户说会议、日程在某时开始并要求提前提醒时，必须传 advanceSeconds；text 写正点正文，advanceText 写提前准备正文，设备会同时保留提前和正点两个节点。刚刚播报后用户只说‘几分钟后再提醒我’时禁止调用本工具，必须调用 tongdou.reminder.snooze。只有返回 ok=true 才能确认成功。",
       reminderCreateProperties, create);
   voiceRegistry_.addTool(
       "tongdou.reminder.list",
@@ -181,8 +207,12 @@ void McpServer::addTools() {
       list);
   voiceRegistry_.addTool(
       "tongdou.reminder.delete",
-      "用户明确要求取消或删除已有提醒时调用，id 必须来自提醒列表或当前对话中刚创建成功的提醒。",
+      "用户明确要求取消或删除已有提醒事件时调用。删除任一节点编号会删除同一事件下全部未完成节点，id 必须来自提醒列表或当前对话中刚创建成功的提醒。",
       reminderDeleteProperties, remove);
+  voiceRegistry_.addTool(
+      "tongdou.reminder.snooze",
+      "提醒刚播报完后，用户说‘几分钟后再提醒我’‘稍后再叫我’等延后要求时必须调用。时间参数必须三选一；通常相对时间使用 delaySeconds。提醒回应窗口内不要传 id，设备会使用刚播报的真实提醒上下文；普通对话中只有已经通过列表拿到可靠编号时才传 id。延后只新增同一事件的 snooze 节点，不删除正点提醒。",
+      reminderSnoozeProperties, snooze);
   voiceRegistry_.addTool(
       "tongdou.audio.get_volume",
       "用户询问铜豆当前喇叭音量、静音状态或音量百分比时调用。这个工具不需要参数，会读取设备当前真实音量；不要根据聊天记录猜测，也不要用设置工具空参数代替查询。",
@@ -342,15 +372,15 @@ std::string McpServer::serializeVariant(JsonVariantConst value) const {
   return output;
 }
 
-McpToolResult McpServer::createReminder(const McpToolArguments& arguments) {
-  const String text(arguments.getString("text").c_str());
-  if (text.length() == 0) {
-    return {toolErrorJson("invalid_request", "text is required"), true};
-  }
+bool McpServer::resolveReminderDueAt(const McpToolArguments& arguments,
+                                     uint32_t& dueAt,
+                                     std::string& errorCode,
+                                     std::string& errorMessage) const {
   if (!timeService_.ready()) {
-    return {toolErrorJson("time_not_ready", "device time is not ready"), true};
+    errorCode = "time_not_ready";
+    errorMessage = "device time is not ready";
+    return false;
   }
-
   const bool hasDueAt = arguments.has("dueAt");
   const bool hasDelaySeconds = arguments.has("delaySeconds");
   const bool hasLocalDateTime = arguments.has("localDateTime");
@@ -358,43 +388,65 @@ McpToolResult McpServer::createReminder(const McpToolArguments& arguments) {
                                     static_cast<uint8_t>(hasDelaySeconds) +
                                     static_cast<uint8_t>(hasLocalDateTime);
   if (timeArgumentCount != 1) {
-    return {toolErrorJson(
-                "invalid_time",
-                "provide exactly one of dueAt, delaySeconds, or localDateTime"),
-            true};
+    errorCode = "invalid_time";
+    errorMessage =
+        "provide exactly one of dueAt, delaySeconds, or localDateTime";
+    return false;
   }
 
-  uint32_t dueAt = 0;
+  dueAt = 0;
   if (hasDueAt) {
     const int value = arguments.getInt("dueAt", 0);
     if (value <= 0) {
-      return {toolErrorJson("invalid_due_at", "dueAt is invalid"), true};
+      errorCode = "invalid_due_at";
+      errorMessage = "dueAt is invalid";
+      return false;
     }
     dueAt = static_cast<uint32_t>(value);
   } else if (hasDelaySeconds) {
     const int delaySeconds = arguments.getInt("delaySeconds", 0);
     if (delaySeconds <= 0) {
-      return {toolErrorJson("invalid_delay", "delaySeconds must be positive"),
-              true};
+      errorCode = "invalid_delay";
+      errorMessage = "delaySeconds must be positive";
+      return false;
     }
     const uint64_t calculated =
         static_cast<uint64_t>(timeService_.now()) + delaySeconds;
     if (calculated > UINT32_MAX) {
-      return {toolErrorJson("invalid_delay", "delaySeconds is too large"), true};
+      errorCode = "invalid_delay";
+      errorMessage = "delaySeconds is too large";
+      return false;
     }
     dueAt = static_cast<uint32_t>(calculated);
   } else {
     const String localDateTime(
         arguments.getString("localDateTime").c_str());
     if (!timeService_.parseLocalDateTime(localDateTime, dueAt)) {
-      return {toolErrorJson("invalid_local_time",
-                            "localDateTime must use YYYY-MM-DD HH:MM:SS"),
-              true};
+      errorCode = "invalid_local_time";
+      errorMessage = "localDateTime must use YYYY-MM-DD HH:MM:SS";
+      return false;
     }
   }
 
   if (dueAt <= static_cast<uint32_t>(timeService_.now())) {
-    return {toolErrorJson("invalid_due_at", "dueAt is in the past"), true};
+    errorCode = "invalid_due_at";
+    errorMessage = "dueAt is in the past";
+    return false;
+  }
+  return true;
+}
+
+McpToolResult McpServer::createReminder(const McpToolArguments& arguments) {
+  const String text(arguments.getString("text").c_str());
+  if (text.length() == 0) {
+    return {toolErrorJson("invalid_request", "text is required"), true};
+  }
+
+  uint32_t dueAt = 0;
+  std::string errorCode;
+  std::string errorMessage;
+  if (!resolveReminderDueAt(arguments, dueAt, errorCode, errorMessage)) {
+    return {toolErrorJson(errorCode.c_str(), errorMessage.c_str()), true};
   }
 
   uint8_t displayBitmap[kReminderBitmapSize] = {};
@@ -415,6 +467,71 @@ McpToolResult McpServer::createReminder(const McpToolArguments& arguments) {
     displayBitmapData = displayBitmap;
   }
 
+  const int advanceSeconds = arguments.getInt("advanceSeconds", 0);
+  if (arguments.has("advanceSeconds")) {
+    if (advanceSeconds <= 0 ||
+        static_cast<uint32_t>(advanceSeconds) >= dueAt ||
+        dueAt - static_cast<uint32_t>(advanceSeconds) <=
+            static_cast<uint32_t>(timeService_.now())) {
+      return {toolErrorJson(
+                  "invalid_advance",
+                  "advanceSeconds must place the advance reminder in the future before the event"),
+              true};
+    }
+    if (displayBitmapData == nullptr) {
+      return {toolErrorJson("event_bitmap_required",
+                            "event reminder requires punctual display bitmap"),
+              true};
+    }
+
+    String advanceText(arguments.getString("advanceText").c_str());
+    if (advanceText.length() == 0) {
+      advanceText = text;
+    }
+    uint8_t advanceDisplayBitmap[kReminderBitmapSize] = {};
+    size_t advanceDisplayBitmapLength = 0;
+    const std::string advanceDisplayBitmapBase64 =
+        arguments.getString("advanceDisplayBitmapBase64");
+    const int advanceDecodeResult = mbedtls_base64_decode(
+        advanceDisplayBitmap, sizeof(advanceDisplayBitmap),
+        &advanceDisplayBitmapLength,
+        reinterpret_cast<const unsigned char*>(
+            advanceDisplayBitmapBase64.data()),
+        advanceDisplayBitmapBase64.size());
+    if (advanceDisplayBitmapBase64.empty() || advanceDecodeResult != 0 ||
+        advanceDisplayBitmapLength != kReminderBitmapSize) {
+      return {toolErrorJson(
+                  "invalid_advance_display_bitmap",
+                  "advance display bitmap must be a 128x48 monochrome bitmap"),
+              true};
+    }
+
+    ReminderRecord punctualCreated;
+    ReminderRecord advanceCreated;
+    const uint32_t advanceAt =
+        dueAt - static_cast<uint32_t>(advanceSeconds);
+    if (!reminderStore_.addEvent(
+            dueAt, text, displayBitmapData, displayBitmapLength, advanceAt,
+            advanceText, advanceDisplayBitmap, advanceDisplayBitmapLength,
+            &punctualCreated, &advanceCreated)) {
+      return {toolErrorJson("storage_full",
+                            "two reminder slots are required for this event"),
+              true};
+    }
+
+    JsonDocument doc;
+    doc["ok"] = true;
+    doc["eventId"] = punctualCreated.eventId;
+    doc["type"] = "event";
+    doc["punctual"]["id"] = punctualCreated.id;
+    doc["punctual"]["dueAt"] = punctualCreated.dueAt;
+    doc["punctual"]["text"] = punctualCreated.text;
+    doc["advance"]["id"] = advanceCreated.id;
+    doc["advance"]["dueAt"] = advanceCreated.dueAt;
+    doc["advance"]["text"] = advanceCreated.text;
+    return {serializeDoc(doc), false};
+  }
+
   ReminderRecord created;
   if (!reminderStore_.add(dueAt, text, displayBitmapData,
                           displayBitmapLength, &created)) {
@@ -424,14 +541,58 @@ McpToolResult McpServer::createReminder(const McpToolArguments& arguments) {
   JsonDocument doc;
   doc["ok"] = true;
   doc["id"] = created.id;
+  doc["eventId"] = created.eventId;
+  doc["kind"] = reminderOccurrenceKindName(created.kind);
   doc["dueAt"] = created.dueAt;
   doc["text"] = created.text;
   doc["displayBitmap"] = created.hasDisplayBitmap();
   return {serializeDoc(doc), false};
 }
 
+McpToolResult McpServer::snoozeReminder(
+    const McpToolArguments& arguments) {
+  uint32_t dueAt = 0;
+  std::string errorCode;
+  std::string errorMessage;
+  if (!resolveReminderDueAt(arguments, dueAt, errorCode, errorMessage)) {
+    return {toolErrorJson(errorCode.c_str(), errorMessage.c_str()), true};
+  }
+
+  const int requestedId = arguments.getInt("id", 0);
+  const uint32_t sourceId = requestedId > 0
+                                ? static_cast<uint32_t>(requestedId)
+                                : reminderResponseContextId_;
+  if (sourceId == 0) {
+    return {toolErrorJson(
+                "reminder_context_missing",
+                "no recent reminder context; provide a reminder id"),
+            true};
+  }
+
+  ReminderRecord created;
+  if (!reminderStore_.snooze(sourceId, dueAt, &created)) {
+    return {toolErrorJson("reminder_snooze_failed",
+                          "source reminder was not found or storage is full"),
+            true};
+  }
+  reminderResponseContextId_ = created.id;
+
+  JsonDocument doc;
+  doc["ok"] = true;
+  doc["id"] = created.id;
+  doc["eventId"] = created.eventId;
+  doc["kind"] = reminderOccurrenceKindName(created.kind);
+  doc["dueAt"] = created.dueAt;
+  doc["text"] = created.text;
+  doc["existingEventNodesPreserved"] = true;
+  return {serializeDoc(doc), false};
+}
+
 McpToolResult McpServer::deleteReminder(const McpToolArguments& arguments) {
   const uint32_t id = static_cast<uint32_t>(arguments.getInt("id", 0));
+  const ReminderRecord* target = reminderStore_.find(id);
+  const uint32_t eventId =
+      target == nullptr ? 0 : (target->eventId == 0 ? target->id : target->eventId);
   if (id == 0 || !reminderStore_.remove(id)) {
     return {toolErrorJson("reminder_not_found", "reminder not found"), true};
   }
@@ -439,6 +600,8 @@ McpToolResult McpServer::deleteReminder(const McpToolArguments& arguments) {
   JsonDocument doc;
   doc["ok"] = true;
   doc["id"] = id;
+  doc["eventId"] = eventId;
+  doc["scope"] = "event";
   return {serializeDoc(doc), false};
 }
 
@@ -570,12 +733,14 @@ std::string McpServer::remindersJson() const {
   const ReminderRecord* records = reminderStore_.records();
   for (uint8_t i = 0; i < reminderStore_.capacity(); ++i) {
     const ReminderRecord& record = records[i];
-    if (!record.active) {
+    if (!record.active || record.completed) {
       continue;
     }
 
     JsonObject item = array.add<JsonObject>();
     item["id"] = record.id;
+    item["eventId"] = record.eventId;
+    item["kind"] = reminderOccurrenceKindName(record.kind);
     item["dueAt"] = record.dueAt;
     item["completed"] = record.completed;
     item["displayBitmap"] = record.hasDisplayBitmap();
@@ -589,7 +754,7 @@ std::string McpServer::statusJson() const {
   uint8_t activeReminders = 0;
   const ReminderRecord* records = reminderStore_.records();
   for (uint8_t i = 0; i < reminderStore_.capacity(); ++i) {
-    if (records[i].active) {
+    if (records[i].active && !records[i].completed) {
       ++activeReminders;
     }
   }

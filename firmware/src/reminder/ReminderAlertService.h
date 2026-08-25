@@ -9,6 +9,11 @@
 
 namespace tongdou {
 
+struct ReminderAlertCompletion {
+  uint32_t reminderId = 0;
+  bool online = false;
+};
+
 class ReminderAlertService {
  public:
   ReminderAlertService(FaceDisplay& faceDisplay, AudioCuePlayer& audioCuePlayer,
@@ -19,6 +24,7 @@ class ReminderAlertService {
   bool start(const ReminderRecord& reminder, const String& locale);
   bool canStart() const;
   bool blocksVoiceInteraction() const;
+  bool consumeCompletedEvent(ReminderAlertCompletion& completion);
   void dismissDisplayedReminder();
 
  private:
@@ -31,6 +37,7 @@ class ReminderAlertService {
 
   void showReminderBitmap();
   void playOfflineFallback(const String& reason);
+  void complete(bool online);
 
   static constexpr unsigned long kBackendWaitMs = 2500;
 
@@ -41,6 +48,8 @@ class ReminderAlertService {
   String locale_;
   Phase phase_ = Phase::Idle;
   bool displayActive_ = false;
+  bool completionPending_ = false;
+  bool completionOnline_ = false;
   uint32_t displayRevision_ = 0;
   unsigned long backendDeadlineMs_ = 0;
 };

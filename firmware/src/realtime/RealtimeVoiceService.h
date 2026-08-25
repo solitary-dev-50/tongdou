@@ -100,11 +100,13 @@ class RealtimeVoiceService {
   bool startTurn(uint16_t captureMs = 2500);
   bool startAutoTurn();
   bool startConversationTurn();
+  bool startReminderResponseTurn();
   bool playResponse(uint16_t clipId, const String& text);
   void failTurn(const String& code, const String& message);
   bool consumeFailureEvent();
   bool consumeTurnCompletedEvent();
   bool consumeConversationTimeoutEvent();
+  bool consumeReminderResponseTimeoutEvent();
   bool consumeConversationEndedEvent();
   bool consumeReminderCompletedEvent();
   bool consumeReminderFailureEvent();
@@ -116,6 +118,7 @@ class RealtimeVoiceService {
   enum class TurnKind : uint8_t {
     Regular,
     ConversationFollowUp,
+    ReminderResponse,
     ReminderAnnouncement,
   };
 
@@ -162,6 +165,7 @@ class RealtimeVoiceService {
   bool failurePending_ = false;
   bool turnCompletedPending_ = false;
   bool conversationTimeoutPending_ = false;
+  bool reminderResponseTimeoutPending_ = false;
   bool conversationEndedPending_ = false;
   bool reminderCompletedPending_ = false;
   bool reminderFailurePending_ = false;

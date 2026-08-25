@@ -11,6 +11,7 @@ class ReminderManager {
 
   void begin();
   bool update(ReminderRecord& dueReminder);
+  bool markDelivered(uint32_t reminderId);
 
  private:
   TimeService& timeService_;

@@ -973,7 +973,7 @@ String WebConfigServer::remindersJson() const {
   bool first = true;
   for (uint8_t i = 0; i < reminderStore_.capacity(); ++i) {
     const ReminderRecord& record = records[i];
-    if (!record.active) {
+    if (!record.active || record.completed) {
       continue;
     }
 
@@ -983,6 +983,11 @@ String WebConfigServer::remindersJson() const {
     first = false;
     body += "{\"id\":";
     body += record.id;
+    body += ",\"eventId\":";
+    body += record.eventId;
+    body += ",\"kind\":\"";
+    body += reminderOccurrenceKindName(record.kind);
+    body += "\"";
     body += ",\"dueAt\":";
     body += record.dueAt;
     body += ",\"completed\":";

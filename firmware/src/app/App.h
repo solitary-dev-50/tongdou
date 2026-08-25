@@ -35,12 +35,14 @@ class App {
 
  private:
   void handleReminderEvents();
+  void handleReminderAlertCompletion();
   void handleLogoTouchEvents();
   void handleLocalWakeWordEvents();
   void updateWakeWordArming();
   void handleConversationWindow();
   void startLogoVoiceTurn();
   void startConversationVoiceTurn();
+  void startReminderResponseVoiceTurn();
   void startVoiceTurnFromInteraction(const __FlashStringHelper* source);
   void requestConversationExitFromInteraction(
       const __FlashStringHelper* source);
@@ -99,7 +101,15 @@ class App {
   uint8_t startupReportCount_ = 0;
   bool voiceConversationActive_ = false;
   bool conversationFollowUpPending_ = false;
+  bool reminderResponseStartPending_ = false;
+  bool reminderInterruptedConversation_ = false;
+  bool reminderCompletionOnline_ = false;
+  bool reminderCompletionCommitFailureLogged_ = false;
+  uint32_t reminderCompletionCommitPendingId_ = 0;
+  uint32_t reminderResponseId_ = 0;
   unsigned long conversationFollowUpAtMs_ = 0;
+  unsigned long reminderResponseStartAtMs_ = 0;
+  unsigned long reminderCompletionCommitRetryAtMs_ = 0;
   unsigned long nextLocaleResourceEndpointSyncMs_ = 0;
   unsigned long nextLocaleResourceRepairMs_ = 0;
 };

@@ -21,6 +21,16 @@ constexpr uint32_t kBitmapMagic = 0x54445242;
 
 struct ReminderMetadata {
   uint32_t id = 0;
+  uint32_t eventId = 0;
+  uint32_t dueAt = 0;
+  ReminderOccurrenceKind kind = ReminderOccurrenceKind::OneShot;
+  bool active = false;
+  bool completed = false;
+  char text[kReminderTextLength] = {};
+};
+
+struct LegacyReminderMetadata {
+  uint32_t id = 0;
   uint32_t dueAt = 0;
   bool active = false;
   bool completed = false;
@@ -34,9 +44,11 @@ struct ReminderBitmapEntry {
   uint8_t bitmap[kReminderBitmapSize] = {};
 };
 
-static_assert(sizeof(ReminderMetadata) == 108,
+static_assert(sizeof(LegacyReminderMetadata) == 108,
+              "legacy reminder metadata schema changed");
+static_assert(sizeof(ReminderMetadata) == 112,
               "reminder metadata schema changed");
-static_assert(sizeof(ReminderRecord) == 876,
+static_assert(sizeof(ReminderRecord) == 884,
               "runtime reminder schema changed unexpectedly");
 static_assert(sizeof(ReminderBitmapEntry) == 780,
               "reminder bitmap entry schema changed");
@@ -63,6 +75,20 @@ size_t bitmapEntryOffsetInSector(uint8_t slot) {
 }
 
 }  // namespace
+
+const char* reminderOccurrenceKindName(ReminderOccurrenceKind kind) {
+  switch (kind) {
+    case ReminderOccurrenceKind::Advance:
+      return "advance";
+    case ReminderOccurrenceKind::Snooze:
+      return "snooze";
+    case ReminderOccurrenceKind::Punctual:
+      return "punctual";
+    case ReminderOccurrenceKind::OneShot:
+    default:
+      return "one_shot";
+  }
+}
 
 void ReminderStore::begin() {
   if (records_ == nullptr) {
@@ -127,14 +153,9 @@ bool ReminderStore::add(uint32_t dueAt, const String& text,
   ReminderRecord& record = records_[slot];
   const ReminderRecord previous = record;
   const uint32_t previousNextId = nextId_;
-  record = {};
-  record.id = nextId_++;
-  if (nextId_ == 0) {
-    nextId_ = 1;
-  }
-  record.dueAt = dueAt;
-  record.active = true;
-  copyText(record, text);
+  const uint32_t id = takeNextId();
+  initializeRecord(record, id, id, dueAt, ReminderOccurrenceKind::OneShot,
+                   text);
 
   if (displayBitmap != nullptr) {
     if (!saveDisplayBitmap(static_cast<uint8_t>(slot), record.id,
@@ -146,6 +167,117 @@ bool ReminderStore::add(uint32_t dueAt, const String& text,
     memcpy(record.displayBitmap, displayBitmap, kReminderBitmapSize);
     record.displayBitmapLength = kReminderBitmapSize;
   }
+  if (!saveMetadata()) {
+    record = previous;
+    nextId_ = previousNextId;
+    return false;
+  }
+
+  if (created != nullptr) {
+    *created = record;
+  }
+  return true;
+}
+
+bool ReminderStore::addEvent(
+    uint32_t eventAt, const String& punctualText,
+    const uint8_t* punctualDisplayBitmap,
+    size_t punctualDisplayBitmapLength, uint32_t advanceAt,
+    const String& advanceText, const uint8_t* advanceDisplayBitmap,
+    size_t advanceDisplayBitmapLength, ReminderRecord* punctualCreated,
+    ReminderRecord* advanceCreated) {
+  if (records_ == nullptr || eventAt == 0 || advanceAt == 0 ||
+      advanceAt >= eventAt || punctualText.length() == 0 ||
+      advanceText.length() == 0 || punctualDisplayBitmap == nullptr ||
+      advanceDisplayBitmap == nullptr ||
+      punctualDisplayBitmapLength != kReminderBitmapSize ||
+      advanceDisplayBitmapLength != kReminderBitmapSize ||
+      bitmapPartition_ == nullptr) {
+    return false;
+  }
+
+  uint8_t slots[2] = {};
+  if (!findReusableSlots(slots, 2)) {
+    return false;
+  }
+
+  ReminderRecord& punctual = records_[slots[0]];
+  ReminderRecord& advance = records_[slots[1]];
+  const ReminderRecord previousPunctual = punctual;
+  const ReminderRecord previousAdvance = advance;
+  const uint32_t previousNextId = nextId_;
+
+  const uint32_t eventId = takeNextId();
+  initializeRecord(punctual, eventId, eventId, eventAt,
+                   ReminderOccurrenceKind::Punctual, punctualText);
+  const uint32_t advanceId = takeNextId();
+  initializeRecord(advance, advanceId, eventId, advanceAt,
+                   ReminderOccurrenceKind::Advance, advanceText);
+
+  if (!saveDisplayBitmap(slots[0], punctual.id, punctualDisplayBitmap) ||
+      !saveDisplayBitmap(slots[1], advance.id, advanceDisplayBitmap)) {
+    punctual = previousPunctual;
+    advance = previousAdvance;
+    nextId_ = previousNextId;
+    return false;
+  }
+  memcpy(punctual.displayBitmap, punctualDisplayBitmap, kReminderBitmapSize);
+  punctual.displayBitmapLength = kReminderBitmapSize;
+  memcpy(advance.displayBitmap, advanceDisplayBitmap, kReminderBitmapSize);
+  advance.displayBitmapLength = kReminderBitmapSize;
+
+  if (!saveMetadata()) {
+    punctual = previousPunctual;
+    advance = previousAdvance;
+    nextId_ = previousNextId;
+    return false;
+  }
+
+  if (punctualCreated != nullptr) {
+    *punctualCreated = punctual;
+  }
+  if (advanceCreated != nullptr) {
+    *advanceCreated = advance;
+  }
+  return true;
+}
+
+bool ReminderStore::snooze(uint32_t sourceReminderId, uint32_t dueAt,
+                           ReminderRecord* created) {
+  if (records_ == nullptr || sourceReminderId == 0 || dueAt == 0) {
+    return false;
+  }
+
+  const ReminderRecord* sourceRecord = find(sourceReminderId);
+  if (sourceRecord == nullptr) {
+    return false;
+  }
+  const ReminderRecord source = *sourceRecord;
+  const int slot = findReusableSlot();
+  if (slot < 0) {
+    return false;
+  }
+
+  ReminderRecord& record = records_[slot];
+  const ReminderRecord previous = record;
+  const uint32_t previousNextId = nextId_;
+  const uint32_t id = takeNextId();
+  initializeRecord(record, id,
+                   source.eventId == 0 ? source.id : source.eventId, dueAt,
+                   ReminderOccurrenceKind::Snooze, String(source.text));
+
+  if (source.hasDisplayBitmap()) {
+    if (bitmapPartition_ == nullptr ||
+        !saveDisplayBitmap(static_cast<uint8_t>(slot), record.id,
+                           source.displayBitmap)) {
+      record = previous;
+      nextId_ = previousNextId;
+      return false;
+    }
+    memcpy(record.displayBitmap, source.displayBitmap, kReminderBitmapSize);
+    record.displayBitmapLength = kReminderBitmapSize;
+  }
+
   if (!saveMetadata()) {
     record = previous;
     nextId_ = previousNextId;
@@ -178,13 +310,34 @@ bool ReminderStore::remove(uint32_t id) {
     return false;
   }
 
-  const ReminderRecord previous = *record;
-  *record = {};
-  if (saveMetadata()) {
-    return true;
+  const uint32_t eventId = record->eventId == 0 ? record->id : record->eventId;
+  bool previousActive[kMaxReminders] = {};
+  bool found = false;
+  for (uint8_t index = 0; index < kMaxReminders; ++index) {
+    ReminderRecord& candidate = records_[index];
+    previousActive[index] = candidate.active;
+    const uint32_t candidateEventId =
+        candidate.eventId == 0 ? candidate.id : candidate.eventId;
+    if (candidate.active && candidateEventId == eventId) {
+      candidate.active = false;
+      found = true;
+    }
   }
-  *record = previous;
-  return false;
+  if (!found) {
+    return false;
+  }
+  if (!saveMetadata()) {
+    for (uint8_t index = 0; index < kMaxReminders; ++index) {
+      records_[index].active = previousActive[index];
+    }
+    return false;
+  }
+  for (uint8_t index = 0; index < kMaxReminders; ++index) {
+    if (!records_[index].active && previousActive[index]) {
+      records_[index] = {};
+    }
+  }
+  return true;
 }
 
 void ReminderStore::load() {
@@ -200,24 +353,59 @@ void ReminderStore::load() {
     nextId_ = 1;
   }
 
-  ReminderMetadata metadata[kMaxReminders] = {};
-  if (preferences_.getBytesLength(kRecordsKey) != sizeof(metadata) ||
-      preferences_.getBytes(kRecordsKey, metadata, sizeof(metadata)) !=
-          sizeof(metadata)) {
+  const size_t storedLength = preferences_.getBytesLength(kRecordsKey);
+  bool migratedLegacyRecords = false;
+  if (storedLength == sizeof(ReminderMetadata) * kMaxReminders) {
+    ReminderMetadata metadata[kMaxReminders] = {};
+    if (preferences_.getBytes(kRecordsKey, metadata, sizeof(metadata)) !=
+        sizeof(metadata)) {
+      return;
+    }
+    for (uint8_t index = 0; index < kMaxReminders; ++index) {
+      ReminderRecord& record = records_[index];
+      record.id = metadata[index].id;
+      record.eventId = metadata[index].eventId == 0
+                           ? metadata[index].id
+                           : metadata[index].eventId;
+      record.dueAt = metadata[index].dueAt;
+      record.kind = metadata[index].kind <= ReminderOccurrenceKind::Punctual
+                        ? metadata[index].kind
+                        : ReminderOccurrenceKind::OneShot;
+      record.active = metadata[index].active;
+      record.completed = metadata[index].completed;
+      memcpy(record.text, metadata[index].text, sizeof(record.text));
+    }
+  } else if (storedLength ==
+             sizeof(LegacyReminderMetadata) * kMaxReminders) {
+    LegacyReminderMetadata metadata[kMaxReminders] = {};
+    if (preferences_.getBytes(kRecordsKey, metadata, sizeof(metadata)) !=
+        sizeof(metadata)) {
+      return;
+    }
+    for (uint8_t index = 0; index < kMaxReminders; ++index) {
+      ReminderRecord& record = records_[index];
+      record.id = metadata[index].id;
+      record.eventId = metadata[index].id;
+      record.dueAt = metadata[index].dueAt;
+      record.kind = ReminderOccurrenceKind::OneShot;
+      record.active = metadata[index].active;
+      record.completed = metadata[index].completed;
+      memcpy(record.text, metadata[index].text, sizeof(record.text));
+    }
+    migratedLegacyRecords = true;
+  } else {
     return;
   }
 
   for (uint8_t index = 0; index < kMaxReminders; ++index) {
     ReminderRecord& record = records_[index];
-    record.id = metadata[index].id;
-    record.dueAt = metadata[index].dueAt;
-    record.active = metadata[index].active;
-    record.completed = metadata[index].completed;
-    memcpy(record.text, metadata[index].text, sizeof(record.text));
     if (record.active && loadDisplayBitmap(index, record)) {
       Serial.print(F("reminder bitmap loaded id="));
       Serial.println(record.id);
     }
+  }
+  if (migratedLegacyRecords && saveMetadata()) {
+    Serial.println(F("reminder store legacy metadata migrated"));
   }
 }
 
@@ -229,7 +417,9 @@ bool ReminderStore::saveMetadata() {
   ReminderMetadata metadata[kMaxReminders] = {};
   for (uint8_t index = 0; index < kMaxReminders; ++index) {
     metadata[index].id = records_[index].id;
+    metadata[index].eventId = records_[index].eventId;
     metadata[index].dueAt = records_[index].dueAt;
+    metadata[index].kind = records_[index].kind;
     metadata[index].active = records_[index].active;
     metadata[index].completed = records_[index].completed;
     memcpy(metadata[index].text, records_[index].text,
@@ -314,6 +504,68 @@ int ReminderStore::findReusableSlot() const {
     }
   }
   return -1;
+}
+
+bool ReminderStore::findReusableSlots(uint8_t* slots, uint8_t count) const {
+  if (records_ == nullptr || slots == nullptr || count == 0 ||
+      count > kMaxReminders) {
+    return false;
+  }
+
+  uint8_t found = 0;
+  for (uint8_t pass = 0; pass < 2 && found < count; ++pass) {
+    for (uint8_t index = 0; index < kMaxReminders && found < count; ++index) {
+      const bool reusable =
+          pass == 0 ? !records_[index].active : records_[index].completed;
+      if (!reusable) {
+        continue;
+      }
+      bool duplicate = false;
+      for (uint8_t selected = 0; selected < found; ++selected) {
+        if (slots[selected] == index) {
+          duplicate = true;
+          break;
+        }
+      }
+      if (!duplicate) {
+        slots[found++] = index;
+      }
+    }
+  }
+  return found == count;
+}
+
+uint32_t ReminderStore::takeNextId() {
+  const uint32_t id = nextId_++;
+  if (nextId_ == 0) {
+    nextId_ = 1;
+  }
+  return id == 0 ? takeNextId() : id;
+}
+
+void ReminderStore::initializeRecord(ReminderRecord& record, uint32_t id,
+                                     uint32_t eventId, uint32_t dueAt,
+                                     ReminderOccurrenceKind kind,
+                                     const String& text) {
+  record = {};
+  record.id = id;
+  record.eventId = eventId;
+  record.dueAt = dueAt;
+  record.kind = kind;
+  record.active = true;
+  copyText(record, text);
+}
+
+const ReminderRecord* ReminderStore::find(uint32_t id) const {
+  if (records_ == nullptr) {
+    return nullptr;
+  }
+  for (uint8_t index = 0; index < kMaxReminders; ++index) {
+    if (records_[index].active && records_[index].id == id) {
+      return &records_[index];
+    }
+  }
+  return nullptr;
 }
 
 ReminderRecord* ReminderStore::findById(uint32_t id) {

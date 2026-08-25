@@ -14,24 +14,41 @@ bool ReminderManager::update(ReminderRecord& dueReminder) {
 
   const uint32_t now = static_cast<uint32_t>(timeService_.now());
   const ReminderRecord* records = store_.records();
+  const ReminderRecord* nextDue = nullptr;
   for (uint8_t i = 0; i < store_.capacity(); ++i) {
     const ReminderRecord& record = records[i];
     if (!record.active || record.completed || record.dueAt > now) {
       continue;
     }
-
-    dueReminder = record;
-    if (!store_.markCompleted(record.id)) {
-      return false;
+    if (nextDue == nullptr || record.dueAt < nextDue->dueAt ||
+        (record.dueAt == nextDue->dueAt && record.id < nextDue->id)) {
+      nextDue = &record;
     }
-    Serial.print("reminder due id=");
-    Serial.print(record.id);
-    Serial.print(" text=");
-    Serial.println(record.text);
-    return true;
   }
 
-  return false;
+  if (nextDue == nullptr) {
+    return false;
+  }
+
+  dueReminder = *nextDue;
+  Serial.print(F("reminder due selected id="));
+  Serial.print(nextDue->id);
+  Serial.print(F(" event="));
+  Serial.print(nextDue->eventId);
+  Serial.print(F(" kind="));
+  Serial.print(reminderOccurrenceKindName(nextDue->kind));
+  Serial.print(F(" text="));
+  Serial.println(nextDue->text);
+  return true;
+}
+
+bool ReminderManager::markDelivered(uint32_t reminderId) {
+  if (!store_.markCompleted(reminderId)) {
+    return false;
+  }
+  Serial.print(F("reminder delivered id="));
+  Serial.println(reminderId);
+  return true;
 }
 
 }  // namespace tongdou
