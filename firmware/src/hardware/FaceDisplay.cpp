@@ -51,6 +51,7 @@ void FaceDisplay::show(FaceExpression expression) {
   clear();
   drawExpression(expression);
   flush();
+  ++revision_;
 }
 
 void FaceDisplay::showActivationCode(const String& code) {
@@ -74,10 +75,28 @@ void FaceDisplay::showActivationCode(const String& code) {
   }
 
   flush();
+  ++revision_;
+}
+
+bool FaceDisplay::showBitmap128x48(const uint8_t* bitmap, size_t length) {
+  constexpr size_t kBitmapSize = (kWidth * 48) / 8;
+  if (!available_ || bitmap == nullptr || length != kBitmapSize) {
+    return false;
+  }
+
+  clear();
+  memcpy(buffer_ + kWidth, bitmap, kBitmapSize);
+  flush();
+  ++revision_;
+  return true;
 }
 
 bool FaceDisplay::ready() const {
   return available_;
+}
+
+uint32_t FaceDisplay::revision() const {
+  return revision_;
 }
 
 void FaceDisplay::command(uint8_t value) {

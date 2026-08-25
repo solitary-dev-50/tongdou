@@ -80,6 +80,8 @@ class RealtimeVoiceService {
   bool connectBackend();
   bool sendDetectText(const String& text);
   bool startWakeGreeting(const String& text);
+  bool requestReminderAnnouncement(uint32_t reminderId, const String& text,
+                                   const String& locale);
   bool abortBackendSpeech();
   bool requestConversationExit();
   bool startTurn(uint16_t captureMs = 2500);
@@ -91,6 +93,8 @@ class RealtimeVoiceService {
   bool consumeTurnCompletedEvent();
   bool consumeConversationTimeoutEvent();
   bool consumeConversationEndedEvent();
+  bool consumeReminderCompletedEvent();
+  bool consumeReminderFailureEvent();
   TongDouVoiceAudioCodecSelfTestResult runCodecSelfTest();
   RealtimeVoiceSnapshot snapshot() const;
   const char* stateName() const;
@@ -99,6 +103,7 @@ class RealtimeVoiceService {
   enum class TurnKind : uint8_t {
     Regular,
     ConversationFollowUp,
+    ReminderAnnouncement,
   };
 
   static constexpr size_t kCapturedPcmFrameSamples =
@@ -111,8 +116,10 @@ class RealtimeVoiceService {
   void finishCapture();
   void completeAutoCaptureWhenBackendResponds();
   void updateBackendTurnCompletion();
+  void updateReminderAnnouncement();
   void updateConversationExit();
   void updateBackendConnectionFailure();
+  void failReminderAnnouncement(const String& code, const String& message);
   void logFirstPcmFrame(const int16_t* samples, size_t sampleCount,
                         unsigned long nowMs);
 
@@ -142,6 +149,11 @@ class RealtimeVoiceService {
   bool turnCompletedPending_ = false;
   bool conversationTimeoutPending_ = false;
   bool conversationEndedPending_ = false;
+  bool reminderCompletedPending_ = false;
+  bool reminderFailurePending_ = false;
+  bool reminderTtsStarted_ = false;
+  uint32_t reminderId_ = 0;
+  unsigned long reminderStartedMs_ = 0;
   bool goodbyeLatched_ = false;
   bool exitSoftwareDrainLogged_ = false;
   bool backendWasConnected_ = false;

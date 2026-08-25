@@ -1,6 +1,7 @@
 #include "web/WebConfigServer.h"
 
 #include <WiFi.h>
+#include <mbedtls/base64.h>
 
 namespace tongdou {
 namespace {
@@ -611,8 +612,26 @@ void WebConfigServer::handleReminderCreate() {
     return;
   }
 
+  uint8_t displayBitmap[kReminderBitmapSize] = {};
+  String displayBitmapBase64 = server_.arg("displayBitmapBase64");
+  displayBitmapBase64.trim();
+  const uint8_t* displayBitmapData = nullptr;
+  size_t displayBitmapLength = 0;
+  if (displayBitmapBase64.length() > 0) {
+    const int decodeResult = mbedtls_base64_decode(
+        displayBitmap, sizeof(displayBitmap), &displayBitmapLength,
+        reinterpret_cast<const unsigned char*>(displayBitmapBase64.c_str()),
+        displayBitmapBase64.length());
+    if (decodeResult != 0 || displayBitmapLength != kReminderBitmapSize) {
+      sendText(400, "text/plain; charset=utf-8", "invalid display bitmap");
+      return;
+    }
+    displayBitmapData = displayBitmap;
+  }
+
   ReminderRecord created;
-  if (!reminderStore_.add(dueAt, text, &created)) {
+  if (!reminderStore_.add(dueAt, text, displayBitmapData,
+                          displayBitmapLength, &created)) {
     sendText(507, "text/plain; charset=utf-8", "reminder storage is full");
     return;
   }
@@ -623,6 +642,8 @@ void WebConfigServer::handleReminderCreate() {
   body += created.id;
   body += ",\"dueAt\":";
   body += created.dueAt;
+  body += ",\"displayBitmap\":";
+  body += created.hasDisplayBitmap() ? "true" : "false";
   body += "}";
   sendText(200, "application/json", body);
 }
@@ -966,6 +987,8 @@ String WebConfigServer::remindersJson() const {
     body += record.dueAt;
     body += ",\"completed\":";
     body += record.completed ? "true" : "false";
+    body += ",\"displayBitmap\":";
+    body += record.hasDisplayBitmap() ? "true" : "false";
     body += ",\"text\":\"";
     body += jsonEscape(String(record.text));
     body += "\"}";

@@ -11,6 +11,7 @@ constexpr uint16_t kMinCaptureMs = 200;
 constexpr uint16_t kMaxCaptureMs = 8000;
 constexpr unsigned long kFrameIntervalMs = 5;
 constexpr unsigned long kAwaitingResponseTimeoutMs = 12000;
+constexpr unsigned long kReminderResponseTimeoutMs = 15000;
 constexpr uint16_t kDefaultResponseClipId = 200;
 
 uint16_t clampCaptureMs(uint16_t captureMs) {
@@ -48,6 +49,7 @@ void RealtimeVoiceService::update() {
   snapshot_.audioInputReady = audioPipeline_.ready();
   snapshot_.audioOutputReady = audioOutput_.ready();
   completeAutoCaptureWhenBackendResponds();
+  updateReminderAnnouncement();
   updateBackendTurnCompletion();
   updateConversationExit();
 
@@ -152,6 +154,46 @@ bool RealtimeVoiceService::startWakeGreeting(const String& text) {
   snapshot_.lastErrorMessage = "";
   Serial.print(F("voice wake detect sent text="));
   Serial.println(text);
+  return true;
+}
+
+bool RealtimeVoiceService::requestReminderAnnouncement(
+    uint32_t reminderId, const String& text, const String& locale) {
+  if (reminderId == 0 || text.length() == 0 || locale.length() == 0 ||
+      snapshot_.state != RealtimeVoiceState::Idle || !backendStarted_ ||
+      !voiceClient_.ready() || !audioOutput_.streamDrained()) {
+    snapshot_.lastErrorCode = "reminder_backend_not_ready";
+    snapshot_.lastErrorMessage =
+        "voice backend is not ready for reminder announcement";
+    return false;
+  }
+
+  const TongDouVoiceClientSnapshot backend = voiceClient_.snapshot();
+  backendDownlinkPacketsAtTurnStart_ = backend.downlinkPacketsPlayed;
+  backendBinaryPacketsAtTurnStart_ = backend.binaryPacketsReceived;
+  reminderId_ = reminderId;
+  reminderStartedMs_ = millis();
+  reminderTtsStarted_ = false;
+  reminderCompletedPending_ = false;
+  reminderFailurePending_ = false;
+  currentTurnKind_ = TurnKind::ReminderAnnouncement;
+
+  if (!voiceClient_.sendReminderAnnouncement(reminderId, text, locale)) {
+    currentTurnKind_ = TurnKind::Regular;
+    snapshot_.lastErrorCode = "reminder_request_send_failed";
+    snapshot_.lastErrorMessage = "failed to send reminder announcement request";
+    return false;
+  }
+
+  ++snapshot_.turnId;
+  snapshot_.state = RealtimeVoiceState::AwaitingResponse;
+  snapshot_.lastTurnOk = false;
+  snapshot_.lastErrorCode = "";
+  snapshot_.lastErrorMessage = "";
+  Serial.print(F("voice reminder request sent id="));
+  Serial.print(reminderId);
+  Serial.print(F(" locale="));
+  Serial.println(locale);
   return true;
 }
 
@@ -302,6 +344,10 @@ bool RealtimeVoiceService::playResponse(uint16_t clipId, const String& text) {
 }
 
 void RealtimeVoiceService::failTurn(const String& code, const String& message) {
+  if (currentTurnKind_ == TurnKind::ReminderAnnouncement) {
+    failReminderAnnouncement(code, message);
+    return;
+  }
   audioPipeline_.stopUpload();
   snapshot_.state = RealtimeVoiceState::Failed;
   snapshot_.lastTurnOk = false;
@@ -343,6 +389,22 @@ bool RealtimeVoiceService::consumeConversationEndedEvent() {
   }
 
   conversationEndedPending_ = false;
+  return true;
+}
+
+bool RealtimeVoiceService::consumeReminderCompletedEvent() {
+  if (!reminderCompletedPending_) {
+    return false;
+  }
+  reminderCompletedPending_ = false;
+  return true;
+}
+
+bool RealtimeVoiceService::consumeReminderFailureEvent() {
+  if (!reminderFailurePending_) {
+    return false;
+  }
+  reminderFailurePending_ = false;
   return true;
 }
 
@@ -590,7 +652,8 @@ void RealtimeVoiceService::completeAutoCaptureWhenBackendResponds() {
 }
 
 void RealtimeVoiceService::updateBackendTurnCompletion() {
-  if (!backendStarted_ || snapshot_.state != RealtimeVoiceState::AwaitingResponse) {
+  if (!backendStarted_ || snapshot_.state != RealtimeVoiceState::AwaitingResponse ||
+      currentTurnKind_ == TurnKind::ReminderAnnouncement) {
     return;
   }
 
@@ -624,6 +687,77 @@ void RealtimeVoiceService::updateBackendTurnCompletion() {
   snapshot_.lastErrorMessage = "";
   turnCompletedPending_ = true;
   currentTurnKind_ = TurnKind::Regular;
+}
+
+void RealtimeVoiceService::updateReminderAnnouncement() {
+  if (!backendStarted_ || currentTurnKind_ != TurnKind::ReminderAnnouncement ||
+      snapshot_.state != RealtimeVoiceState::AwaitingResponse) {
+    return;
+  }
+
+  const TongDouVoiceClientSnapshot backend = voiceClient_.snapshot();
+  if (backend.reminderId == reminderId_ &&
+      backend.reminderState == TongDouVoiceReminderState::Failed) {
+    failReminderAnnouncement(
+        backend.reminderReason.length() > 0 ? backend.reminderReason
+                                            : String("reminder_backend_failed"),
+        "voice backend rejected reminder announcement");
+    return;
+  }
+
+  if (!backend.ttsStopped) {
+    reminderTtsStarted_ = true;
+  }
+  const bool receivedAudio =
+      backend.binaryPacketsReceived > backendBinaryPacketsAtTurnStart_ &&
+      backend.downlinkPacketsPlayed > backendDownlinkPacketsAtTurnStart_;
+  if (reminderTtsStarted_ && backend.ttsStopped && !receivedAudio) {
+    failReminderAnnouncement("reminder_audio_empty",
+                             "voice backend returned no reminder audio");
+    return;
+  }
+
+  if (static_cast<long>(millis() - reminderStartedMs_) >=
+      static_cast<long>(kReminderResponseTimeoutMs)) {
+    failReminderAnnouncement("reminder_response_timeout",
+                             "voice backend reminder response timed out");
+    return;
+  }
+
+  if (!receivedAudio || voiceClient_.state() != TongDouVoiceClientState::Ready ||
+      !backend.ttsStopped || !voiceClient_.downlinkDrained() ||
+      !audioOutput_.streamDrained()) {
+    return;
+  }
+
+  snapshot_.state = RealtimeVoiceState::Idle;
+  snapshot_.lastTurnOk = true;
+  snapshot_.lastErrorCode = "";
+  snapshot_.lastErrorMessage = "";
+  reminderCompletedPending_ = true;
+  currentTurnKind_ = TurnKind::Regular;
+  Serial.print(F("voice reminder speaker drained id="));
+  Serial.println(reminderId_);
+}
+
+void RealtimeVoiceService::failReminderAnnouncement(const String& code,
+                                                     const String& message) {
+  audioPipeline_.stopUpload();
+  if (backendStarted_ && voiceClient_.snapshot().connected) {
+    voiceClient_.sendAbort();
+  }
+  audioOutput_.stopStream();
+  snapshot_.state = RealtimeVoiceState::Idle;
+  snapshot_.lastTurnOk = false;
+  snapshot_.lastErrorCode = code;
+  snapshot_.lastErrorMessage = message;
+  reminderFailurePending_ = true;
+  reminderCompletedPending_ = false;
+  currentTurnKind_ = TurnKind::Regular;
+  Serial.print(F("voice reminder failed id="));
+  Serial.print(reminderId_);
+  Serial.print(F(" code="));
+  Serial.println(code);
 }
 
 void RealtimeVoiceService::updateConversationExit() {

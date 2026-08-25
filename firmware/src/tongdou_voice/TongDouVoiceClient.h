@@ -48,6 +48,9 @@ struct TongDouVoiceClientSnapshot {
   TongDouVoiceTtsState lastTtsState = TongDouVoiceTtsState::None;
   String lastText;
   String lastEmotion;
+  uint32_t reminderId = 0;
+  TongDouVoiceReminderState reminderState = TongDouVoiceReminderState::None;
+  String reminderReason;
   bool conversationExitRequested = false;
   bool goodbyeReceived = false;
   bool ttsStopped = true;
@@ -72,6 +75,8 @@ class TongDouVoiceClient {
   bool sendListenDetect(const String& text);
   bool sendAbort();
   bool requestConversationExit(const String& reason = "manual");
+  bool sendReminderAnnouncement(uint32_t reminderId, const String& text,
+                                const String& locale);
   bool sendPcm16Frame(const int16_t* samples, size_t sampleCount);
   bool sendAudioPacket(const uint8_t* payload, size_t length);
   bool playNextDownlinkPacket(AudioOutput& audioOutput);

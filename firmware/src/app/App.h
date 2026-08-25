@@ -9,6 +9,7 @@
 #include "realtime/LocalAudioPipeline.h"
 #include "realtime/RealtimeVoiceService.h"
 #include "reminder/ReminderManager.h"
+#include "reminder/ReminderAlertService.h"
 #include "reminder/ReminderStore.h"
 #include "resources/LocaleResourceStore.h"
 #include "resources/LocaleResourceUpdateService.h"
@@ -74,6 +75,9 @@ class App {
   LocalWakeWordDetector localWakeWordDetector_;
   RealtimeVoiceService realtimeVoiceService_{localAudioPipeline_,
                                             hardware_.audioOutput()};
+  ReminderAlertService reminderAlertService_{hardware_.faceDisplay(),
+                                             hardware_.audioCuePlayer(),
+                                             realtimeVoiceService_};
   DeviceActivationService deviceActivationService_{realtimeVoiceService_,
                                                   hardware_.faceDisplay()};
   AppCommandService appCommandService_{scenarioEngine_, scenarioExecutor_, scenarioContext_,

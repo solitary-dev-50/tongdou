@@ -36,6 +36,9 @@ TongDouVoiceMessageType parseType(const char* type) {
   if (strcmp(type, "goodbye") == 0) {
     return TongDouVoiceMessageType::Goodbye;
   }
+  if (strcmp(type, "tongdou_reminder") == 0) {
+    return TongDouVoiceMessageType::Reminder;
+  }
   return TongDouVoiceMessageType::Unknown;
 }
 
@@ -50,6 +53,16 @@ TongDouVoiceTtsState parseTtsState(const char* state) {
     return TongDouVoiceTtsState::Stop;
   }
   return TongDouVoiceTtsState::None;
+}
+
+TongDouVoiceReminderState parseReminderState(const char* state) {
+  if (strcmp(state, "accepted") == 0) {
+    return TongDouVoiceReminderState::Accepted;
+  }
+  if (strcmp(state, "failed") == 0) {
+    return TongDouVoiceReminderState::Failed;
+  }
+  return TongDouVoiceReminderState::None;
 }
 
 void writeAudioParams(JsonObject target, const TongDouVoiceAudioParams& audio) {
@@ -114,6 +127,20 @@ String TongDouVoiceProtocol::buildGoodbyeRequest(const String& sessionId,
   return serialize(doc);
 }
 
+String TongDouVoiceProtocol::buildReminderAnnouncement(
+    const String& sessionId, uint32_t reminderId, const String& text,
+    const String& locale) const {
+  JsonDocument doc;
+  if (sessionId.length() > 0) {
+    doc["session_id"] = sessionId;
+  }
+  doc["type"] = "tongdou_reminder";
+  doc["id"] = reminderId;
+  doc["text"] = text;
+  doc["locale"] = locale;
+  return serialize(doc);
+}
+
 String TongDouVoiceProtocol::buildMcpMessage(const String& payload) const {
   JsonDocument payloadDoc;
   const DeserializationError parseError = deserializeJson(payloadDoc, payload);
@@ -145,6 +172,7 @@ bool TongDouVoiceProtocol::parseTextMessage(const String& payload,
   message.text = root["text"] | "";
   message.emotion = root["emotion"] | "";
   message.reason = root["reason"] | "";
+  message.reminderId = root["id"] | 0U;
 
   JsonObjectConst localeResources =
       root["locale_resources"].as<JsonObjectConst>();
@@ -165,6 +193,9 @@ bool TongDouVoiceProtocol::parseTextMessage(const String& payload,
 
   if (message.type == TongDouVoiceMessageType::Tts) {
     message.ttsState = parseTtsState(root["state"] | "");
+  }
+  if (message.type == TongDouVoiceMessageType::Reminder) {
+    message.reminderState = parseReminderState(root["state"] | "");
   }
 
   JsonObjectConst audio = root["audio_params"].as<JsonObjectConst>();
@@ -210,6 +241,8 @@ const char* tongDouVoiceMessageTypeName(TongDouVoiceMessageType type) {
       return "ping";
     case TongDouVoiceMessageType::Goodbye:
       return "goodbye";
+    case TongDouVoiceMessageType::Reminder:
+      return "tongdou_reminder";
     case TongDouVoiceMessageType::Unknown:
     default:
       return "unknown";
@@ -239,6 +272,18 @@ const char* tongDouVoiceListenModeName(TongDouVoiceListenMode mode) {
     case TongDouVoiceListenMode::Manual:
     default:
       return "manual";
+  }
+}
+
+const char* tongDouVoiceReminderStateName(TongDouVoiceReminderState state) {
+  switch (state) {
+    case TongDouVoiceReminderState::Accepted:
+      return "accepted";
+    case TongDouVoiceReminderState::Failed:
+      return "failed";
+    case TongDouVoiceReminderState::None:
+    default:
+      return "none";
   }
 }
 

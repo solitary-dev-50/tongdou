@@ -73,6 +73,9 @@ void App::begin() {
   reminderManager_.begin();
   Serial.println("reminder manager ready");
 
+  reminderAlertService_.begin();
+  Serial.println("reminder alert service ready");
+
   mcpServer_.begin();
   Serial.println("mcp server ready");
 
@@ -107,6 +110,7 @@ void App::update() {
   handleConversationWindow();
   updateWakeWordArming();
   scenarioExecutor_.update();
+  reminderAlertService_.update();
 }
 
 void App::updateLocaleResourceEndpoint() {
@@ -179,6 +183,12 @@ void App::handleLocalWakeWordEvents() {
     return;
   }
 
+  if (reminderAlertService_.blocksVoiceInteraction()) {
+    Serial.println(F("voice wake ignored reason=reminder_announcement_active"));
+    return;
+  }
+  reminderAlertService_.dismissDisplayedReminder();
+
   closeConversationWindow(false);
   constexpr char kWakeText[] = "你好，铜豆";
   const bool started = realtimeVoiceService_.startWakeGreeting(kWakeText);
@@ -196,7 +206,8 @@ void App::updateWakeWordArming() {
   const bool shouldArm = voice.backendReady &&
                          voice.state == RealtimeVoiceState::Idle &&
                          !voiceConversationActive_ &&
-                         !conversationFollowUpPending_;
+                         !conversationFollowUpPending_ &&
+                         !reminderAlertService_.blocksVoiceInteraction();
   localWakeWordDetector_.setArmed(shouldArm);
 }
 
@@ -205,6 +216,12 @@ void App::handleLogoTouchEvents() {
   if (touchEvent == LogoTouchEvent::None) {
     return;
   }
+
+  if (reminderAlertService_.blocksVoiceInteraction()) {
+    Serial.println(F("logo event ignored reason=reminder_announcement_active"));
+    return;
+  }
+  reminderAlertService_.dismissDisplayedReminder();
 
   ScenarioEventType scenarioEvent = ScenarioEventType::LogoSingleTapped;
   const __FlashStringHelper* eventName = F("logo_single_tapped");
@@ -362,13 +379,23 @@ void App::closeConversationWindow(bool playExitCue) {
 }
 
 void App::handleReminderEvents() {
-  ScenarioEvent event;
-  if (!reminderManager_.update(event)) {
+  if (!reminderAlertService_.canStart()) {
     return;
   }
 
-  const ScenarioPlan plan = scenarioEngine_.select(event, scenarioContext_);
+  ReminderRecord dueReminder;
+  if (!reminderManager_.update(dueReminder)) {
+    return;
+  }
+
+  closeConversationWindow(false);
+  const ScenarioPlan plan = scenarioEngine_.select(
+      {ScenarioEventType::ReminderDue, 0}, scenarioContext_);
   scenarioExecutor_.execute(plan);
+  if (!reminderAlertService_.start(dueReminder, deviceLocaleStore_.locale())) {
+    Serial.print(F("reminder alert start failed id="));
+    Serial.println(dueReminder.id);
+  }
 }
 
 void App::handleAudioCueEvents() {

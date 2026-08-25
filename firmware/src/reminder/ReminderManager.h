@@ -1,7 +1,6 @@
 #pragma once
 
 #include "reminder/ReminderStore.h"
-#include "scenario/ScenarioEvent.h"
 #include "system/TimeService.h"
 
 namespace tongdou {
@@ -11,7 +10,7 @@ class ReminderManager {
   ReminderManager(TimeService& timeService, ReminderStore& store);
 
   void begin();
-  bool update(ScenarioEvent& event);
+  bool update(ReminderRecord& dueReminder);
 
  private:
   TimeService& timeService_;

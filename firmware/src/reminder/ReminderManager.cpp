@@ -7,7 +7,7 @@ ReminderManager::ReminderManager(TimeService& timeService, ReminderStore& store)
 
 void ReminderManager::begin() {}
 
-bool ReminderManager::update(ScenarioEvent& event) {
+bool ReminderManager::update(ReminderRecord& dueReminder) {
   if (!timeService_.ready()) {
     return false;
   }
@@ -20,8 +20,10 @@ bool ReminderManager::update(ScenarioEvent& event) {
       continue;
     }
 
-    store_.markCompleted(record.id);
-    event = {ScenarioEventType::ReminderDue, 0};
+    dueReminder = record;
+    if (!store_.markCompleted(record.id)) {
+      return false;
+    }
     Serial.print("reminder due id=");
     Serial.print(record.id);
     Serial.print(" text=");

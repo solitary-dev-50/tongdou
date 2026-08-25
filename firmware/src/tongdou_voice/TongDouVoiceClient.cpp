@@ -156,6 +156,20 @@ bool TongDouVoiceClient::requestConversationExit(const String& reason) {
   return true;
 }
 
+bool TongDouVoiceClient::sendReminderAnnouncement(uint32_t reminderId,
+                                                  const String& text,
+                                                  const String& locale) {
+  if (!ready() || reminderId == 0 || text.length() == 0 || locale.length() == 0) {
+    return false;
+  }
+
+  snapshot_.reminderId = reminderId;
+  snapshot_.reminderState = TongDouVoiceReminderState::None;
+  snapshot_.reminderReason = "";
+  return sendText(protocol_.buildReminderAnnouncement(
+      snapshot_.sessionId, reminderId, text, locale));
+}
+
 bool TongDouVoiceClient::sendPcm16Frame(const int16_t* samples, size_t sampleCount) {
   size_t opusLength = 0;
   if (!audioCodec_.encodePcm16ToOpus(samples, sampleCount, uplinkPacket_,
@@ -304,6 +318,9 @@ void TongDouVoiceClient::handleTextMessage(const String& payload) {
     snapshot_.goodbyeReceived = false;
     snapshot_.goodbyeReason = "";
     snapshot_.ttsStopped = true;
+    snapshot_.reminderId = 0;
+    snapshot_.reminderState = TongDouVoiceReminderState::None;
+    snapshot_.reminderReason = "";
     snapshot_.ready = true;
     setState(TongDouVoiceClientState::Ready);
     return;
@@ -346,6 +363,22 @@ void TongDouVoiceClient::handleTextMessage(const String& payload) {
     Serial.print(snapshot_.mcpRequestsReceived);
     Serial.print(F(" responses="));
     Serial.println(snapshot_.mcpResponsesSent);
+    return;
+  }
+
+  if (message.type == TongDouVoiceMessageType::Reminder) {
+    snapshot_.reminderId = message.reminderId;
+    snapshot_.reminderState = message.reminderState;
+    snapshot_.reminderReason = message.reason;
+    Serial.print(F("voice reminder state="));
+    Serial.print(tongDouVoiceReminderStateName(message.reminderState));
+    Serial.print(F(" id="));
+    Serial.print(message.reminderId);
+    if (message.reason.length() > 0) {
+      Serial.print(F(" reason="));
+      Serial.print(message.reason);
+    }
+    Serial.println();
     return;
   }
 

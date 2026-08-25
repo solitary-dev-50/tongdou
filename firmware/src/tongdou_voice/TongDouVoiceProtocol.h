@@ -16,6 +16,7 @@ enum class TongDouVoiceMessageType : uint8_t {
   Server,
   Ping,
   Goodbye,
+  Reminder,
 };
 
 enum class TongDouVoiceTtsState : uint8_t {
@@ -31,9 +32,17 @@ enum class TongDouVoiceListenMode : uint8_t {
   Realtime,
 };
 
+enum class TongDouVoiceReminderState : uint8_t {
+  None,
+  Accepted,
+  Failed,
+};
+
 struct TongDouVoiceIncomingMessage {
   TongDouVoiceMessageType type = TongDouVoiceMessageType::Unknown;
   TongDouVoiceTtsState ttsState = TongDouVoiceTtsState::None;
+  TongDouVoiceReminderState reminderState = TongDouVoiceReminderState::None;
+  uint32_t reminderId = 0;
   String sessionId;
   String text;
   String emotion;
@@ -60,6 +69,9 @@ class TongDouVoiceProtocol {
   String buildAbort(const String& sessionId) const;
   String buildGoodbyeRequest(const String& sessionId,
                              const String& reason = "manual") const;
+  String buildReminderAnnouncement(const String& sessionId, uint32_t reminderId,
+                                   const String& text,
+                                   const String& locale) const;
   String buildMcpMessage(const String& payload) const;
 
   bool parseTextMessage(const String& payload, TongDouVoiceIncomingMessage& message,
@@ -73,5 +85,6 @@ class TongDouVoiceProtocol {
 const char* tongDouVoiceMessageTypeName(TongDouVoiceMessageType type);
 const char* tongDouVoiceTtsStateName(TongDouVoiceTtsState state);
 const char* tongDouVoiceListenModeName(TongDouVoiceListenMode mode);
+const char* tongDouVoiceReminderStateName(TongDouVoiceReminderState state);
 
 }  // namespace tongdou

@@ -39,6 +39,9 @@
 | `POST` | `/api/setup/wifi` | 保存 WiFi 并开始连接 |
 | `GET` | `/api/locale` | 读取设备语言 |
 | `POST` | `/api/locale` | 下载、校验并启用设备语言资源 |
+| `GET` | `/api/reminders` | 查询设备真实保存的提醒 |
+| `POST` | `/api/reminders` | 创建一次性提醒，可附带预渲染正文位图 |
+| `POST` | `/api/reminders/delete` | 删除提醒 |
 | `GET` | `/api/scenario/config` | 读取当前剧情配置 |
 | `PUT` | `/api/scenario/config` | 保存完整剧情配置 |
 | `POST` | `/api/scenario/reset` | 恢复默认剧情配置 |
@@ -270,6 +273,65 @@ ssid=Home%20WiFi&password=12345678
 ```
 
 返回：纯文本保存结果。
+
+---
+
+## 5.6 提醒接口
+
+### GET /api/reminders
+
+返回设备真实保存的提醒列表：
+
+```json
+[
+  {
+    "id": 5,
+    "dueAt": 1787618937,
+    "completed": false,
+    "displayBitmap": true,
+    "text": "喝水，站起来活动一下"
+  }
+]
+```
+
+`displayBitmap` 只表示该提醒已经保存 128×48 单色正文位图，不返回位图正文。
+
+### POST /api/reminders
+
+请求体使用表单参数：
+
+```text
+dueAt=1787618937&text=喝水，站起来活动一下&displayBitmapBase64=...
+```
+
+- `dueAt`：必填，Unix 秒级时间戳，设备时间已同步时不能早于当前时间。
+- `text`：必填，提醒正文。
+- `displayBitmapBase64`：可选；解码后必须正好是 768 字节，格式为 SSD1306 的 128×48、1 位分页位图。
+
+普通语音提醒不需要网页自己生成位图：服务器在调用设备 MCP 创建工具前会自动渲染并注入。直接调用本网页接口时，如果希望任意语言正文准确上屏，调用方必须提供位图；不提供仍可创建提醒，但到期时没有任意文字上屏能力。
+
+成功返回：
+
+```json
+{
+  "ok": true,
+  "id": 5,
+  "dueAt": 1787618937,
+  "displayBitmap": true
+}
+```
+
+无效位图返回 `400`，提醒存储已满返回 `507`。
+
+### POST /api/reminders/delete
+
+请求体：
+
+```text
+id=5
+```
+
+成功返回 `{"ok":true}`，提醒不存在返回 `404`。
 
 ---
 

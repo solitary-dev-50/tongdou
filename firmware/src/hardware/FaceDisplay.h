@@ -12,7 +12,9 @@ class FaceDisplay {
   void begin();
   void show(FaceExpression expression);
   void showActivationCode(const String& code);
+  bool showBitmap128x48(const uint8_t* bitmap, size_t length);
   bool ready() const;
+  uint32_t revision() const;
 
  private:
   static constexpr uint8_t kAddress = 0x3C;
@@ -35,6 +37,7 @@ class FaceDisplay {
 
   bool available_ = false;
   uint8_t buffer_[kBufferSize] = {};
+  uint32_t revision_ = 0;
 };
 
 }  // namespace tongdou

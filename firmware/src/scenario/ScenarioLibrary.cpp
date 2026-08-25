@@ -26,7 +26,7 @@ constexpr ScenarioRule kRules[] = {
         true,
         PersonalityStyle::Gentle,
         {true, FaceAction::Fierce, LightAction::SoftWhite,
-         MotionAction::NudgeForward, VoiceLine::ReminderDueNudge, 1200},
+         MotionAction::NudgeForward, VoiceLine::None, 1200},
     },
     {
         ScenarioEventType::ReminderConfirmed,

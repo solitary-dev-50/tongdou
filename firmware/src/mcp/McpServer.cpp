@@ -1,6 +1,7 @@
 #include "mcp/McpServer.h"
 
 #include <WiFi.h>
+#include <mbedtls/base64.h>
 
 namespace tongdou {
 namespace {
@@ -369,8 +370,27 @@ McpToolResult McpServer::createReminder(const McpToolArguments& arguments) {
     return {toolErrorJson("invalid_due_at", "dueAt is in the past"), true};
   }
 
+  uint8_t displayBitmap[kReminderBitmapSize] = {};
+  const std::string displayBitmapBase64 =
+      arguments.getString("displayBitmapBase64");
+  const uint8_t* displayBitmapData = nullptr;
+  size_t displayBitmapLength = 0;
+  if (!displayBitmapBase64.empty()) {
+    const int decodeResult = mbedtls_base64_decode(
+        displayBitmap, sizeof(displayBitmap), &displayBitmapLength,
+        reinterpret_cast<const unsigned char*>(displayBitmapBase64.data()),
+        displayBitmapBase64.size());
+    if (decodeResult != 0 || displayBitmapLength != kReminderBitmapSize) {
+      return {toolErrorJson("invalid_display_bitmap",
+                            "display bitmap must be a 128x48 monochrome bitmap"),
+              true};
+    }
+    displayBitmapData = displayBitmap;
+  }
+
   ReminderRecord created;
-  if (!reminderStore_.add(dueAt, text, &created)) {
+  if (!reminderStore_.add(dueAt, text, displayBitmapData,
+                          displayBitmapLength, &created)) {
     return {toolErrorJson("storage_full", "reminder storage is full"), true};
   }
 
@@ -379,6 +399,7 @@ McpToolResult McpServer::createReminder(const McpToolArguments& arguments) {
   doc["id"] = created.id;
   doc["dueAt"] = created.dueAt;
   doc["text"] = created.text;
+  doc["displayBitmap"] = created.hasDisplayBitmap();
   return {serializeDoc(doc), false};
 }
 
@@ -497,6 +518,7 @@ std::string McpServer::remindersJson() const {
     item["id"] = record.id;
     item["dueAt"] = record.dueAt;
     item["completed"] = record.completed;
+    item["displayBitmap"] = record.hasDisplayBitmap();
     item["text"] = record.text;
   }
   return serializeDoc(doc);
