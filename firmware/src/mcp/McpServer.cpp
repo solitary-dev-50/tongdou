@@ -118,6 +118,10 @@ void McpServer::addTools() {
   const auto failVoice = [this](const McpToolArguments& arguments) -> McpToolResult {
     return failVoiceTurn(arguments);
   };
+  const auto getVolume =
+      [this](const McpToolArguments& arguments) -> McpToolResult {
+    return getAudioVolume(arguments);
+  };
   const auto setVolume = [this](const McpToolArguments& arguments) -> McpToolResult {
     return setAudioVolume(arguments);
   };
@@ -180,8 +184,12 @@ void McpServer::addTools() {
       "用户明确要求取消或删除已有提醒时调用，id 必须来自提醒列表或当前对话中刚创建成功的提醒。",
       reminderDeleteProperties, remove);
   voiceRegistry_.addTool(
+      "tongdou.audio.get_volume",
+      "用户询问铜豆当前喇叭音量、静音状态或音量百分比时调用。这个工具不需要参数，会读取设备当前真实音量；不要根据聊天记录猜测，也不要用设置工具空参数代替查询。",
+      {}, getVolume);
+  voiceRegistry_.addTool(
       "tongdou.audio.set_volume",
-      "用户要求调节铜豆喇叭音量时调用。volume 和 delta 必须二选一：明确百分比、静音时用 volume，范围 0 到 100，静音传 0；大一点或小一点时用 delta，通常分别传 10 或 -10。只有返回 ok=true 才能确认调节成功。不要用它调节麦克风或语音识别灵敏度。",
+      "用户明确要求调节铜豆喇叭音量时调用。volume 和 delta 必须二选一：明确百分比、静音时用 volume，范围 0 到 100，静音传 0；大一点或小一点时用 delta，通常分别传 10 或 -10。只有返回 ok=true 才能确认调节成功。不要用空参数查询当前音量，不要用它调节麦克风或语音识别灵敏度。",
       audioVolumeProperties, setVolume);
 
   registry_.addTool("play_scenario", "Trigger a Tong Dou scenario by event name.",
@@ -252,6 +260,10 @@ void McpServer::addTools() {
   registry_.addTool("tongdou.voice.fail", "Report a realtime voice failure.",
                     voiceFailProperties, failVoice);
 
+  registry_.addTool(
+      "tongdou.audio.get_volume",
+      "Get the device's current speaker output volume percentage. This read-only tool takes no arguments.",
+      {}, getVolume);
   registry_.addTool(
       "tongdou.audio.set_volume",
       "Set persistent speaker output volume. Provide exactly one of volume (0-100) or delta (-100 to 100, excluding zero).",
@@ -508,6 +520,15 @@ McpToolResult McpServer::failVoiceTurn(const McpToolArguments& arguments) {
   const String reason(arguments.getString("reason").c_str());
   const AppCommandResult result = appCommandService_.failVoiceTurn(reason);
   return {commandResultJson(result), !result.ok};
+}
+
+McpToolResult McpServer::getAudioVolume(const McpToolArguments&) {
+  const uint8_t volume = appCommandService_.audioVolume();
+  JsonDocument doc;
+  doc["ok"] = true;
+  doc["volume"] = volume;
+  doc["muted"] = volume == 0;
+  return {serializeDoc(doc), false};
 }
 
 McpToolResult McpServer::setAudioVolume(const McpToolArguments& arguments) {

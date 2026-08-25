@@ -37,7 +37,7 @@
 
 `GET /api/status` 会返回 `systemMode`、`locale`、`localeName`、`hardware` 和 `capabilities`，用于显示启动模式、设备语言、硬件降级状态和当前保留能力。
 
-`POST /api/mcp` 当前支持 `get_status`、`create_reminder`、`list_reminders`、`delete_reminder`、`play_scenario`、`set_personality`、`start_voice_turn`、`voice_status`、`play_voice_response` 和 `fail_voice_turn`。网页或调试工具只负责发送 MCP 请求，具体剧情触发、人格切换和实时语音回合交给固件里的应用命令服务。
+`POST /api/mcp` 当前支持状态、提醒、剧情、人格、实时语音，以及 `tongdou.audio.get_volume` 和 `tongdou.audio.set_volume` 两个喇叭音量工具。查询工具读取设备当前真实音量，设置工具负责绝对或相对调节。网页或调试工具只负责发送 MCP 请求，具体剧情触发、人格切换、实时语音回合和音量操作交给固件里的应用命令服务。
 
 静态原型里的剧情测试和人格选择已经走 `/api/mcp`，不直接碰硬件。
 

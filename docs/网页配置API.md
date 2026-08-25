@@ -642,14 +642,31 @@ command=selftest
 - `voice_status`
 - `play_voice_response`
 - `fail_voice_turn`
+- `tongdou.audio.get_volume`
 - `tongdou.audio.set_volume`
 
-喇叭音量工具示例：
+查询当前喇叭音量：
 
 ```json
 {
   "jsonrpc": "2.0",
   "id": 2,
+  "method": "tools/call",
+  "params": {
+    "name": "tongdou.audio.get_volume",
+    "arguments": {}
+  }
+}
+```
+
+成功结果中的 `volume` 是设备当前真实音量，范围 `0` 到 `100`；`muted` 表示当前是否为静音。查询不会修改音量。
+
+设置喇叭音量：
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 3,
   "method": "tools/call",
   "params": {
     "name": "tongdou.audio.set_volume",
@@ -660,7 +677,7 @@ command=selftest
 }
 ```
 
-`volume` 表示绝对音量，范围 `0` 到 `100`；`delta` 表示相对增减。两者必须二选一，不能同时传。设置会立即作用于服务器回复、本地提示音和测试音，并在断电后保留。
+`volume` 表示绝对音量，范围 `0` 到 `100`；`delta` 表示相对增减。两者必须二选一，不能同时传，也不能都不传。设置会立即作用于服务器回复、本地提示音和测试音，并在断电后保留。
 
 边界：
 
@@ -668,7 +685,7 @@ command=selftest
 - `McpServer` 只处理 MCP 协议和工具注册。
 - 剧情触发和人格切换必须交给 `AppCommandService`。
 - 实时语音回合工具必须通过 `AppCommandService` 和 `RealtimeVoiceService`，不能在 MCP 层直接操作麦克风或喇叭。
-- 音量工具必须通过 `AppCommandService` 和 `AudioVolumeService`，不能在 MCP 层直接改音频采样。
+- 查询和设置音量必须通过 `AppCommandService` 和 `AudioVolumeService`，不能在 MCP 层复制音量状态或直接改音频采样。
 
 ---
 

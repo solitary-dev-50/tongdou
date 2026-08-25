@@ -45,6 +45,7 @@ class McpServer {
   McpToolResult voiceCodecSelfTest(const McpToolArguments& arguments);
   McpToolResult playVoiceResponse(const McpToolArguments& arguments);
   McpToolResult failVoiceTurn(const McpToolArguments& arguments);
+  McpToolResult getAudioVolume(const McpToolArguments& arguments);
   McpToolResult setAudioVolume(const McpToolArguments& arguments);
   std::string commandResultJson(const AppCommandResult& result) const;
   std::string remindersJson() const;
