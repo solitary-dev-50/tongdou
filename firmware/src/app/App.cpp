@@ -19,6 +19,12 @@ void App::begin() {
   bootMs_ = millis();
   hardware_.begin();
 
+  audioVolumeService_.begin();
+  Serial.print(F("audio volume ready="));
+  Serial.print(audioVolumeService_.ready() ? "1" : "0");
+  Serial.print(F(" percent="));
+  Serial.println(audioVolumeService_.volume());
+
   delay(200);
   Serial.println();
   Serial.print(kProjectName);

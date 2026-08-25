@@ -26,11 +26,13 @@ String voiceStateName(RealtimeVoiceState state) {
 AppCommandService::AppCommandService(ScenarioEngine& scenarioEngine,
                                      ScenarioExecutor& scenarioExecutor,
                                      ScenarioContext& scenarioContext,
-                                     RealtimeVoiceService& realtimeVoiceService)
+                                     RealtimeVoiceService& realtimeVoiceService,
+                                     AudioVolumeService& audioVolumeService)
     : scenarioEngine_(scenarioEngine),
       scenarioExecutor_(scenarioExecutor),
       scenarioContext_(scenarioContext),
-      realtimeVoiceService_(realtimeVoiceService) {}
+      realtimeVoiceService_(realtimeVoiceService),
+      audioVolumeService_(audioVolumeService) {}
 
 AppCommandResult AppCommandService::playScenario(const String& eventName) {
   ScenarioEventType eventType;
@@ -166,6 +168,28 @@ AppCommandResult AppCommandService::failVoiceTurn(const String& reason) {
   return {true, "ok", "voice failure accepted"};
 }
 
+AppCommandResult AppCommandService::setAudioVolume(int volumePercent) {
+  if (volumePercent < 0 || volumePercent > 100) {
+    return {false, "invalid_audio_volume", "volume must be between 0 and 100"};
+  }
+  if (!audioVolumeService_.setVolume(static_cast<uint8_t>(volumePercent))) {
+    return {false, "audio_volume_save_failed", "audio volume could not be saved"};
+  }
+  return {true, "ok", "audio volume updated"};
+}
+
+AppCommandResult AppCommandService::adjustAudioVolume(int deltaPercent) {
+  if (deltaPercent == 0 || deltaPercent < -100 || deltaPercent > 100) {
+    return {false, "invalid_audio_volume_delta",
+            "volume delta must be between -100 and 100 and cannot be zero"};
+  }
+
+  const int requested = static_cast<int>(audioVolumeService_.volume()) +
+                        deltaPercent;
+  const int clamped = max(0, min(100, requested));
+  return setAudioVolume(clamped);
+}
+
 String AppCommandService::voiceStatusJson() const {
   const RealtimeVoiceSnapshot snapshot = realtimeVoiceService_.snapshot();
   JsonDocument doc;
@@ -255,6 +279,10 @@ const char* AppCommandService::personalityName() const {
     default:
       return "balanced";
   }
+}
+
+uint8_t AppCommandService::audioVolume() const {
+  return audioVolumeService_.volume();
 }
 
 bool AppCommandService::parseEventName(String name, ScenarioEventType& eventType) const {

@@ -85,7 +85,8 @@ bool AudioOutput::playTone(uint16_t frequencyHz, uint16_t durationMs) {
         min<uint32_t>(kFramesPerChunk, totalFrames - writtenFrames);
 
     for (uint32_t frame = 0; frame < framesThisChunk; ++frame) {
-      const int16_t sample = static_cast<int16_t>(sinf(phase) * kToneAmplitude);
+      const int16_t sample = applyVolume(
+          static_cast<int16_t>(sinf(phase) * kToneAmplitude));
       samples[frame * 2] = sample;
       samples[frame * 2 + 1] = sample;
       phase += phaseStep;
@@ -153,7 +154,7 @@ bool AudioOutput::writePcm16Mono(const int16_t* samples, size_t sampleCount,
   while (offset < sampleCount) {
     const size_t framesThisChunk = min(kFramesPerChunk, sampleCount - offset);
     for (size_t frame = 0; frame < framesThisChunk; ++frame) {
-      const int16_t sample = samples[offset + frame];
+      const int16_t sample = applyVolume(samples[offset + frame]);
       stereo[frame * 2] = sample;
       stereo[frame * 2 + 1] = sample;
     }
@@ -178,6 +179,14 @@ bool AudioOutput::writePcm16Mono(const int16_t* samples, size_t sampleCount,
   return true;
 }
 
+void AudioOutput::setVolume(uint8_t percent) {
+  volumePercent_ = min<uint8_t>(percent, 100);
+}
+
+uint8_t AudioOutput::volume() const {
+  return volumePercent_;
+}
+
 void AudioOutput::stopStream() {
   if (!ready_) {
     return;
@@ -195,6 +204,17 @@ bool AudioOutput::ready() const {
 bool AudioOutput::streamDrained() const {
   return !streamActive_ ||
          static_cast<long>(millis() - streamDrainAtMs_) >= 0;
+}
+
+int16_t AudioOutput::applyVolume(int16_t sample) const {
+  if (volumePercent_ == 100) {
+    return sample;
+  }
+  if (volumePercent_ == 0) {
+    return 0;
+  }
+  return static_cast<int16_t>(
+      (static_cast<int32_t>(sample) * volumePercent_) / 100);
 }
 
 }  // namespace tongdou

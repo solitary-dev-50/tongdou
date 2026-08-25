@@ -642,13 +642,33 @@ command=selftest
 - `voice_status`
 - `play_voice_response`
 - `fail_voice_turn`
+- `tongdou.audio.set_volume`
+
+喇叭音量工具示例：
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "tools/call",
+  "params": {
+    "name": "tongdou.audio.set_volume",
+    "arguments": {
+      "volume": 50
+    }
+  }
+}
+```
+
+`volume` 表示绝对音量，范围 `0` 到 `100`；`delta` 表示相对增减。两者必须二选一，不能同时传。设置会立即作用于服务器回复、本地提示音和测试音，并在断电后保留。
 
 边界：
 
 - `/api/mcp` 只转发请求，不直接处理具体工具。
 - `McpServer` 只处理 MCP 协议和工具注册。
 - 剧情触发和人格切换必须交给 `AppCommandService`。
-- 实时语音工具必须通过 `AppCommandService` 和 `RealtimeVoiceService`，不能在 MCP 层直接操作麦克风或喇叭。
+- 实时语音回合工具必须通过 `AppCommandService` 和 `RealtimeVoiceService`，不能在 MCP 层直接操作麦克风或喇叭。
+- 音量工具必须通过 `AppCommandService` 和 `AudioVolumeService`，不能在 MCP 层直接改音频采样。
 
 ---
 

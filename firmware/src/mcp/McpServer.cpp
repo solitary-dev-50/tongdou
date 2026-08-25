@@ -118,6 +118,9 @@ void McpServer::addTools() {
   const auto failVoice = [this](const McpToolArguments& arguments) -> McpToolResult {
     return failVoiceTurn(arguments);
   };
+  const auto setVolume = [this](const McpToolArguments& arguments) -> McpToolResult {
+    return setAudioVolume(arguments);
+  };
 
   const std::vector<McpProperty> reminderCreateProperties = {
       McpProperty::OptionalInteger("dueAt"),
@@ -140,6 +143,9 @@ void McpServer::addTools() {
       McpProperty::RequiredString("text")};
   const std::vector<McpProperty> voiceFailProperties = {
       McpProperty::RequiredString("reason")};
+  const std::vector<McpProperty> audioVolumeProperties = {
+      McpProperty::OptionalInteger("volume"),
+      McpProperty::OptionalInteger("delta")};
 
   registry_.addTool("get_status", "Get Tong Dou status.", {}, status);
   registry_.addTool("tongdou.status.get",
@@ -173,6 +179,10 @@ void McpServer::addTools() {
       "tongdou.reminder.delete",
       "用户明确要求取消或删除已有提醒时调用，id 必须来自提醒列表或当前对话中刚创建成功的提醒。",
       reminderDeleteProperties, remove);
+  voiceRegistry_.addTool(
+      "tongdou.audio.set_volume",
+      "用户要求调节铜豆喇叭音量时调用。volume 和 delta 必须二选一：明确百分比、静音时用 volume，范围 0 到 100，静音传 0；大一点或小一点时用 delta，通常分别传 10 或 -10。只有返回 ok=true 才能确认调节成功。不要用它调节麦克风或语音识别灵敏度。",
+      audioVolumeProperties, setVolume);
 
   registry_.addTool("play_scenario", "Trigger a Tong Dou scenario by event name.",
                     scenarioPlayProperties, play);
@@ -241,6 +251,11 @@ void McpServer::addTools() {
                     voiceFailProperties, failVoice);
   registry_.addTool("tongdou.voice.fail", "Report a realtime voice failure.",
                     voiceFailProperties, failVoice);
+
+  registry_.addTool(
+      "tongdou.audio.set_volume",
+      "Set persistent speaker output volume. Provide exactly one of volume (0-100) or delta (-100 to 100, excluding zero).",
+      audioVolumeProperties, setVolume);
 }
 
 std::string McpServer::handlePayload(JsonObjectConst payload,
@@ -495,6 +510,30 @@ McpToolResult McpServer::failVoiceTurn(const McpToolArguments& arguments) {
   return {commandResultJson(result), !result.ok};
 }
 
+McpToolResult McpServer::setAudioVolume(const McpToolArguments& arguments) {
+  const bool hasVolume = arguments.has("volume");
+  const bool hasDelta = arguments.has("delta");
+  if (hasVolume == hasDelta) {
+    return {toolErrorJson("invalid_audio_volume",
+                          "provide exactly one of volume or delta"),
+            true};
+  }
+
+  const uint8_t previousVolume = appCommandService_.audioVolume();
+  const AppCommandResult result =
+      hasVolume
+          ? appCommandService_.setAudioVolume(arguments.getInt("volume"))
+          : appCommandService_.adjustAudioVolume(arguments.getInt("delta"));
+
+  JsonDocument doc;
+  doc["ok"] = result.ok;
+  doc["code"] = result.code;
+  doc["message"] = result.message;
+  doc["previousVolume"] = previousVolume;
+  doc["volume"] = appCommandService_.audioVolume();
+  return {serializeDoc(doc), !result.ok};
+}
+
 std::string McpServer::commandResultJson(const AppCommandResult& result) const {
   JsonDocument doc;
   doc["ok"] = result.ok;
@@ -542,6 +581,7 @@ std::string McpServer::statusJson() const {
   doc["now"] = timeService_.ready() ? timeService_.isoNow() : "";
   doc["systemMode"] = hardware.degraded ? "degraded" : "normal";
   doc["personality"] = appCommandService_.personalityName();
+  doc["audioVolume"] = appCommandService_.audioVolume();
   doc["activeReminders"] = activeReminders;
   doc["reminderCapacity"] = reminderStore_.capacity();
   doc["hardware"]["face"] = hardware.faceReady;

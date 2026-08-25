@@ -3,6 +3,7 @@
 #include <Arduino.h>
 
 #include "app/AppCommandService.h"
+#include "audio/AudioVolumeService.h"
 #include "cloud/DeviceActivationService.h"
 #include "hardware/HardwareManager.h"
 #include "mcp/McpServer.h"
@@ -73,6 +74,7 @@ class App {
   ScenarioContext scenarioContext_;
   LocalAudioPipeline localAudioPipeline_{hardware_.audioInput()};
   LocalWakeWordDetector localWakeWordDetector_;
+  AudioVolumeService audioVolumeService_{hardware_.audioOutput()};
   RealtimeVoiceService realtimeVoiceService_{localAudioPipeline_,
                                             hardware_.audioOutput()};
   ReminderAlertService reminderAlertService_{hardware_.faceDisplay(),
@@ -81,7 +83,7 @@ class App {
   DeviceActivationService deviceActivationService_{realtimeVoiceService_,
                                                   hardware_.faceDisplay()};
   AppCommandService appCommandService_{scenarioEngine_, scenarioExecutor_, scenarioContext_,
-                                      realtimeVoiceService_};
+                                      realtimeVoiceService_, audioVolumeService_};
   McpServer mcpServer_{timeService_, reminderStore_, hardware_.selfTest(), appCommandService_};
   ScenarioConfigStore scenarioConfigStore_;
   ScenarioConfigApi scenarioConfigApi_{scenarioConfigStore_};
