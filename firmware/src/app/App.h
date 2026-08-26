@@ -99,6 +99,8 @@ class App {
                                    localeResourceUpdateService_};
   unsigned long bootMs_ = 0;
   uint8_t startupReportCount_ = 0;
+  bool startupReadyCueStarted_ = false;
+  bool startupVoiceReady_ = false;
   bool voiceConversationActive_ = false;
   bool conversationFollowUpPending_ = false;
   bool reminderResponseStartPending_ = false;

@@ -48,6 +48,7 @@ DeviceActivationService::DeviceActivationService(
 
 void DeviceActivationService::begin() {
   state_ = State::WaitingForWifi;
+  consecutiveFailures_ = 0;
   scheduleRetry(kInitialDelayMs);
   Serial.print("device activation ota=");
   Serial.println(kOtaUrl);
@@ -96,7 +97,7 @@ void DeviceActivationService::requestActivation() {
   if (!http.begin(kOtaUrl)) {
     lastError_ = "ota_begin_failed";
     Serial.println("device activation failed: ota_begin_failed");
-    scheduleRetry(kRetryIntervalMs);
+    scheduleFailureRetry();
     return;
   }
 
@@ -110,9 +111,11 @@ void DeviceActivationService::requestActivation() {
   if (status <= 0) {
     lastError_ = "ota_post_failed";
     Serial.print("device activation failed: ota_post_failed status=");
-    Serial.println(status);
+    Serial.print(status);
+    Serial.print(" error=");
+    Serial.println(HTTPClient::errorToString(status));
     http.end();
-    scheduleRetry(kRetryIntervalMs);
+    scheduleFailureRetry();
     return;
   }
 
@@ -123,17 +126,18 @@ void DeviceActivationService::requestActivation() {
     lastError_ = "ota_http_error";
     Serial.print("device activation failed: http status=");
     Serial.println(status);
-    scheduleRetry(kRetryIntervalMs);
+    scheduleFailureRetry();
     return;
   }
 
   if (!applyResponse(response)) {
-    scheduleRetry(kRetryIntervalMs);
+    scheduleFailureRetry();
     return;
   }
 
+  consecutiveFailures_ = 0;
   if (state_ != State::Activated) {
-    scheduleRetry(kRetryIntervalMs);
+    scheduleRetry(kSteadyRetryIntervalMs);
   }
 }
 
@@ -295,6 +299,33 @@ bool DeviceActivationService::parseWebsocketUrl(
   }
 
   return config.host.length() > 0 && config.port > 0 && config.path.length() > 0;
+}
+
+void DeviceActivationService::scheduleFailureRetry() {
+  if (consecutiveFailures_ < UINT8_MAX) {
+    ++consecutiveFailures_;
+  }
+
+  unsigned long delayMs = kSteadyRetryIntervalMs;
+  switch (consecutiveFailures_) {
+    case 1:
+      delayMs = kFirstFailureRetryMs;
+      break;
+    case 2:
+      delayMs = kSecondFailureRetryMs;
+      break;
+    case 3:
+      delayMs = kThirdFailureRetryMs;
+      break;
+    default:
+      break;
+  }
+
+  Serial.print("device activation retry failures=");
+  Serial.print(consecutiveFailures_);
+  Serial.print(" delay_ms=");
+  Serial.println(delayMs);
+  scheduleRetry(delayMs);
 }
 
 void DeviceActivationService::scheduleRetry(unsigned long delayMs) {

@@ -214,12 +214,43 @@ void App::handleLocalWakeWordEvents() {
 
 void App::updateWakeWordArming() {
   const RealtimeVoiceSnapshot voice = realtimeVoiceService_.snapshot();
-  const bool shouldArm = voice.backendReady &&
-                         voice.state == RealtimeVoiceState::Idle &&
-                         !voiceConversationActive_ &&
-                         !conversationFollowUpPending_ &&
-                         !reminderResponseStartPending_ &&
-                         !reminderAlertService_.blocksVoiceInteraction();
+  const LocalWakeWordSnapshot wake = localWakeWordDetector_.snapshot();
+  const bool interactionIdle =
+      voice.state == RealtimeVoiceState::Idle &&
+      !voiceConversationActive_ &&
+      !conversationFollowUpPending_ &&
+      !reminderResponseStartPending_ &&
+      !reminderAlertService_.blocksVoiceInteraction();
+
+  if (!startupVoiceReady_) {
+    localWakeWordDetector_.setArmed(false);
+
+    if (!startupReadyCueStarted_) {
+      if (!voice.backendReady || !wake.ready || !interactionIdle ||
+          !hardware_.audioOutput().streamDrained()) {
+        return;
+      }
+
+      Serial.print(F("startup timeline voice_backend_ready elapsed_ms="));
+      Serial.print(millis() - bootMs_);
+      Serial.println(F(" cue=success"));
+      playSystemCue(SystemAudioCue::Success, "voice_ready");
+      startupReadyCueStarted_ = true;
+      return;
+    }
+
+    if (!voice.backendReady || !wake.ready || !interactionIdle ||
+        !hardware_.audioOutput().streamDrained()) {
+      return;
+    }
+
+    startupVoiceReady_ = true;
+    Serial.print(F("startup timeline wake_ready elapsed_ms="));
+    Serial.println(millis() - bootMs_);
+  }
+
+  const bool shouldArm = startupVoiceReady_ && voice.backendReady &&
+                         interactionIdle;
   localWakeWordDetector_.setArmed(shouldArm);
 }
 
@@ -556,7 +587,9 @@ void App::handleAudioCueEvents() {
         playLocalizedCue(LocalizedAudioCue::WifiConfig, "locale_changed_wifi_config");
         break;
       case WebConfigEvent::WifiConnected:
-        playSystemCue(SystemAudioCue::Success, "wifi_connected");
+        Serial.print(F("startup timeline wifi_ready elapsed_ms="));
+        Serial.print(millis() - bootMs_);
+        Serial.println(F(" waiting_voice_backend=1"));
         break;
       case WebConfigEvent::WifiConnectFailed:
         playSystemCue(SystemAudioCue::Error, "wifi_connect_failed");

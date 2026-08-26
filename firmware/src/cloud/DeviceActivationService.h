@@ -27,19 +27,24 @@ class DeviceActivationService {
   };
 
   static constexpr unsigned long kInitialDelayMs = 3000;
-  static constexpr unsigned long kRetryIntervalMs = 30000;
+  static constexpr unsigned long kFirstFailureRetryMs = 1000;
+  static constexpr unsigned long kSecondFailureRetryMs = 2000;
+  static constexpr unsigned long kThirdFailureRetryMs = 5000;
+  static constexpr unsigned long kSteadyRetryIntervalMs = 30000;
 
   void requestActivation();
   String buildReportJson() const;
   bool applyResponse(const String& response);
   bool configureVoiceBackend(const String& websocketUrl, const String& token);
   bool parseWebsocketUrl(const String& websocketUrl, TongDouVoiceConnectionConfig& config) const;
+  void scheduleFailureRetry();
   void scheduleRetry(unsigned long delayMs);
 
   RealtimeVoiceService& realtimeVoiceService_;
   FaceDisplay& faceDisplay_;
   State state_ = State::WaitingForWifi;
   unsigned long nextAttemptMs_ = 0;
+  uint8_t consecutiveFailures_ = 0;
   String activationCode_;
   String activationCodeEvent_;
   String lastError_;
