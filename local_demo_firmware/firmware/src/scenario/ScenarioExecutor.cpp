@@ -5,6 +5,9 @@
 namespace tongdou {
 namespace {
 
+constexpr bool kScenarioExecutorDebug = false;
+constexpr bool kVoiceClipDebug = false;
+
 const __FlashStringHelper* wheelName(WheelDrive drive) {
   switch (drive) {
     case WheelDrive::Forward:
@@ -49,16 +52,18 @@ void ScenarioExecutor::execute(const ScenarioPlan& plan) {
   }
 
   activePlan_ = plan;
-  Serial.print("scenario plan face=");
-  Serial.print(static_cast<int>(plan.face));
-  Serial.print(" light=");
-  Serial.print(static_cast<int>(plan.light));
-  Serial.print(" motion=");
-  Serial.print(static_cast<int>(plan.motion));
-  Serial.print(" voice=");
-  Serial.print(static_cast<int>(plan.voice));
-  Serial.print(" duration=");
-  Serial.println(plan.durationMs);
+  if (kScenarioExecutorDebug) {
+    Serial.print("scenario plan face=");
+    Serial.print(static_cast<int>(plan.face));
+    Serial.print(" light=");
+    Serial.print(static_cast<int>(plan.light));
+    Serial.print(" motion=");
+    Serial.print(static_cast<int>(plan.motion));
+    Serial.print(" voice=");
+    Serial.print(static_cast<int>(plan.voice));
+    Serial.print(" duration=");
+    Serial.println(plan.durationMs);
+  }
 
   const unsigned long now = millis();
   startLight(plan.light, now);
@@ -118,12 +123,14 @@ void ScenarioExecutor::startVoice(VoiceLine line) {
     return;
   }
 
-  Serial.print("voice clip=");
-  Serial.print(clip.clipId);
-  Serial.print(" file=");
-  Serial.print(clip.fileName);
-  Serial.print(" text=");
-  Serial.println(clip.text);
+  if (kVoiceClipDebug) {
+    Serial.print("voice clip=");
+    Serial.print(clip.clipId);
+    Serial.print(" file=");
+    Serial.print(clip.fileName);
+    Serial.print(" text=");
+    Serial.println(clip.text);
+  }
   audio_.playClip(clip.clipId, clip.fileName, clip.text);
 }
 

@@ -11,6 +11,7 @@ constexpr uint16_t kDnsPort = 53;
 const IPAddress kPortalIp(192, 168, 4, 1);
 const IPAddress kPortalGateway(192, 168, 4, 1);
 const IPAddress kPortalSubnet(255, 255, 255, 0);
+constexpr unsigned long kHttpFirstByteWaitMs = 120;
 constexpr unsigned long kConnectTimeoutMs = 12000;
 constexpr unsigned long kDeferredConnectDelayMs = 400;
 
@@ -54,6 +55,55 @@ uint8_t parseDutyArg(const String& value, uint8_t fallback) {
 }
 
 }  // namespace
+
+DemoHttpServer::DemoHttpServer(int port) : WebServer(port) {}
+
+void DemoHttpServer::handleClient() {
+  if (_currentStatus == HC_NONE) {
+    _currentClient = _server.available();
+    if (!_currentClient) {
+      if (_nullDelay) {
+        delay(1);
+      }
+      return;
+    }
+
+    _currentStatus = HC_WAIT_READ;
+    _statusChange = millis();
+  }
+
+  if (_currentStatus == HC_WAIT_READ) {
+    if (!_currentClient.connected()) {
+      dropCurrentClient();
+      return;
+    }
+
+    if (!_currentClient.available()) {
+      if (millis() - _statusChange > kHttpFirstByteWaitMs) {
+        dropCurrentClient();
+      } else {
+        yield();
+      }
+      return;
+    }
+
+    const int firstByte = _currentClient.peek();
+    if (firstByte < 'A' || firstByte > 'Z') {
+      dropCurrentClient();
+      return;
+    }
+  }
+
+  WebServer::handleClient();
+}
+
+void DemoHttpServer::dropCurrentClient() {
+  _currentClient.stop();
+  _currentClient = WiFiClient();
+  _currentStatus = HC_NONE;
+  _currentUpload.reset();
+  _currentRaw.reset();
+}
 
 WebConfigServer::WebConfigServer(ScenarioConfigApi& scenarioApi, WifiConfigStore& wifiStore,
                                  TimeService& timeService, ReminderStore& reminderStore,
@@ -148,6 +198,7 @@ void WebConfigServer::ensureHttpServer() {
 void WebConfigServer::setupRoutes() {
   server_.on("/", HTTP_GET, [this]() { handleRoot(); });
   server_.on("/demo", HTTP_GET, [this]() { handleDemoPage(); });
+  server_.on("/demo/", HTTP_GET, [this]() { handleDemoPage(); });
   server_.on("/generate_204", HTTP_GET, [this]() { handleNotFound(); });
   server_.on("/gen_204", HTTP_GET, [this]() { handleNotFound(); });
   server_.on("/hotspot-detect.html", HTTP_GET, [this]() { handleNotFound(); });
@@ -475,7 +526,8 @@ void WebConfigServer::handleDemoStatus() {
 }
 
 void WebConfigServer::handleRoot() {
-  handleDemoPage();
+  server_.sendHeader("Location", "/demo", true);
+  server_.send(302, "text/plain", "");
   return;
 
   {
@@ -939,7 +991,7 @@ void WebConfigServer::handleVoiceCodecSelfTest() {
 
 void WebConfigServer::handleNotFound() {
   if (state_ == NetworkState::Portal) {
-    server_.sendHeader("Location", String("http://") + kPortalIp.toString() + "/", true);
+    server_.sendHeader("Location", String("http://") + kPortalIp.toString() + "/demo", true);
     server_.send(302, "text/plain", "");
     return;
   }

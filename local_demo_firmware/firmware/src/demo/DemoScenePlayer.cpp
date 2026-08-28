@@ -1,6 +1,11 @@
 #include "demo/DemoScenePlayer.h"
 
 namespace tongdou {
+namespace {
+
+constexpr bool kDemoTimelineDebug = false;
+
+}  // namespace
 
 DemoScenePlayer::DemoScenePlayer(ScenarioExecutor& scenarioExecutor,
                                  RealtimeVoiceService& realtimeVoiceService)
@@ -268,23 +273,25 @@ void DemoScenePlayer::executeStep(const DemoSceneStep& step,
                                   unsigned long relativeMs) {
   const unsigned long cueTime =
       syncToVoiceStart_ && audioTimebaseActive_ ? relativeMs : step.atMs;
-  Serial.print(F("demo cue scene="));
-  Serial.print(demoSceneSlug(currentId_, currentVariant_));
-  Serial.print(F(" t="));
-  Serial.print(cueTime);
-  Serial.print(F(" face="));
-  Serial.print(static_cast<int>(step.plan.face));
-  Serial.print(F(" light="));
-  Serial.print(static_cast<int>(step.plan.light));
-  Serial.print(F(" motion="));
-  Serial.print(static_cast<int>(step.plan.motion));
-  Serial.print(F(" voice="));
-  Serial.println(static_cast<int>(step.plan.voice));
+  if (kDemoTimelineDebug) {
+    Serial.print(F("demo cue scene="));
+    Serial.print(demoSceneSlug(currentId_, currentVariant_));
+    Serial.print(F(" t="));
+    Serial.print(cueTime);
+    Serial.print(F(" face="));
+    Serial.print(static_cast<int>(step.plan.face));
+    Serial.print(F(" light="));
+    Serial.print(static_cast<int>(step.plan.light));
+    Serial.print(F(" motion="));
+    Serial.print(static_cast<int>(step.plan.motion));
+    Serial.print(F(" voice="));
+    Serial.println(static_cast<int>(step.plan.voice));
 
-  if ((currentId_ == DemoSceneId::FirstSummonNightmare ||
-       currentId_ == DemoSceneId::ConfusedAccountantGlobal) &&
-      step.plan.motion != MotionAction::None) {
-    scenarioExecutor_.printMotionDebug(step.plan.motion, cueTime, Serial);
+    if ((currentId_ == DemoSceneId::FirstSummonNightmare ||
+         currentId_ == DemoSceneId::ConfusedAccountantGlobal) &&
+        step.plan.motion != MotionAction::None) {
+      scenarioExecutor_.printMotionDebug(step.plan.motion, cueTime, Serial);
+    }
   }
 
   scenarioExecutor_.execute(step.plan);

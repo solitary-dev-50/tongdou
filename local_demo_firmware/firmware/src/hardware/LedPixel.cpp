@@ -40,7 +40,7 @@ void LedPixel::begin() {
   rmt_config_t config = {};
   config.rmt_mode = RMT_MODE_TX;
   config.channel = kRmtChannel;
-  config.gpio_num = pins::WS2812_DATA;
+  config.gpio_num = pins::LED_DATA;
   config.mem_block_num = 1;
   config.clk_div = kRmtClockDiv;
   config.tx_config.loop_en = false;
@@ -52,7 +52,7 @@ void LedPixel::begin() {
   const esp_err_t installResult = rmt_driver_install(kRmtChannel, 0, 0);
   ready_ = (configResult == ESP_OK) && (installResult == ESP_OK);
   if (!ready_) {
-    pinMode(pins::WS2812_DATA, OUTPUT);
+    pinMode(pins::LED_DATA, OUTPUT);
   }
   off();
 }
@@ -86,7 +86,7 @@ void LedPixel::show(const RgbColor& color) {
 
 void LedPixel::off() {
   if (!ready_) {
-    digitalWrite(pins::WS2812_DATA, LOW);
+    digitalWrite(pins::LED_DATA, LOW);
     return;
   }
 

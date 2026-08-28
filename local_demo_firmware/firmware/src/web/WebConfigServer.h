@@ -15,6 +15,16 @@
 
 namespace tongdou {
 
+class DemoHttpServer : public WebServer {
+ public:
+  explicit DemoHttpServer(int port);
+
+  void handleClient() override;
+
+ private:
+  void dropCurrentClient();
+};
+
 class WebConfigServer {
  public:
   WebConfigServer(ScenarioConfigApi& scenarioApi, WifiConfigStore& wifiStore,
@@ -75,7 +85,7 @@ class WebConfigServer {
   HardwareSelfTestService& hardwareSelfTest_;
   DemoScenePlayer& demoScenePlayer_;
   DemoWebPage demoWebPage_;
-  WebServer server_{80};
+  DemoHttpServer server_{80};
   DNSServer dnsServer_;
   NetworkState state_ = NetworkState::Idle;
   bool serverStarted_ = false;

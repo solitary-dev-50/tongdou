@@ -50,30 +50,52 @@ pre{white-space:pre-wrap;background:#050505;border:1px solid var(--line);border-
 <pre id="log">Ready</pre>
 <script>
 const $=id=>document.getElementById(id);
-async function refresh(){
-  const r=await fetch('/api/demo/status');
-  const j=await r.json();
-  $('current').textContent=j.id+' · '+j.title;
-  $('playing').textContent=j.playing?'Playing: '+j.scene:'Idle: '+j.scene;
+let refreshBusy=false;
+let commandBusy=false;
+async function fetchLimit(url,opt,ms){
+  const ctl=new AbortController();
+  const t=setTimeout(()=>ctl.abort(),ms);
+  opt=opt||{};
+  opt.signal=ctl.signal;
+  try{return await fetch(url,opt);}
+  finally{clearTimeout(t);}
 }
-async function play(id){
-  $('log').textContent='Sending scene '+id+'...';
-  const r=await fetch('/api/demo/scene',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'id='+id});
-  const t=await r.text();
-  $('log').textContent=t;
-  await refresh();
+async function refresh(){
+  if(refreshBusy||commandBusy)return;
+  refreshBusy=true;
+  try{
+    const r=await fetchLimit('/api/demo/status',{cache:'no-store'},1800);
+    const j=await r.json();
+    $('current').textContent=j.id+' · '+j.title;
+    $('playing').textContent=j.playing?'Playing: '+j.scene:'Idle: '+j.scene;
+  }catch(e){
+    $('playing').textContent='Status update delayed';
+  }finally{
+    refreshBusy=false;
+  }
 }
 async function play(id,variant){
+  if(commandBusy){
+    $('log').textContent='Command is still sending...';
+    return;
+  }
+  commandBusy=true;
   const label=variant?id+'-'+variant:id;
   $('log').textContent='Sending scene '+label+'...';
   let body='id='+id;
   if(variant) body+='&variant='+variant;
-  const r=await fetch('/api/demo/scene',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});
-  const t=await r.text();
-  $('log').textContent=t;
-  await refresh();
+  try{
+    const r=await fetchLimit('/api/demo/scene',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body},4500);
+    const t=await r.text();
+    $('log').textContent=t;
+  }catch(e){
+    $('log').textContent='Command timed out. Tap again.';
+  }finally{
+    commandBusy=false;
+  }
+  refresh();
 }
-refresh();setInterval(refresh,900);
+refresh();setInterval(refresh,2500);
 </script></main></body></html>)HTML");
   return body;
 }

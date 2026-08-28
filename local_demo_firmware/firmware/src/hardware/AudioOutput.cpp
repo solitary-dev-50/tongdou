@@ -23,6 +23,7 @@ constexpr const char* kLittleFsPartitionLabel = "littlefs";
 constexpr const char* kFirstSummonAudioPath = "/audio/demo_00_first_summon.pcm";
 constexpr const char* kAudioPrefsNamespace = "td_audio";
 constexpr const char* kVolumePercentKey = "volume";
+constexpr bool kAudioClipDebug = false;
 constexpr float kPi = 3.14159265358979323846F;
 constexpr int16_t kToneAmplitude = 10000;
 uint8_t gPcmPlaybackBuffer[kPcmReadBytes] = {};
@@ -140,12 +141,14 @@ void AudioOutput::playClip(uint16_t clipId, const char* fileName, const char* te
     return;
   }
 
-  Serial.print("audio clip=");
-  Serial.print(clipId);
-  Serial.print(" file=");
-  Serial.print(fileName == nullptr ? "" : fileName);
-  Serial.print(" text=");
-  Serial.println(text == nullptr ? "" : text);
+  if (kAudioClipDebug) {
+    Serial.print("audio clip=");
+    Serial.print(clipId);
+    Serial.print(" file=");
+    Serial.print(fileName == nullptr ? "" : fileName);
+    Serial.print(" text=");
+    Serial.println(text == nullptr ? "" : text);
+  }
 
   if (fileName == nullptr || fileName[0] == '\0') {
     Serial.println(F("audio playback skipped: empty file"));
