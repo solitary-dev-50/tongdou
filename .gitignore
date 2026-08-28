@@ -2,12 +2,19 @@
 tmp/
 tmp_video_frames/
 outputs/
+release_artifacts/
+release_validation/
 *.log
 **/__pycache__/
 **/*.py[cod]
 
-# Internal demo firmware for filming only.
-local_demo_firmware/
+# PlatformIO and editor files are generated on each developer's computer.
+# Keep firmware source, docs, and deliberate release packages trackable.
+**/.pio/
+**/.vscode/
+**/*.elf
+**/*.map
+**/*.tmp
 
 # Large reference projects and imported vendor material
 可参考的项目/
@@ -107,4 +114,4 @@ docs/铜豆_开源发布方案_最终版.md
 docs/铜豆_魔头诞生视频拍摄与置顶评论.md
 docs/铜豆原理图/
 docs/验证记录.md
-hardware_test_firmware/docs/SYNC_FROM_BOARD_TEST.md
+board_test_firmware/led_data_high_test_firmware/.pio/

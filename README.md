@@ -73,7 +73,7 @@ For the currently published electrical reference documents, see the
 
 ## Hardware Test Firmware
 
-[Open the TongDou hardware test firmware](hardware_test_firmware/)
+[Open the TongDou hardware test firmware](board_test_firmware/)
 
 This public package is intended for hardware bring-up and diagnostics. It is
 not the complete TongDou application firmware.
@@ -100,7 +100,7 @@ complete manufacturing package at this stage.
 
 - Project overview and hardware direction
 - Verified prototype status
-- [Hardware test and diagnostic firmware](hardware_test_firmware/)
+- [Hardware test and diagnostic firmware](board_test_firmware/)
 - V8 and V9 prototype PCB photos
 - Existing schematic PDF files
 - Existing project photos and videos
@@ -195,7 +195,7 @@ claim official certification or endorsement.
 
 - [Hardware Release Package](hardware/)
 - [TongDou PCB v8 Package](hardware/pcb/tongdou-pcb-v8/)
-- [Hardware Test Firmware](hardware_test_firmware/)
+- [Hardware Test Firmware](board_test_firmware/)
 - [License Scope and Attribution](NOTICE.md)
 
 ## Inspiration & Acknowledgements
