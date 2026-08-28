@@ -39,6 +39,21 @@ String boolJson(bool value) {
   return value ? "true" : "false";
 }
 
+String jsonString(const char* value) {
+  String escaped = "\"";
+  if (value != nullptr) {
+    while (*value != '\0') {
+      if (*value == '"' || *value == '\\') {
+        escaped += '\\';
+      }
+      escaped += *value;
+      ++value;
+    }
+  }
+  escaped += "\"";
+  return escaped;
+}
+
 void writeLe16(uint8_t* output, uint16_t value) {
   output[0] = static_cast<uint8_t>(value & 0xFF);
   output[1] = static_cast<uint8_t>((value >> 8) & 0xFF);
@@ -252,6 +267,7 @@ summary{font-size:17px;font-weight:700;cursor:pointer;padding:8px 0}
 <div class="statusItem"><span data-i18n="mic">Microphone</span><span id="micStatus" class="statusValue">--</span></div>
 <div class="statusItem"><span data-i18n="speaker">Speaker</span><span id="speakerStatus" class="statusValue">--</span></div>
 <div class="statusItem"><span data-i18n="power">Power</span><span id="powerStatus" class="statusValue">--</span></div>
+<div class="statusItem"><span data-i18n="batteryLevel">Battery</span><span id="batteryLevelStatus" class="statusValue">--</span></div>
 <div class="statusItem"><span data-i18n="system">System</span><span id="systemStatus" class="statusValue">--</span></div>
 </div>
 
@@ -357,6 +373,7 @@ const text={
     display:'Display',
     led:'LED',
     power:'Power',
+    batteryLevel:'Battery',
     system:'System',
     ready:'Ready',
     check:'Check',
@@ -755,6 +772,8 @@ function renderStatus(data){
   let power=dict.batteryPower;
   if(data.usbPresent)power=data.charging?dict.charging:(data.standby?dict.standby:dict.usbPower);
   setStatus('powerStatus',true,power);
+  const batteryText=data.batteryPercent+'% / '+(data.batteryVoltageMv/1000).toFixed(2)+'V';
+  setStatus('batteryLevelStatus',data.batteryPercent>15,batteryText);
   setStatus('systemStatus',!data.degraded,data.degraded?dict.degraded:dict.healthy);
   if(document.activeElement!==$('volume')){
     $('volume').value=data.audioVolumePercent;
@@ -1039,6 +1058,20 @@ String WebConfigServer::statusJson() const {
   body += boolJson(battery.standby);
   body += ",\"rawAdc\":";
   body += battery.rawAdc;
+  body += ",\"batteryVoltageMv\":";
+  body += battery.voltageMv;
+  body += ",\"batteryPercent\":";
+  body += battery.percent;
+  body += ",\"shippingDischargeActive\":";
+  body += boolJson(hardwareSelfTest_.shippingDischargeActive());
+  body += ",\"shippingDischargeDone\":";
+  body += boolJson(hardwareSelfTest_.shippingDischargeDone());
+  body += ",\"shippingDischargeFailed\":";
+  body += boolJson(hardwareSelfTest_.shippingDischargeFailed());
+  body += ",\"shippingDischargeTargetPercent\":";
+  body += hardwareSelfTest_.shippingDischargeTargetPercent();
+  body += ",\"shippingDischargeMessage\":";
+  body += jsonString(hardwareSelfTest_.shippingDischargeMessage());
   body += ",\"audioVolumePercent\":";
   body += hardwareSelfTest_.audioVolumePercent();
   body += ",\"motorLeftInverted\":";

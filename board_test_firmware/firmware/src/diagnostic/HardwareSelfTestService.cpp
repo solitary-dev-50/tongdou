@@ -25,8 +25,18 @@ constexpr unsigned long kRadarGuidedBlockingPhaseMs = 5000;
 constexpr unsigned long kRadarGuidedEmptyPhaseMs = 7000;
 constexpr unsigned long kRadarGuidedTargetPhaseMs = 4000;
 constexpr unsigned long kRadarGuidedSamplePauseMs = 120;
+constexpr unsigned long kBatteryDisplayIntervalMs = 3000;
+constexpr unsigned long kShippingDischargeOnMs = 8000;
+constexpr unsigned long kShippingDischargeRestMs = 2000;
+constexpr unsigned long kShippingDischargeMaxMs = 45UL * 60UL * 1000UL;
+constexpr uint8_t kShippingDischargeTargetPercent = 30;
+constexpr uint8_t kShippingDischargePwm = 210;
+constexpr uint16_t kShippingDischargeAlarmHz = 1760;
+constexpr uint16_t kShippingDischargeAlarmMs = 180;
 constexpr uint16_t kSpeakerTestHz = 880;
 constexpr uint16_t kSpeakerTestMs = 120;
+constexpr uint8_t kMotorDriverDiagnosticPwm = 200;
+constexpr unsigned long kMotorDriverDiagnosticStepMs = 2000;
 constexpr uint8_t kMotorCalibrationBrakePwm = 160;
 constexpr uint8_t kMotorAutoBasePwm = 185;
 constexpr uint8_t kMotorAutoSoftStartPwmDrop = 5;
@@ -146,6 +156,20 @@ const __FlashStringHelper* axisName(uint8_t axis) {
   return F("Z");
 }
 
+const __FlashStringHelper* wheelDriveName(WheelDrive drive) {
+  switch (drive) {
+    case WheelDrive::Forward:
+      return F("forward");
+    case WheelDrive::Reverse:
+      return F("reverse");
+    case WheelDrive::Brake:
+      return F("brake");
+    case WheelDrive::Stop:
+    default:
+      return F("stop");
+  }
+}
+
 const char* radarGuidedPhaseName(uint8_t phase) {
   static const char* const kNames[] = {"empty_1", "wave_1", "empty_2", "wave_2", "empty_3"};
   return phase < 5 ? kNames[phase] : "done";
@@ -209,6 +233,13 @@ bool readImuDebugFrame(ImuSensor& imu, ImuDebugFrame& frame) {
   return true;
 }
 
+bool logoTouched(const LogoTouchInput& logoTouch) {
+  const int32_t delta = logoTouch.delta();
+  const uint32_t absDelta =
+      delta < 0 ? static_cast<uint32_t>(-delta) : static_cast<uint32_t>(delta);
+  return absDelta >= logoTouch.threshold();
+}
+
 }  // namespace
 
 HardwareSelfTestService::HardwareSelfTestService(BatteryMonitor& battery,
@@ -218,7 +249,8 @@ HardwareSelfTestService::HardwareSelfTestService(BatteryMonitor& battery,
                                                  MotorDriver& motors,
                                                  RadarSensor& radar,
                                                  FaceDisplay& faceDisplay,
-                                                 ImuSensor& imu)
+                                                 ImuSensor& imu,
+                                                 LogoTouchInput& logoTouch)
     : battery_(battery),
       audioInput_(audioInput),
       audioOutput_(audioOutput),
@@ -227,6 +259,7 @@ HardwareSelfTestService::HardwareSelfTestService(BatteryMonitor& battery,
       radar_(radar),
       faceDisplay_(faceDisplay),
       imu_(imu),
+      logoTouch_(logoTouch),
       audioLoopback_(audioInput, audioOutput) {}
 
 void HardwareSelfTestService::begin() {
@@ -245,11 +278,19 @@ void HardwareSelfTestService::begin() {
   radarGuidedPhaseStartMs_ = 0;
   radarGuidedNextSampleMs_ = 0;
   radarGuidedLastSequence_ = 0;
+  nextBatteryDisplayMs_ = 0;
+  shippingDischargeActive_ = false;
+  shippingDischargeDone_ = false;
+  shippingDischargeFailed_ = false;
+  shippingDischargeMotorOn_ = false;
+  snprintf(shippingDischargeMessage_, sizeof(shippingDischargeMessage_), "idle");
 }
 
 void HardwareSelfTestService::update() {
   radar_.update();
   audioLoopback_.update();
+  updateBatteryDisplay();
+  updateShippingDischarge();
   updateRadarGuidedTest();
   updateAutoMotorCalibration();
   if (autoMotorPhase_ != 0) {
@@ -333,6 +374,26 @@ uint8_t HardwareSelfTestService::audioVolumePercent() const {
   return audioOutput_.volumePercent();
 }
 
+bool HardwareSelfTestService::shippingDischargeActive() const {
+  return shippingDischargeActive_;
+}
+
+bool HardwareSelfTestService::shippingDischargeDone() const {
+  return shippingDischargeDone_;
+}
+
+bool HardwareSelfTestService::shippingDischargeFailed() const {
+  return shippingDischargeFailed_;
+}
+
+uint8_t HardwareSelfTestService::shippingDischargeTargetPercent() const {
+  return kShippingDischargeTargetPercent;
+}
+
+const char* HardwareSelfTestService::shippingDischargeMessage() const {
+  return shippingDischargeMessage_;
+}
+
 bool HardwareSelfTestService::audioRecordingAvailable() const {
   return audioLoopback_.recordingAvailable();
 }
@@ -399,11 +460,15 @@ void HardwareSelfTestService::printHelp(Print& out) const {
   out.println(F("  i2c scan"));
   out.println(F("  imu"));
   out.println(F("  imu raw test"));
+  out.println(F("  logo touch"));
+  out.println(F("  logo touch watch"));
   out.println(F("  speaker"));
   out.println(F("  audio volume [0-100]"));
+  out.println(F("  shipping discharge start|status|stop"));
   out.println(F("  led red|green|blue|white|off"));
   out.println(F("  led pin high|low|pulse"));
   out.println(F("  motor forward|reverse|stop"));
+  out.println(F("  motor diag [a|b]"));
   out.println(F("  motor manual forward [leftPwm rightPwm]"));
   out.println(F("  motor manual reverse [leftPwm rightPwm]"));
   out.println(F("  motor auto forward [basePwm]"));
@@ -550,6 +615,14 @@ bool HardwareSelfTestService::handleCommand(const String& command, Print& out) {
     printImuRawTest(out);
     return true;
   }
+  if (cmd == F("logo touch")) {
+    printLogoTouch(out);
+    return true;
+  }
+  if (cmd == F("logo touch watch")) {
+    watchLogoTouch(out);
+    return true;
+  }
   if (cmd == F("speaker")) {
     testSpeaker(out);
     return true;
@@ -567,6 +640,19 @@ bool HardwareSelfTestService::handleCommand(const String& command, Print& out) {
       }
     }
     printAudioVolume(out);
+    return true;
+  }
+  if (cmd == F("shipping discharge") ||
+      cmd == F("shipping discharge start")) {
+    startShippingDischarge(out);
+    return true;
+  }
+  if (cmd == F("shipping discharge status")) {
+    printShippingDischargeStatus(out);
+    return true;
+  }
+  if (cmd == F("shipping discharge stop")) {
+    stopShippingDischarge(out);
     return true;
   }
   if (cmd == F("led red")) {
@@ -612,11 +698,26 @@ bool HardwareSelfTestService::handleCommand(const String& command, Print& out) {
     testMotor(WheelDrive::Forward, WheelDrive::Forward, out);
     return true;
   }
+  if (cmd == F("motor diag") || cmd == F("motor diagnostic")) {
+    runMotorDriverDiagnostic(out, true, true);
+    return true;
+  }
+  if (cmd == F("motor diag a") || cmd == F("motor diagnostic a")) {
+    runMotorDriverDiagnostic(out, true, false);
+    return true;
+  }
+  if (cmd == F("motor diag b") || cmd == F("motor diagnostic b")) {
+    runMotorDriverDiagnostic(out, false, true);
+    return true;
+  }
   if (cmd == F("motor reverse")) {
     testMotor(WheelDrive::Reverse, WheelDrive::Reverse, out);
     return true;
   }
   if (cmd == F("motor stop")) {
+    if (shippingDischargeActive_) {
+      finishShippingDischarge(false, "stopped by motor stop", false);
+    }
     stopMotorPulse();
     out.println(F("motor stop"));
     return true;
@@ -684,6 +785,97 @@ void HardwareSelfTestService::printBattery(Print& out) const {
   printBool(out, F("  standby="), snapshot.standby);
   out.print(F("  raw_adc="));
   out.println(snapshot.rawAdc);
+  out.print(F("  voltage_mv="));
+  out.println(snapshot.voltageMv);
+  out.print(F("  percent_estimate="));
+  out.println(snapshot.percent);
+}
+
+void HardwareSelfTestService::updateBatteryDisplay() {
+  if (!faceDisplay_.ready()) {
+    return;
+  }
+  if (nextBatteryDisplayMs_ != 0 &&
+      static_cast<long>(millis() - nextBatteryDisplayMs_) < 0) {
+    return;
+  }
+
+  const BatterySnapshot snapshot = battery_.read();
+  faceDisplay_.showBattery(snapshot.percent, snapshot.voltageMv,
+                           snapshot.usbPresent, snapshot.charging,
+                           snapshot.standby);
+  nextBatteryDisplayMs_ = millis() + kBatteryDisplayIntervalMs;
+}
+
+void HardwareSelfTestService::updateShippingDischarge() {
+  if (!shippingDischargeActive_) {
+    return;
+  }
+
+  const BatterySnapshot snapshot = battery_.read();
+  if (snapshot.usbPresent) {
+    finishShippingDischarge(true, "usb plugged during discharge", false);
+    return;
+  }
+
+  if (snapshot.percent <= kShippingDischargeTargetPercent) {
+    finishShippingDischarge(false, "target reached", true);
+    return;
+  }
+
+  if (millis() - shippingDischargeStartedMs_ >= kShippingDischargeMaxMs) {
+    finishShippingDischarge(true, "timeout before target", true);
+    return;
+  }
+
+  const unsigned long now = millis();
+  if (!shippingDischargeMotorOn_) {
+    if (shippingDischargePhaseStartedMs_ != 0 &&
+        now - shippingDischargePhaseStartedMs_ < kShippingDischargeRestMs) {
+      return;
+    }
+
+    motors_.drive(WheelDrive::Forward, WheelDrive::Forward, 0,
+                  kShippingDischargePwm, kShippingDischargePwm);
+    shippingDischargeMotorOn_ = true;
+    shippingDischargePhaseStartedMs_ = now;
+    snprintf(shippingDischargeMessage_, sizeof(shippingDischargeMessage_),
+             "running motor discharge");
+    return;
+  }
+
+  if (now - shippingDischargePhaseStartedMs_ >= kShippingDischargeOnMs) {
+    motors_.stop();
+    shippingDischargeMotorOn_ = false;
+    shippingDischargePhaseStartedMs_ = now;
+    snprintf(shippingDischargeMessage_, sizeof(shippingDischargeMessage_),
+             "resting before next voltage check");
+  }
+}
+
+void HardwareSelfTestService::finishShippingDischarge(bool failed,
+                                                      const char* message,
+                                                      bool alarm) {
+  motors_.stop();
+  shippingDischargeActive_ = false;
+  shippingDischargeDone_ = true;
+  shippingDischargeFailed_ = failed;
+  shippingDischargeMotorOn_ = false;
+  snprintf(shippingDischargeMessage_, sizeof(shippingDischargeMessage_), "%s",
+           message);
+
+  if (alarm) {
+    for (uint8_t index = 0; index < 3; ++index) {
+      audioOutput_.playTestTone(kShippingDischargeAlarmHz,
+                                kShippingDischargeAlarmMs);
+      delay(120);
+    }
+  }
+
+  Serial.print(F("shipping discharge finish failed="));
+  Serial.print(failed ? F("1") : F("0"));
+  Serial.print(F(" message="));
+  Serial.println(message);
 }
 
 void HardwareSelfTestService::printRadar(Print& out) const {
@@ -1423,6 +1615,50 @@ void HardwareSelfTestService::printImuRegisterDump(Print& out) const {
   }
 }
 
+void HardwareSelfTestService::printLogoTouch(Print& out) const {
+  out.println(F("logo touch:"));
+  printBool(out, F("  ready="), logoTouch_.ready());
+  out.print(F("  raw="));
+  out.println(logoTouch_.raw());
+  out.print(F("  baseline="));
+  out.println(logoTouch_.baseline());
+  out.print(F("  delta="));
+  out.println(logoTouch_.delta());
+  out.print(F("  threshold="));
+  out.println(logoTouch_.threshold());
+  printBool(out, F("  touched="), logoTouched(logoTouch_));
+}
+
+void HardwareSelfTestService::watchLogoTouch(Print& out) {
+  out.println(F("logo touch watch:"));
+  out.println(F("  duration_ms=5000"));
+  out.println(F("  sample_ms=100"));
+  out.println(F("  instruction=touch and release the logo now"));
+  const unsigned long startedMs = millis();
+  unsigned long nextPrintMs = startedMs;
+  while (millis() - startedMs < 5000UL) {
+    logoTouch_.update();
+    const unsigned long now = millis();
+    if (static_cast<long>(now - nextPrintMs) >= 0) {
+      out.print(F("  t_ms="));
+      out.print(now - startedMs);
+      out.print(F(" raw="));
+      out.print(logoTouch_.raw());
+      out.print(F(" baseline="));
+      out.print(logoTouch_.baseline());
+      out.print(F(" delta="));
+      out.print(logoTouch_.delta());
+      out.print(F(" threshold="));
+      out.print(logoTouch_.threshold());
+      out.print(F(" touched="));
+      out.println(logoTouched(logoTouch_) ? F("1") : F("0"));
+      nextPrintMs = now + 100UL;
+    }
+    delay(5);
+  }
+  printLogoTouch(out);
+}
+
 void HardwareSelfTestService::printImuRawTest(Print& out) {
   out.println(F("imu raw test:"));
   printBool(out, F("  ready="), imu_.ready());
@@ -1679,6 +1915,68 @@ void HardwareSelfTestService::printAudioVolume(Print& out) const {
   out.println(audioOutput_.volumePercent());
 }
 
+void HardwareSelfTestService::startShippingDischarge(Print& out) {
+  const BatterySnapshot snapshot = battery_.read();
+  shippingDischargeDone_ = false;
+  shippingDischargeFailed_ = false;
+
+  if (snapshot.usbPresent) {
+    finishShippingDischarge(true, "usb present, unplug USB before discharge",
+                            false);
+    printShippingDischargeStatus(out);
+    return;
+  }
+
+  if (snapshot.percent <= kShippingDischargeTargetPercent) {
+    finishShippingDischarge(false, "already at or below target", true);
+    printShippingDischargeStatus(out);
+    return;
+  }
+
+  stopMotorPulse();
+  cancelAutoMotorCalibration();
+  motorCalibrationPhase_ = 0;
+  manualMotorTimeoutMs_ = 0;
+  motorStopAtMs_ = 0;
+
+  shippingDischargeActive_ = true;
+  shippingDischargeMotorOn_ = false;
+  shippingDischargeStartedMs_ = millis();
+  shippingDischargePhaseStartedMs_ = 0;
+  snprintf(shippingDischargeMessage_, sizeof(shippingDischargeMessage_),
+           "running");
+  updateShippingDischarge();
+  printShippingDischargeStatus(out);
+}
+
+void HardwareSelfTestService::stopShippingDischarge(Print& out) {
+  if (shippingDischargeActive_) {
+    finishShippingDischarge(false, "stopped by user", false);
+  }
+  printShippingDischargeStatus(out);
+}
+
+void HardwareSelfTestService::printShippingDischargeStatus(Print& out) const {
+  const BatterySnapshot snapshot = battery_.read();
+  out.println(F("shipping discharge:"));
+  printBool(out, F("  active="), shippingDischargeActive_);
+  printBool(out, F("  done="), shippingDischargeDone_);
+  printBool(out, F("  failed="), shippingDischargeFailed_);
+  printBool(out, F("  motor_on="), shippingDischargeMotorOn_);
+  out.print(F("  message="));
+  out.println(shippingDischargeMessage_);
+  out.print(F("  target_percent="));
+  out.println(kShippingDischargeTargetPercent);
+  out.print(F("  current_percent="));
+  out.println(snapshot.percent);
+  out.print(F("  voltage_mv="));
+  out.println(snapshot.voltageMv);
+  printBool(out, F("  usb="), snapshot.usbPresent);
+  out.print(F("  max_minutes="));
+  out.println(kShippingDischargeMaxMs / 60000UL);
+  out.println(F("  note=estimated_soc_for_board_test_only"));
+}
+
 void HardwareSelfTestService::testLed(const RgbColor& color, Print& out) {
   led_.show(color);
   out.println(F("led test color set"));
@@ -1700,15 +1998,123 @@ void HardwareSelfTestService::pulseLedDataPin(Print& out) {
 }
 
 void HardwareSelfTestService::testMotor(WheelDrive left, WheelDrive right, Print& out) {
+  if (shippingDischargeActive_) {
+    finishShippingDischarge(false, "interrupted by motor pulse", false);
+  }
   manualMotorTimeoutMs_ = 0;
   motors_.drive(left, right);
   motorStopAtMs_ = millis() + kMotorPulseMs;
   out.println(F("motor pulse started"));
 }
 
+void HardwareSelfTestService::printMotorDriverDiagnostic(const __FlashStringHelper* step,
+                                                         Print& out) const {
+  const MotorDriverDiagnostic snapshot = motors_.diagnostic();
+  const auto printPin = [&out](const MotorPinDiagnostic& pin) {
+    out.print(F("  "));
+    out.print(pin.name);
+    out.print(F(": gpio=IO"));
+    out.print(pin.gpio);
+    out.print(F(" logic="));
+    out.print(pin.logicLevel == HIGH ? F("HIGH") : F("LOW"));
+    out.print(F(" pwm_channel="));
+    out.print(pin.pwmChannel);
+    out.print(F(" duty="));
+    out.println(pin.duty);
+  };
+
+  out.println(F("motor driver diagnostic:"));
+  out.print(F("  step="));
+  out.println(step);
+  out.print(F("  sleep_gpio=IO"));
+  out.println(static_cast<int>(pins::MOTOR_SLEEP));
+  out.print(F("  sleep_logic="));
+  out.println(digitalRead(pins::MOTOR_SLEEP) == HIGH ? F("HIGH") : F("LOW"));
+  out.print(F("  fault_gpio=IO"));
+  out.println(static_cast<int>(pins::MOTOR_FAULT));
+  out.print(F("  fault_logic="));
+  out.println(digitalRead(pins::MOTOR_FAULT) == HIGH ? F("HIGH") : F("LOW"));
+  printBool(out, F("  driver_awake="), snapshot.awake);
+  printBool(out, F("  left_inverted="), motors_.leftInverted());
+  printBool(out, F("  right_inverted="), motors_.rightInverted());
+  out.print(F("  left_command="));
+  out.println(wheelDriveName(snapshot.leftCommand));
+  out.print(F("  right_command="));
+  out.println(wheelDriveName(snapshot.rightCommand));
+  out.print(F("  left_applied="));
+  out.println(wheelDriveName(snapshot.leftApplied));
+  out.print(F("  right_applied="));
+  out.println(wheelDriveName(snapshot.rightApplied));
+  out.print(F("  left_duty="));
+  out.println(snapshot.leftDuty);
+  out.print(F("  right_duty="));
+  out.println(snapshot.rightDuty);
+  printPin(snapshot.ain1);
+  printPin(snapshot.ain2);
+  printPin(snapshot.bin1);
+  printPin(snapshot.bin2);
+}
+
+void HardwareSelfTestService::runMotorDriverDiagnostic(Print& out, bool testA,
+                                                       bool testB) {
+  if (shippingDischargeActive_) {
+    finishShippingDischarge(false, "interrupted by motor diagnostic", false);
+  }
+  cancelAutoMotorCalibration();
+  motorCalibrationPhase_ = 0;
+  motorCalibrationNextMs_ = 0;
+  motorStopAtMs_ = 0;
+  manualMotorTimeoutMs_ = 0;
+
+  out.println(F("motor driver diagnostic begin"));
+  out.print(F("  pwm="));
+  out.println(kMotorDriverDiagnosticPwm);
+  out.print(F("  step_ms="));
+  out.println(kMotorDriverDiagnosticStepMs);
+  out.print(F("  sequence="));
+  if (testA && testB) {
+    out.println(F("A_forward,A_reverse,B_forward,B_reverse,stop"));
+  } else if (testA) {
+    out.println(F("A_forward,A_reverse,stop"));
+  } else {
+    out.println(F("B_forward,B_reverse,stop"));
+  }
+
+  if (testA) {
+    motors_.drive(WheelDrive::Forward, WheelDrive::Stop, 0,
+                  kMotorDriverDiagnosticPwm, kMotorDriverDiagnosticPwm);
+    printMotorDriverDiagnostic(F("A_forward"), out);
+    delay(kMotorDriverDiagnosticStepMs);
+
+    motors_.drive(WheelDrive::Reverse, WheelDrive::Stop, 0,
+                  kMotorDriverDiagnosticPwm, kMotorDriverDiagnosticPwm);
+    printMotorDriverDiagnostic(F("A_reverse"), out);
+    delay(kMotorDriverDiagnosticStepMs);
+  }
+
+  if (testB) {
+    motors_.drive(WheelDrive::Stop, WheelDrive::Forward, 0,
+                  kMotorDriverDiagnosticPwm, kMotorDriverDiagnosticPwm);
+    printMotorDriverDiagnostic(F("B_forward"), out);
+    delay(kMotorDriverDiagnosticStepMs);
+
+    motors_.drive(WheelDrive::Stop, WheelDrive::Reverse, 0,
+                  kMotorDriverDiagnosticPwm, kMotorDriverDiagnosticPwm);
+    printMotorDriverDiagnostic(F("B_reverse"), out);
+    delay(kMotorDriverDiagnosticStepMs);
+  }
+
+  motors_.stop();
+  printMotorDriverDiagnostic(F("stop"), out);
+  out.println(F("motor driver diagnostic done"));
+}
+
 void HardwareSelfTestService::startManualMotor(WheelDrive direction,
                                                const String& command,
                                                Print& out) {
+  if (shippingDischargeActive_) {
+    finishShippingDischarge(false, "interrupted by manual motor", false);
+  }
   motorStopAtMs_ = 0;
 
   uint8_t leftPwm = motors_.leftDefaultDuty();
@@ -1752,6 +2158,9 @@ void HardwareSelfTestService::startManualMotor(WheelDrive direction,
 void HardwareSelfTestService::startAutoMotorCalibration(WheelDrive direction,
                                                         const String& command,
                                                         Print& out) {
+  if (shippingDischargeActive_) {
+    finishShippingDischarge(false, "interrupted by gyro straight", false);
+  }
   if (!imu_.ready()) {
     autoMotorFailed_ = true;
     autoMotorDone_ = true;
@@ -2182,6 +2591,9 @@ void HardwareSelfTestService::resetAutoMotorSamples() {
 void HardwareSelfTestService::startMotorCalibration(WheelDrive direction,
                                                     const String& command,
                                                     Print& out) {
+  if (shippingDischargeActive_) {
+    finishShippingDischarge(false, "interrupted by motor calibration", false);
+  }
   motorStopAtMs_ = 0;
   manualMotorTimeoutMs_ = 0;
 

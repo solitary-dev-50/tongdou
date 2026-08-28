@@ -79,6 +79,8 @@ void MotorDriver::drive(WheelDrive left, WheelDrive right, uint8_t duty) {
 
 void MotorDriver::drive(WheelDrive left, WheelDrive right, uint8_t duty,
                         uint8_t leftDuty, uint8_t rightDuty) {
+  leftCommand_ = left;
+  rightCommand_ = right;
   if (left == WheelDrive::Stop && right == WheelDrive::Stop) {
     stop();
     return;
@@ -91,6 +93,8 @@ void MotorDriver::drive(WheelDrive left, WheelDrive right, uint8_t duty,
 }
 
 void MotorDriver::stop() {
+  leftCommand_ = WheelDrive::Stop;
+  rightCommand_ = WheelDrive::Stop;
   driveLeft(WheelDrive::Stop, 0);
   driveRight(WheelDrive::Stop, 0);
   sleep();
@@ -125,6 +129,26 @@ uint8_t MotorDriver::leftDefaultDuty() const {
 
 uint8_t MotorDriver::rightDefaultDuty() const {
   return rightDefaultDuty_;
+}
+
+MotorDriverDiagnostic MotorDriver::diagnostic() const {
+  MotorDriverDiagnostic result;
+  result.awake = awake_;
+  result.leftCommand = leftCommand_;
+  result.rightCommand = rightCommand_;
+  result.leftApplied = leftApplied_;
+  result.rightApplied = rightApplied_;
+  result.leftDuty = leftDuty_;
+  result.rightDuty = rightDuty_;
+  result.ain1 = {"AIN1", static_cast<uint8_t>(pins::MOTOR_AIN1),
+                 kMotorAin1Channel, ain1Duty_, digitalRead(pins::MOTOR_AIN1)};
+  result.ain2 = {"AIN2", static_cast<uint8_t>(pins::MOTOR_AIN2),
+                 kMotorAin2Channel, ain2Duty_, digitalRead(pins::MOTOR_AIN2)};
+  result.bin1 = {"BIN1", static_cast<uint8_t>(pins::MOTOR_BIN1),
+                 kMotorBin1Channel, bin1Duty_, digitalRead(pins::MOTOR_BIN1)};
+  result.bin2 = {"BIN2", static_cast<uint8_t>(pins::MOTOR_BIN2),
+                 kMotorBin2Channel, bin2Duty_, digitalRead(pins::MOTOR_BIN2)};
+  return result;
 }
 
 void MotorDriver::setCalibration(bool leftInverted, bool rightInverted,
@@ -189,22 +213,33 @@ WheelDrive MotorDriver::applyRightDirection(WheelDrive drive) const {
 
 void MotorDriver::driveLeft(WheelDrive drive, uint8_t duty) {
   drive = applyLeftDirection(drive);
+  leftApplied_ = drive;
+  leftDuty_ = duty;
   const uint8_t activeDuty = duty == 0 ? kDriveDuty : duty;
   switch (drive) {
     case WheelDrive::Forward:
+      ain1Duty_ = activeDuty;
+      ain2Duty_ = 0;
       ledcWrite(kMotorAin2Channel, 0);
       ledcWrite(kMotorAin1Channel, activeDuty);
       break;
     case WheelDrive::Reverse:
+      ain1Duty_ = 0;
+      ain2Duty_ = activeDuty;
       ledcWrite(kMotorAin1Channel, 0);
       ledcWrite(kMotorAin2Channel, activeDuty);
       break;
     case WheelDrive::Brake:
+      ain1Duty_ = duty == 0 ? kBrakeDuty : duty;
+      ain2Duty_ = duty == 0 ? kBrakeDuty : duty;
       ledcWrite(kMotorAin1Channel, duty == 0 ? kBrakeDuty : duty);
       ledcWrite(kMotorAin2Channel, duty == 0 ? kBrakeDuty : duty);
       break;
     case WheelDrive::Stop:
     default:
+      leftDuty_ = 0;
+      ain1Duty_ = 0;
+      ain2Duty_ = 0;
       ledcWrite(kMotorAin1Channel, 0);
       ledcWrite(kMotorAin2Channel, 0);
       break;
@@ -213,22 +248,33 @@ void MotorDriver::driveLeft(WheelDrive drive, uint8_t duty) {
 
 void MotorDriver::driveRight(WheelDrive drive, uint8_t duty) {
   drive = applyRightDirection(drive);
+  rightApplied_ = drive;
+  rightDuty_ = duty;
   const uint8_t activeDuty = duty == 0 ? kDriveDuty : duty;
   switch (drive) {
     case WheelDrive::Forward:
+      bin1Duty_ = 0;
+      bin2Duty_ = activeDuty;
       ledcWrite(kMotorBin1Channel, 0);
       ledcWrite(kMotorBin2Channel, activeDuty);
       break;
     case WheelDrive::Reverse:
+      bin1Duty_ = activeDuty;
+      bin2Duty_ = 0;
       ledcWrite(kMotorBin2Channel, 0);
       ledcWrite(kMotorBin1Channel, activeDuty);
       break;
     case WheelDrive::Brake:
+      bin1Duty_ = duty == 0 ? kBrakeDuty : duty;
+      bin2Duty_ = duty == 0 ? kBrakeDuty : duty;
       ledcWrite(kMotorBin1Channel, duty == 0 ? kBrakeDuty : duty);
       ledcWrite(kMotorBin2Channel, duty == 0 ? kBrakeDuty : duty);
       break;
     case WheelDrive::Stop:
     default:
+      rightDuty_ = 0;
+      bin1Duty_ = 0;
+      bin2Duty_ = 0;
       ledcWrite(kMotorBin1Channel, 0);
       ledcWrite(kMotorBin2Channel, 0);
       break;

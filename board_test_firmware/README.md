@@ -1,152 +1,271 @@
-# TongDou V9 Board Test Firmware
+# TongDou V9 Engineering Test, Diagnostics, Calibration & Maintenance Firmware
 
-This folder is the standalone board bring-up firmware package for TongDou V9
-hardware.
+This is the same engineering firmware I use on my workbench to bring up,
+diagnose, calibrate, and repair TongDou V9 hardware.
 
-It is separate from the full TongDou firmware and from the internal filming
-firmware. It should stay boring, stable, and useful for checking whether a newly
-assembled board is healthy.
+It grew alongside the hardware, so you may find experimental paths, diagnostic
+commands, and traces of real debugging work. That is intentional - this
+repository reflects how TongDou was actually developed, not a cleaned-up demo
+written afterward.
 
-## Scope
+This is not the complete TongDou application firmware. It does not include the
+character behavior system, official audio assets, scripted scenes, cloud voice
+features, or the final user-facing product experience.
 
-Included:
+## Target Hardware
 
-- Hardware initialization
-- Board-level diagnostics
-- Individual hardware checks
-- Serial test commands
-- The built-in board-test web page at `http://192.168.4.1/motor`
-- V9 pin validation for display, LED, motor, battery, microphone, speaker,
-  radar, logo touch, and QMI8658A
+This firmware targets TongDou V9 hardware:
 
-Not included:
+- ESP32-S3-MINI-1-N4R2 module
+- 0.96 inch OLED on I2C
+- SK6812-EC20 status LED
+- IM72D128V01 PDM digital microphone
+- NS4168 I2S speaker amplifier
+- AT8833CT dual motor driver with nFAULT feedback
+- QMI8658A 6-axis IMU
+- Capacitive touch TongDou logo
+- LD2412 radar module
+- TP4057 charging and battery monitoring circuit
 
-- Demo scenes
-- Personality prompts or AI conversation logic
-- Local voice clips or audio assets
-- Full expression, light, voice, and motor timelines
-- The full TongDou product firmware
-- Production calibration flow
-- Wi-Fi passwords, tokens, API keys, certificates, or private keys
+## Build System
 
-## Package Layout
+The project uses PlatformIO, not a native ESP-IDF project.
+
+Main firmware path:
 
 ```text
-board_test_firmware/
-|-- README.md
-|-- docs/
-|   |-- HARDWARE_TESTS.md
-|   `-- PUBLIC_RELEASE_CHECKLIST.md
-|-- firmware/
-|   |-- platformio.ini
-|   |-- include/
-|   |-- src/
-|   `-- tools/
-`-- qmi8658a_test_firmware/
-    |-- README.md
-    |-- platformio.ini
-    `-- src/
+board_test_firmware/firmware
 ```
 
-`firmware/` is the main board-test firmware. `qmi8658a_test_firmware/` is a
-small standalone smoke test for early QMI8658A and basic peripheral bring-up.
+Current PlatformIO configuration:
 
-## Current V9 Hardware Checks
+- Environment: `esp32s3`
+- Platform: `platformio/espressif32@6.10.0`
+- Board: `esp32-s3-devkitc-1`
+- Framework: Arduino
+- Flash size used by this project: 4 MB
+- Flash mode: DIO
+- Partition table: `huge_app.csv`
+- C++ standard: GNU++17
+- USB serial on boot: enabled
+- Upload speed: 460800
+- Extra upload helper: `tools/chunked_upload.py`
 
-- OLED display on I2C `IO6` / `IO7`
-- SK6812-EC20 LED on `IO9`
-- AT8833CT motor driver, including `nSLEEP` and `nFAULT`
-- QMI8658A accelerometer and gyroscope
-- Logo touch input on `IO4`
-- LD2412 radar OUT and serial report parser
-- IM72D128V01 PDM microphone
-- NS4168 I2S speaker output
-- Battery voltage and charging status pins
-
-## Build
+Developer build:
 
 ```bash
 cd board_test_firmware/firmware
 platformio run
 ```
 
-## Upload
-
-The board-test firmware uses the 4 MB flash layout and DIO flash mode.
-
-If normal upload drops the USB serial port near the end of the application
-write, use the chunked uploader:
+Chunked upload, useful when the USB serial port drops during a large app write:
 
 ```bash
 cd board_test_firmware/firmware
 platformio run -t upload_chunked --upload-port COM13
 ```
 
-Change `COM13` to the actual port shown by Windows Device Manager.
+Change `COM13` to the actual Windows serial port.
 
-## Test Page
+## Public Flash Package
 
-1. Flash this firmware to the V9 board.
-2. Power on TongDou.
-3. Connect a phone to `TongDou-BoardTest`.
-4. Open `http://192.168.4.1/motor`.
-5. Use the page for normal assembly checks.
+For users who do not want to install PlatformIO, use the release ZIP package.
+It includes the prebuilt merged image, a one-click Windows flash script, and
+the official Espressif esptool standalone Windows executable.
 
-The page includes:
+Recommended entry point:
 
-- Quick board checks
-- Microphone recording with waveform and WAV download
-- Speaker short test tone
-- LED color checks
-- Motor direction and power checks
-- Gyroscope-assisted straight-line check
-- Radar live recognition panel
-- Log copy button for sharing test results
+```text
+FLASH_TONGDOU.bat
+```
 
-## Serial Tests
+The script flashes:
 
-Use the serial console for raw sensor data, parser inspection, and other
-advanced diagnostics. Common commands include:
+```text
+TongDou_V9_Hardware_Test_v1.0.bin
+```
 
+at address:
+
+```text
+0x0
+```
+
+The merged image is generated from the PlatformIO build outputs:
+
+| Address | File |
+| --- | --- |
+| `0x0` | `bootloader.bin` |
+| `0x8000` | `partitions.bin` |
+| `0xe000` | `boot_app0.bin` |
+| `0x10000` | `firmware.bin` |
+
+The included flash tool is:
+
+- esptool v5.3.1
+- Official project: `https://github.com/espressif/esptool`
+- Official release: `https://github.com/espressif/esptool/releases/tag/v5.3.1`
+- License: GPL-2.0-or-later
+
+The release package keeps `Flash_Tool/LICENSE` and
+`Flash_Tool/SOURCE_AND_LICENSE.txt`.
+
+See `QUICK_FLASH_GUIDE_EN.md` or `QUICK_FLASH_GUIDE_CN.md` for the user-facing
+flashing steps.
+
+## Web Diagnostics Page
+
+After flashing, TongDou starts an open access point:
+
+```text
+TongDou-BoardTest
+```
+
+Connect to that network and open:
+
+```text
+http://192.168.4.1/motor
+```
+
+The web page is the normal workbench page for common checks:
+
+- System status
+- OLED test
+- SK6812-EC20 red, green, blue, and off test
+- Microphone recording with waveform preview and WAV download
+- Speaker test tone and volume slider
+- Battery voltage and estimated percentage
+- I2C and QMI8658A IMU checks
+- Logo touch check
+- LD2412 live presence and distance status
+- Left and right motor manual tests
+- Motor configuration
+- Gyro-assisted straight-line motor test
+- Shipping discharge helper
+- Collapsible logs with copy and clear actions
+
+## Serial Diagnostics
+
+The serial console keeps the deeper engineering commands that are not always
+needed on the web page.
+
+Common commands include:
+
+- `help`
 - `status`
 - `selftest`
 - `battery`
-- `mic`
-- `audio record`
-- `audio record status`
-- `speaker`
-- `led red`, `led green`, `led blue`, `led off`
-- `motor forward`, `motor reverse`, `motor stop`
-- `motor auto forward`
 - `i2c scan`
 - `imu`
 - `imu raw test`
+- `mic`
+- `mic mode`
+- `mic mode [0-17]`
+- `audio record`
+- `audio record status`
+- `audio loopback`
+- `audio loopback status`
+- `audio loopback stop`
+- `speaker`
+- `audio volume [0-100]`
+- `led red`
+- `led green`
+- `led blue`
+- `led off`
+- `led pin high`
+- `led pin low`
+- `led pin pulse`
+- `logo touch`
+- `logo touch watch`
+- `radar`
 - `radar target`
+- `radar sample`
 - `radar samples`
+- `radar parser selftest`
+- `radar guided test`
+- `radar guided status`
+- `radar guided blocking`
+- `radar config`
+- `radar sensitivity`
+- `radar engineering on`
+- `radar engineering off`
+- `radar desk`
+- `radar near`
+- `radar resolution`
+- `radar res20`
 - `radar calibrate`
 - `radar calibrate status`
+- `radar bridge`
+- `radar factory reset`
+- `motor forward`
+- `motor reverse`
+- `motor stop`
+- `motor manual forward [leftPwm rightPwm]`
+- `motor manual reverse [leftPwm rightPwm]`
+- `motor auto forward [basePwm]`
+- `motor auto status`
+- `motor diag a`
+- `motor diag b`
+- `motor cal forward [leftStart rightStart leftHold rightHold]`
+- `motor cal reverse [leftStart rightStart leftHold rightHold]`
+- `motor cal stop`
+- `shipping discharge start`
+- `shipping discharge status`
+- `shipping discharge stop`
 
-See [docs/HARDWARE_TESTS.md](docs/HARDWARE_TESTS.md) for the full current test
-list. See [docs/PUBLIC_RELEASE_CHECKLIST.md](docs/PUBLIC_RELEASE_CHECKLIST.md)
-before publishing this package elsewhere.
+See `docs/HARDWARE_TESTS.md` for the current command details.
 
-## Audio Notes
+## High-Risk Maintenance Commands
 
-- Microphone recording captures a short local sample and provides a WAV download.
-- Recording does not automatically play through the speaker.
-- Speaker testing uses a generated short test tone only.
-- This keeps microphone capture and speaker output separate, so one test does
-  not hide problems in the other.
+Some commands are intentionally powerful because this is a real maintenance
+firmware.
 
-## Radar Notes
+Use extra care with:
 
-- The radar page uses LD2412 serial report parsing as the main source.
-- The OUT pin is shown only as a reference signal.
-- Use the official HLK tool or serial commands when changing module parameters.
+- Persistent motor configuration
+- Motor direction changes
+- Motor calibration
+- `motor auto forward`
+- Long motor runs
+- Radar parameter writes
+- `radar factory reset`
+- `shipping discharge start`
 
-## Notes
+These operations may drive motors, modify Flash configuration, change LD2412
+module parameters, keep hardware active for a long time, or change the current
+test state of the board. They are kept because they are useful for repair and
+bring-up, not because they are safe for casual clicking.
 
-- This firmware always starts the board-test access point.
-- It does not include demo scenes, local voice clips, ASR, LLM, TTS, MCP, or
-  cloud voice code.
-- This is not the internal filming firmware.
+## Sub-Firmware
+
+`qmi8658a_test_firmware/` is a small standalone smoke test used for early
+QMI8658A and basic peripheral bring-up.
+
+`led_data_high_test_firmware/` is a temporary diagnostic sub-firmware for an
+LED data-line investigation. It is not part of the main hardware test firmware
+release unless explicitly included by the maintainer.
+
+## What Is Not Included
+
+This package does not include:
+
+- Complete TongDou application firmware
+- Character behaviors or personality prompts
+- Official voice clips or audio assets
+- Full expression, light, voice, and motor timelines
+- Full scripted scenes
+- Cloud voice, ASR, LLM, TTS, or MCP application logic
+- PCB source projects, Gerber files, BOM, or pick-and-place files
+- Mechanical source files or fixtures
+- Production manufacturing files
+- Wi-Fi passwords, API keys, tokens, certificates, or private keys
+
+## Current V9 Notes
+
+- Pins have been updated to match the V9 PCB.
+- The LED path now targets SK6812-EC20 instead of the old WS2812 assumption.
+- The microphone test has been consolidated into a normal recording flow with
+  waveform display and WAV download.
+- LD2412 radar diagnostics have been tested with empty-scene and hand-motion
+  checks. If the radar module is replaced or its mounting direction changes,
+  run empty-scene background calibration again.
