@@ -134,6 +134,7 @@ and an onboard QMI8658A 6-axis IMU.
 
 This repository currently includes:
 
+- [TongDou v0.1.0 Early Tester](https://github.com/solitary-dev-50/tongdou/releases/tag/v0.1.0-early-tester)
 - Project overview
 - Hardware test and engineering firmware
 - Demo scene firmware source
@@ -145,7 +146,9 @@ This repository currently includes:
 - License, attribution, and notice files
 - Open-source release plan
 
-The complete TongDou application firmware is not yet publicly released.
+**TongDou v0.1.0 Early Tester is now available.** Download the application
+firmware and TongDou Server from the
+[GitHub Release](https://github.com/solitary-dev-50/tongdou/releases/tag/v0.1.0-early-tester).
 
 Current schematic PDFs:
 
@@ -166,7 +169,6 @@ Current public videos:
 
 This repository does not currently provide:
 
-- Complete TongDou application firmware
 - Editable PCB source files
 - Gerber files
 - BOM and pick-and-place files
@@ -276,6 +278,8 @@ through https://gettongdou.com
 
 ## Repository Documents
 
+- [TongDou v0.1 Early Tester Quick Start](docs/TongDou_v0.1_Early_Tester_Quick_Start_EN.md)
+- [TongDou v0.1 Early Tester Features and Usage](docs/TongDou_v0.1_Early_Tester_Features_and_Usage_EN.md)
 - [Hardware Test Firmware](hardware_test_firmware/)
 - [Demo Firmware](demo_firmware/)
 - [License Scope and Attribution](NOTICE.md)
