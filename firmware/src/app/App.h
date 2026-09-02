@@ -12,6 +12,7 @@
 #include "realtime/VoiceVisualFeedback.h"
 #include "reminder/ReminderManager.h"
 #include "reminder/ReminderAlertService.h"
+#include "reminder/ProactiveReminderService.h"
 #include "reminder/ReminderStore.h"
 #include "resources/LocaleResourceStore.h"
 #include "resources/LocaleResourceUpdateService.h"
@@ -19,6 +20,8 @@
 #include "scenario/ScenarioExecutor.h"
 #include "scenario/ScenarioLibrary.h"
 #include "system/DeviceLocaleStore.h"
+#include "system/ServerEndpointStore.h"
+#include "system/ProactiveReminderConfigStore.h"
 #include "system/TimeService.h"
 #include "system/WifiConfigStore.h"
 #include "web/ScenarioConfigApi.h"
@@ -35,6 +38,7 @@ class App {
 
  private:
   void handleReminderEvents();
+  void handleProactiveReminderEvents();
   void handleReminderAlertCompletion();
   void handleLogoTouchEvents();
   void handleLocalWakeWordEvents();
@@ -62,6 +66,7 @@ class App {
 
   HardwareManager hardware_;
   WifiConfigStore wifiConfigStore_;
+  ServerEndpointStore serverEndpointStore_;
   DeviceLocaleStore deviceLocaleStore_;
   LocaleResourceStore localeResourceStore_;
   LocaleResourceUpdateService localeResourceUpdateService_{
@@ -86,8 +91,12 @@ class App {
   ReminderAlertService reminderAlertService_{hardware_.faceDisplay(),
                                              hardware_.audioCuePlayer(),
                                              realtimeVoiceService_};
+  ProactiveReminderConfigStore proactiveReminderConfigStore_;
+  ProactiveReminderService proactiveReminderService_{
+      proactiveReminderConfigStore_.settings()};
   DeviceActivationService deviceActivationService_{realtimeVoiceService_,
-                                                  hardware_.faceDisplay()};
+                                                  hardware_.faceDisplay(),
+                                                  serverEndpointStore_};
   AppCommandService appCommandService_{scenarioEngine_, scenarioExecutor_, scenarioContext_,
                                       realtimeVoiceService_, audioVolumeService_};
   McpServer mcpServer_{timeService_, reminderStore_, hardware_.selfTest(), appCommandService_};
@@ -96,7 +105,8 @@ class App {
   WebConfigServer webConfigServer_{scenarioConfigApi_, wifiConfigStore_, timeService_,
                                    reminderStore_, mcpServer_, hardware_.selfTest(),
                                    deviceLocaleStore_,
-                                   localeResourceUpdateService_};
+                                   localeResourceUpdateService_, serverEndpointStore_,
+                                   proactiveReminderConfigStore_};
   unsigned long bootMs_ = 0;
   uint8_t startupReportCount_ = 0;
   bool startupReadyCueStarted_ = false;

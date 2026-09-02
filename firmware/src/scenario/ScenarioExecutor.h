@@ -21,6 +21,7 @@ class ScenarioExecutor {
 
   void begin();
   void execute(const ScenarioPlan& plan);
+  void finishActivePlan();
   void update();
 
  private:

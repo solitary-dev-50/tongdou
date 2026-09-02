@@ -30,6 +30,7 @@ void HardwareManager::begin() {
 
 void HardwareManager::update() {
   logoTouch_.update();
+  radar_.update();
   audioInput_.update();
   selfTest_.update();
 }

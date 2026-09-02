@@ -8,6 +8,8 @@
 #include "reminder/ReminderStore.h"
 #include "resources/LocaleResourceUpdateService.h"
 #include "system/DeviceLocaleStore.h"
+#include "system/ServerEndpointStore.h"
+#include "system/ProactiveReminderConfigStore.h"
 #include "system/TimeService.h"
 #include "system/WifiConfigStore.h"
 #include "web/ScenarioConfigApi.h"
@@ -29,7 +31,9 @@ class WebConfigServer {
                   TimeService& timeService, ReminderStore& reminderStore, McpServer& mcpServer,
                   HardwareSelfTestService& hardwareSelfTest,
                   DeviceLocaleStore& deviceLocaleStore,
-                  LocaleResourceUpdateService& localeResourceUpdateService);
+                  LocaleResourceUpdateService& localeResourceUpdateService,
+                  ServerEndpointStore& serverEndpointStore,
+                  ProactiveReminderConfigStore& proactiveReminderConfigStore);
 
   void begin();
   void update();
@@ -58,6 +62,8 @@ class WebConfigServer {
   void handleReminderList();
   void handleReminderCreate();
   void handleReminderDelete();
+  void handleProactiveReminderGet();
+  void handleProactiveReminderSave();
   void handleDiagnosticCommand();
   void handleMcp();
   void handleVoiceDebugPage();
@@ -75,6 +81,7 @@ class WebConfigServer {
   String callMcpTool(const char* name, const String& argumentsJson);
   String statusJson() const;
   String remindersJson() const;
+  String proactiveRemindersJson() const;
 
   ScenarioConfigApi& scenarioApi_;
   WifiConfigStore& wifiStore_;
@@ -84,6 +91,8 @@ class WebConfigServer {
   HardwareSelfTestService& hardwareSelfTest_;
   DeviceLocaleStore& deviceLocaleStore_;
   LocaleResourceUpdateService& localeResourceUpdateService_;
+  ServerEndpointStore& serverEndpointStore_;
+  ProactiveReminderConfigStore& proactiveReminderConfigStore_;
   WebServer server_{80};
   DNSServer dnsServer_;
   NetworkState state_ = NetworkState::Idle;

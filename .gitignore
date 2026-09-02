@@ -12,6 +12,7 @@ release_validation/
 # Keep firmware source, docs, and deliberate release packages trackable.
 **/.pio/
 **/.vscode/
+firmware/tests/.build/
 **/*.elf
 **/*.map
 **/*.tmp

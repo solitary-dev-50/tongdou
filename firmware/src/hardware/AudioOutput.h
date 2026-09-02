@@ -24,7 +24,7 @@ class AudioOutput {
   uint32_t currentSampleRate_ = 0;
   unsigned long streamDrainAtMs_ = 0;
   bool streamActive_ = false;
-  uint8_t volumePercent_ = 100;
+  uint8_t volumePercent_ = 60;
 };
 
 }  // namespace tongdou

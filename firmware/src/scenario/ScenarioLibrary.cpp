@@ -50,7 +50,15 @@ constexpr ScenarioRule kRules[] = {
         true,
         PersonalityStyle::Gentle,
         {true, FaceAction::Serious, LightAction::WeakBreath, MotionAction::None,
-         VoiceLine::BreakReminder, 1200},
+         VoiceLine::None, 1200},
+    },
+    {
+        ScenarioEventType::HydrationReminderDue,
+        false,
+        true,
+        PersonalityStyle::Gentle,
+        {true, FaceAction::Awake, LightAction::SoftWhite, MotionAction::None,
+         VoiceLine::None, 1200},
     },
     {
         ScenarioEventType::LowBattery,
@@ -113,7 +121,7 @@ constexpr ScenarioRule kRules[] = {
         true,
         true,
         PersonalityStyle::Gentle,
-        {true, FaceAction::Blink, LightAction::SoftWhite, MotionAction::Nod,
+        {true, FaceAction::Blink, LightAction::SoftWhite, MotionAction::MicroNod,
          VoiceLine::None, 700},
     },
     {

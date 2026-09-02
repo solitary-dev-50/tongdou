@@ -17,7 +17,7 @@ class AudioVolumeService {
 
  private:
   AudioOutput& audioOutput_;
-  uint8_t volumePercent_ = 100;
+  uint8_t volumePercent_ = 60;
   bool ready_ = false;
 };
 

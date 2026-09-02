@@ -158,8 +158,10 @@ bool TongDouVoiceClient::requestConversationExit(const String& reason) {
 
 bool TongDouVoiceClient::sendReminderAnnouncement(uint32_t reminderId,
                                                   const String& text,
-                                                  const String& locale) {
-  if (!ready() || reminderId == 0 || text.length() == 0 || locale.length() == 0) {
+                                                  const String& locale,
+                                                  const String& proactiveEvent) {
+  if (!ready() || reminderId == 0 || locale.length() == 0 ||
+      (text.length() == 0 && proactiveEvent.length() == 0)) {
     return false;
   }
 
@@ -167,7 +169,7 @@ bool TongDouVoiceClient::sendReminderAnnouncement(uint32_t reminderId,
   snapshot_.reminderState = TongDouVoiceReminderState::None;
   snapshot_.reminderReason = "";
   return sendText(protocol_.buildReminderAnnouncement(
-      snapshot_.sessionId, reminderId, text, locale));
+      snapshot_.sessionId, reminderId, text, locale, proactiveEvent));
 }
 
 bool TongDouVoiceClient::sendPcm16Frame(const int16_t* samples, size_t sampleCount) {

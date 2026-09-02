@@ -5,6 +5,7 @@
 #include "audio/AudioCuePlayer.h"
 #include "hardware/FaceDisplay.h"
 #include "realtime/RealtimeVoiceService.h"
+#include "reminder/ProactiveReminderService.h"
 #include "reminder/ReminderStore.h"
 
 namespace tongdou {
@@ -12,6 +13,7 @@ namespace tongdou {
 struct ReminderAlertCompletion {
   uint32_t reminderId = 0;
   bool online = false;
+  ProactiveReminderType proactiveType = ProactiveReminderType::None;
 };
 
 class ReminderAlertService {
@@ -22,6 +24,7 @@ class ReminderAlertService {
   void begin();
   void update();
   bool start(const ReminderRecord& reminder, const String& locale);
+  bool startProactive(ProactiveReminderType type, const String& locale);
   bool canStart() const;
   bool blocksVoiceInteraction() const;
   bool consumeCompletedEvent(ReminderAlertCompletion& completion);
@@ -50,6 +53,7 @@ class ReminderAlertService {
   bool displayActive_ = false;
   bool completionPending_ = false;
   bool completionOnline_ = false;
+  ProactiveReminderType proactiveType_ = ProactiveReminderType::None;
   uint32_t displayRevision_ = 0;
   unsigned long backendDeadlineMs_ = 0;
 };

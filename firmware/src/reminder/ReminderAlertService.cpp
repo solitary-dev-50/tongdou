@@ -9,6 +9,34 @@ ReminderAlertService::ReminderAlertService(FaceDisplay& faceDisplay,
       audioCuePlayer_(audioCuePlayer),
       voiceService_(voiceService) {}
 
+namespace {
+
+uint32_t proactiveAlertId(ProactiveReminderType type) {
+  switch (type) {
+    case ProactiveReminderType::ActivityBreak:
+      return 0xF0000001U;
+    case ProactiveReminderType::Hydration:
+      return 0xF0000002U;
+    case ProactiveReminderType::None:
+    default:
+      return 0;
+  }
+}
+
+const char* proactiveEventName(ProactiveReminderType type) {
+  switch (type) {
+    case ProactiveReminderType::ActivityBreak:
+      return "desk_activity_break";
+    case ProactiveReminderType::Hydration:
+      return "drink_water";
+    case ProactiveReminderType::None:
+    default:
+      return "";
+  }
+}
+
+}  // namespace
+
 void ReminderAlertService::begin() {
   phase_ = Phase::Idle;
   displayActive_ = false;
@@ -46,8 +74,9 @@ void ReminderAlertService::update() {
     return;
   }
   if (snapshot.backendReady && snapshot.state == RealtimeVoiceState::Idle) {
-    if (voiceService_.requestReminderAnnouncement(reminder_.id, reminder_.text,
-                                                 locale_)) {
+    if (voiceService_.requestReminderAnnouncement(
+            reminder_.id, reminder_.text, locale_,
+            proactiveEventName(proactiveType_))) {
       phase_ = Phase::OnlineAnnouncement;
       return;
     }
@@ -66,6 +95,7 @@ bool ReminderAlertService::start(const ReminderRecord& reminder,
   }
 
   reminder_ = reminder;
+  proactiveType_ = ProactiveReminderType::None;
   locale_ = locale;
   displayActive_ = reminder_.hasDisplayBitmap();
   backendDeadlineMs_ = millis() + kBackendWaitMs;
@@ -82,6 +112,25 @@ bool ReminderAlertService::start(const ReminderRecord& reminder,
   Serial.print(locale_);
   Serial.print(F(" display="));
   Serial.println(displayActive_ ? 1 : 0);
+  return true;
+}
+
+bool ReminderAlertService::startProactive(ProactiveReminderType type,
+                                          const String& locale) {
+  const uint32_t id = proactiveAlertId(type);
+  if (!canStart() || id == 0 || locale.length() == 0) {
+    return false;
+  }
+
+  reminder_ = {};
+  reminder_.id = id;
+  locale_ = locale;
+  proactiveType_ = type;
+  displayActive_ = false;
+  backendDeadlineMs_ = millis() + kBackendWaitMs;
+  phase_ = Phase::WaitingForBackend;
+  Serial.print(F("proactive alert start type="));
+  Serial.println(proactiveEventName(type));
   return true;
 }
 
@@ -102,6 +151,7 @@ bool ReminderAlertService::consumeCompletedEvent(
   }
   completion.reminderId = reminder_.id;
   completion.online = completionOnline_;
+  completion.proactiveType = proactiveType_;
   completionPending_ = false;
   return true;
 }

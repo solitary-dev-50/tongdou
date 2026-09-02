@@ -7,7 +7,7 @@ namespace {
 
 constexpr const char* kNamespace = "tongdou_audio";
 constexpr const char* kVolumeKey = "volume";
-constexpr uint8_t kDefaultVolumePercent = 100;
+constexpr uint8_t kDefaultVolumePercent = 60;
 constexpr uint8_t kMaximumVolumePercent = 100;
 
 Preferences preferences;

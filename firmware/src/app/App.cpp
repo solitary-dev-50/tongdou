@@ -51,6 +51,10 @@ void App::begin() {
   voiceVisualFeedback_.begin();
   Serial.println("realtime voice ready");
 
+  serverEndpointStore_.begin();
+  Serial.print("server endpoint ready=");
+  Serial.println(serverEndpointStore_.otaUrl().length() > 0 ? "1" : "0");
+
   deviceActivationService_.begin();
   Serial.println("device activation ready");
 
@@ -83,6 +87,11 @@ void App::begin() {
 
   reminderAlertService_.begin();
   Serial.println("reminder alert service ready");
+
+  proactiveReminderConfigStore_.begin();
+  proactiveReminderService_.setSettings(proactiveReminderConfigStore_.settings());
+  proactiveReminderService_.begin(millis());
+  Serial.println("proactive reminder service ready");
 
   mcpServer_.begin();
   Serial.println("mcp server ready");
@@ -117,6 +126,7 @@ void App::update() {
   handleLogoTouchEvents();
   handleLocalWakeWordEvents();
   handleReminderEvents();
+  handleProactiveReminderEvents();
   updateWakeWordArming();
   scenarioExecutor_.update();
   voiceVisualFeedback_.update(reminderAlertService_.blocksVoiceInteraction());
@@ -483,6 +493,13 @@ void App::handleReminderAlertCompletion() {
     if (!reminderAlertService_.consumeCompletedEvent(completion)) {
       return;
     }
+    if (completion.proactiveType != ProactiveReminderType::None) {
+      scenarioExecutor_.finishActivePlan();
+      proactiveReminderService_.delivered(completion.proactiveType, millis());
+      Serial.print(F("proactive reminder delivered type="));
+      Serial.println(static_cast<uint8_t>(completion.proactiveType));
+      return;
+    }
     reminderCompletionCommitPendingId_ = completion.reminderId;
     reminderCompletionOnline_ = completion.online;
     reminderCompletionCommitRetryAtMs_ = 0;
@@ -569,6 +586,33 @@ void App::handleReminderEvents() {
   if (!reminderAlertService_.start(dueReminder, deviceLocaleStore_.locale())) {
     Serial.print(F("reminder alert start failed id="));
     Serial.println(dueReminder.id);
+  }
+}
+
+void App::handleProactiveReminderEvents() {
+  const unsigned long nowMs = millis();
+  proactiveReminderService_.setSettings(proactiveReminderConfigStore_.settings());
+  proactiveReminderService_.update(nowMs, hardware_.radar().read().occupied);
+
+  const RealtimeVoiceSnapshot voice = realtimeVoiceService_.snapshot();
+  const bool deliveryAvailable =
+      reminderCompletionCommitPendingId_ == 0 && reminderAlertService_.canStart() &&
+      voice.state == RealtimeVoiceState::Idle && !voiceConversationActive_ &&
+      !conversationFollowUpPending_ && !reminderResponseStartPending_;
+  const ProactiveReminderType type =
+      proactiveReminderService_.takeDue(nowMs, deliveryAvailable);
+  if (type == ProactiveReminderType::None) {
+    return;
+  }
+
+  const ScenarioEventType scenarioEvent =
+      type == ProactiveReminderType::ActivityBreak
+          ? ScenarioEventType::UserIdleTooLong
+          : ScenarioEventType::HydrationReminderDue;
+  scenarioExecutor_.execute(scenarioEngine_.select({scenarioEvent, 0}, scenarioContext_));
+  if (!reminderAlertService_.startProactive(type, deviceLocaleStore_.locale())) {
+    proactiveReminderService_.release(type);
+    Serial.println(F("proactive reminder alert start failed"));
   }
 }
 

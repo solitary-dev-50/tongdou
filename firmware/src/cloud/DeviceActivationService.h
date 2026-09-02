@@ -4,13 +4,15 @@
 
 #include "hardware/FaceDisplay.h"
 #include "realtime/RealtimeVoiceService.h"
+#include "system/ServerEndpointStore.h"
 
 namespace tongdou {
 
 class DeviceActivationService {
  public:
   DeviceActivationService(RealtimeVoiceService& realtimeVoiceService,
-                          FaceDisplay& faceDisplay);
+                          FaceDisplay& faceDisplay,
+                          ServerEndpointStore& serverEndpointStore);
 
   void begin();
   void update();
@@ -42,6 +44,7 @@ class DeviceActivationService {
 
   RealtimeVoiceService& realtimeVoiceService_;
   FaceDisplay& faceDisplay_;
+  ServerEndpointStore& serverEndpointStore_;
   State state_ = State::WaitingForWifi;
   unsigned long nextAttemptMs_ = 0;
   uint8_t consecutiveFailures_ = 0;

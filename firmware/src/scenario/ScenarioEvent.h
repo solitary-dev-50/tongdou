@@ -9,6 +9,7 @@ enum class ScenarioEventType : uint8_t {
   UserArrived,
   UserLeft,
   UserIdleTooLong,
+  HydrationReminderDue,
   ReminderDue,
   ReminderConfirmed,
   ReminderSnoozed,

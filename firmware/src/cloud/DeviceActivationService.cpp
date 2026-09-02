@@ -43,15 +43,19 @@ String urlEncode(const String& value) {
 }  // namespace
 
 DeviceActivationService::DeviceActivationService(
-    RealtimeVoiceService& realtimeVoiceService, FaceDisplay& faceDisplay)
-    : realtimeVoiceService_(realtimeVoiceService), faceDisplay_(faceDisplay) {}
+    RealtimeVoiceService& realtimeVoiceService, FaceDisplay& faceDisplay,
+    ServerEndpointStore& serverEndpointStore)
+    : realtimeVoiceService_(realtimeVoiceService),
+      faceDisplay_(faceDisplay),
+      serverEndpointStore_(serverEndpointStore) {}
 
 void DeviceActivationService::begin() {
   state_ = State::WaitingForWifi;
   consecutiveFailures_ = 0;
   scheduleRetry(kInitialDelayMs);
   Serial.print("device activation ota=");
-  Serial.println(kOtaUrl);
+  const String configuredUrl = serverEndpointStore_.otaUrl();
+  Serial.println(configuredUrl.length() > 0 ? configuredUrl : String(kOtaUrl));
 }
 
 void DeviceActivationService::update() {
@@ -93,8 +97,19 @@ bool DeviceActivationService::consumeActivationCodeEvent(String& code) {
 }
 
 void DeviceActivationService::requestActivation() {
+  String otaUrl = serverEndpointStore_.otaUrl();
+  if (otaUrl.length() == 0) {
+    otaUrl = kOtaUrl;
+  }
+  if (otaUrl.length() == 0) {
+    lastError_ = "ota_url_not_configured";
+    Serial.println("device activation waiting: ota_url_not_configured");
+    scheduleFailureRetry();
+    return;
+  }
+
   HTTPClient http;
-  if (!http.begin(kOtaUrl)) {
+  if (!http.begin(otaUrl)) {
     lastError_ = "ota_begin_failed";
     Serial.println("device activation failed: ota_begin_failed");
     scheduleFailureRetry();

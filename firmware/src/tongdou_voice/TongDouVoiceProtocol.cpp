@@ -129,7 +129,7 @@ String TongDouVoiceProtocol::buildGoodbyeRequest(const String& sessionId,
 
 String TongDouVoiceProtocol::buildReminderAnnouncement(
     const String& sessionId, uint32_t reminderId, const String& text,
-    const String& locale) const {
+    const String& locale, const String& proactiveEvent) const {
   JsonDocument doc;
   if (sessionId.length() > 0) {
     doc["session_id"] = sessionId;
@@ -138,6 +138,9 @@ String TongDouVoiceProtocol::buildReminderAnnouncement(
   doc["id"] = reminderId;
   doc["text"] = text;
   doc["locale"] = locale;
+  if (proactiveEvent.length() > 0) {
+    doc["proactive_event"] = proactiveEvent;
+  }
   return serialize(doc);
 }
 

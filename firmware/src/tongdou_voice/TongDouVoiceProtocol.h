@@ -71,7 +71,8 @@ class TongDouVoiceProtocol {
                              const String& reason = "manual") const;
   String buildReminderAnnouncement(const String& sessionId, uint32_t reminderId,
                                    const String& text,
-                                   const String& locale) const;
+                                   const String& locale,
+                                   const String& proactiveEvent = "") const;
   String buildMcpMessage(const String& payload) const;
 
   bool parseTextMessage(const String& payload, TongDouVoiceIncomingMessage& message,

@@ -94,7 +94,8 @@ class RealtimeVoiceService {
   bool sendDetectText(const String& text);
   bool startWakeGreeting(const String& text);
   bool requestReminderAnnouncement(uint32_t reminderId, const String& text,
-                                   const String& locale);
+                                   const String& locale,
+                                   const String& proactiveEvent = "");
   bool abortBackendSpeech();
   bool requestConversationExit();
   bool startTurn(uint16_t captureMs = 2500);

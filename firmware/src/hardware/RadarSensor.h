@@ -5,6 +5,7 @@
 namespace tongdou {
 
 struct RadarSnapshot {
+  bool outLevelHigh = false;
   bool occupied = false;
   bool rxLevelHigh = false;
 };
@@ -46,6 +47,7 @@ struct RadarTargetSnapshot {
 class RadarSensor {
  public:
   void begin();
+  void update();
   RadarSnapshot read() const;
   RadarBasicConfig readBasicConfig();
   RadarResolutionConfig readResolutionConfig();
@@ -53,6 +55,12 @@ class RadarSensor {
   RadarCommandResult applyResolution20cm();
   RadarCommandResult startBackgroundCalibration();
   RadarTargetSnapshot readTarget();
+
+ private:
+  bool debugLogInitialized_ = false;
+  bool lastLoggedOutLevelHigh_ = false;
+  bool lastLoggedPresence_ = false;
+  uint32_t lastDebugLogMs_ = 0;
 };
 
 }  // namespace tongdou

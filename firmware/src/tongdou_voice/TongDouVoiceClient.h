@@ -82,7 +82,8 @@ class TongDouVoiceClient {
   bool sendAbort();
   bool requestConversationExit(const String& reason = "manual");
   bool sendReminderAnnouncement(uint32_t reminderId, const String& text,
-                                const String& locale);
+                                const String& locale,
+                                const String& proactiveEvent = "");
   bool sendPcm16Frame(const int16_t* samples, size_t sampleCount);
   bool sendAudioPacket(const uint8_t* payload, size_t length);
   bool playNextDownlinkPacket(AudioOutput& audioOutput);

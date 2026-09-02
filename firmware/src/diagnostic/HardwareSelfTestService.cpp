@@ -390,7 +390,8 @@ void HardwareSelfTestService::printBattery(Print& out) const {
 void HardwareSelfTestService::printRadar(Print& out) const {
   const RadarSnapshot snapshot = radar_.read();
   out.println(F("radar:"));
-  printBool(out, F("  occupied="), snapshot.occupied);
+  printBool(out, F("  raw_out="), snapshot.outLevelHigh);
+  printBool(out, F("  presence="), snapshot.occupied);
   printBool(out, F("  rx_level="), snapshot.rxLevelHigh);
 }
 
@@ -404,6 +405,10 @@ void HardwareSelfTestService::printRadarTarget(Print& out) {
 
   out.print(F("  state="));
   out.println(snapshot.targetState);
+  printBool(out, F("  moving_target="),
+            snapshot.targetState == 1 || snapshot.targetState == 3);
+  printBool(out, F("  stationary_target="),
+            snapshot.targetState == 2 || snapshot.targetState == 3);
   out.print(F("  raw_payload="));
   for (uint8_t i = 0; i < snapshot.rawPayloadLength; ++i) {
     if (i > 0) {
@@ -439,6 +444,10 @@ void HardwareSelfTestService::printRadarSamples(Print& out) {
       out.print(snapshot.targetState);
       out.print(F(" has_target="));
       out.print(snapshot.hasTarget ? F("1") : F("0"));
+      out.print(F(" moving_target="));
+      out.print(snapshot.targetState == 1 || snapshot.targetState == 3 ? F("1") : F("0"));
+      out.print(F(" stationary_target="));
+      out.print(snapshot.targetState == 2 || snapshot.targetState == 3 ? F("1") : F("0"));
       out.print(F(" moving_cm="));
       out.print(snapshot.movingDistanceCm);
       out.print(F(" moving_energy="));

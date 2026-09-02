@@ -46,6 +46,7 @@ enum class MotionAction : uint8_t {
   LeanForward,
   ShrinkBack,
   CheekyDance,
+  MicroNod,
 };
 
 enum class VoiceLine : uint8_t {

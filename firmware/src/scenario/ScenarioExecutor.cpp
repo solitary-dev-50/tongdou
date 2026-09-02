@@ -52,6 +52,24 @@ void ScenarioExecutor::execute(const ScenarioPlan& plan) {
   startVoice(plan.voice);
 }
 
+void ScenarioExecutor::finishActivePlan() {
+  activePlan_ = {};
+  faceFrames_ = nullptr;
+  faceFrameCount_ = 0;
+  faceFrameIndex_ = 0;
+  nextFaceFrameMs_ = 0;
+  faceRunning_ = false;
+  lightSequence_ = {};
+  lightFrameIndex_ = 0;
+  nextLightFrameMs_ = 0;
+  lightRunning_ = false;
+  motionSequence_ = {};
+  gyroMotion_.stop();
+  faceDisplay_.show(FaceExpression::Sleep);
+  led_.off();
+  Serial.println(F("scenario active plan finished state=idle"));
+}
+
 void ScenarioExecutor::startLight(LightAction action, unsigned long nowMs) {
   lightSequence_ = lightPack_.sequence(action);
   lightFrameIndex_ = 0;

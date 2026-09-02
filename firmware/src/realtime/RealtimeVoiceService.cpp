@@ -160,8 +160,10 @@ bool RealtimeVoiceService::startWakeGreeting(const String& text) {
 }
 
 bool RealtimeVoiceService::requestReminderAnnouncement(
-    uint32_t reminderId, const String& text, const String& locale) {
-  if (reminderId == 0 || text.length() == 0 || locale.length() == 0 ||
+    uint32_t reminderId, const String& text, const String& locale,
+    const String& proactiveEvent) {
+  if (reminderId == 0 || locale.length() == 0 ||
+      (text.length() == 0 && proactiveEvent.length() == 0) ||
       snapshot_.state != RealtimeVoiceState::Idle || !backendStarted_ ||
       !voiceClient_.ready() || !audioOutput_.streamDrained()) {
     snapshot_.lastErrorCode = "reminder_backend_not_ready";
@@ -180,7 +182,8 @@ bool RealtimeVoiceService::requestReminderAnnouncement(
   reminderFailurePending_ = false;
   currentTurnKind_ = TurnKind::ReminderAnnouncement;
 
-  if (!voiceClient_.sendReminderAnnouncement(reminderId, text, locale)) {
+  if (!voiceClient_.sendReminderAnnouncement(reminderId, text, locale,
+                                             proactiveEvent)) {
     currentTurnKind_ = TurnKind::Regular;
     snapshot_.lastErrorCode = "reminder_request_send_failed";
     snapshot_.lastErrorMessage = "failed to send reminder announcement request";

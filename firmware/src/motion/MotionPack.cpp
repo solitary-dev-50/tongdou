@@ -11,6 +11,11 @@ constexpr MotionFrame kNod[] = {
     {WheelDrive::Reverse, WheelDrive::Reverse, 80},
     {WheelDrive::Stop, WheelDrive::Stop, 0},
 };
+constexpr MotionFrame kMicroNod[] = {
+    {WheelDrive::Forward, WheelDrive::Forward, 35, 120},
+    {WheelDrive::Reverse, WheelDrive::Reverse, 35, 120},
+    {WheelDrive::Stop, WheelDrive::Stop, 0},
+};
 constexpr MotionFrame kTinyShake[] = {
     {WheelDrive::Forward, WheelDrive::Reverse, 70},
     {WheelDrive::Reverse, WheelDrive::Forward, 70},
@@ -61,6 +66,8 @@ MotionSequence MotionPack::sequence(MotionAction action) const {
       return makeSequence(kShrinkBack);
     case MotionAction::CheekyDance:
       return makeSequence(kCheekyDance);
+    case MotionAction::MicroNod:
+      return makeSequence(kMicroNod);
     case MotionAction::None:
     default:
       return {};

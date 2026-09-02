@@ -12,6 +12,7 @@ HardwareSerial radarSerial(1);
 constexpr uint32_t kRadarBaud = 115200;
 constexpr uint16_t kCommandTimeoutMs = 300;
 constexpr uint16_t kTargetFrameTimeoutMs = 500;
+constexpr uint32_t kDebugLogIntervalMs = 5000;
 constexpr size_t kMaxFrameSize = 80;
 
 constexpr uint16_t kEnableConfigAck = 0x01FF;
@@ -210,11 +211,42 @@ void RadarSensor::begin() {
   radarSerial.begin(kRadarBaud, SERIAL_8N1, static_cast<int>(pins::RADAR_RX_FROM_MODULE_TX),
                     static_cast<int>(pins::RADAR_TX_TO_MODULE_RX));
   clearRadarInput();
+  debugLogInitialized_ = false;
+  lastDebugLogMs_ = 0;
+}
+
+void RadarSensor::update() {
+  const RadarSnapshot snapshot = read();
+  const uint32_t nowMs = millis();
+  const bool changed =
+      debugLogInitialized_ &&
+      (snapshot.outLevelHigh != lastLoggedOutLevelHigh_ ||
+       snapshot.occupied != lastLoggedPresence_);
+  const bool periodic =
+      debugLogInitialized_ && nowMs - lastDebugLogMs_ >= kDebugLogIntervalMs;
+  if (debugLogInitialized_ && !changed && !periodic) {
+    return;
+  }
+
+  Serial.print(F("radar presence event="));
+  Serial.print(!debugLogInitialized_ ? F("initial") : changed ? F("change") : F("sample"));
+  Serial.print(F(" timestamp_ms="));
+  Serial.print(nowMs);
+  Serial.print(F(" raw_out="));
+  Serial.print(snapshot.outLevelHigh ? F("1") : F("0"));
+  Serial.print(F(" presence="));
+  Serial.println(snapshot.occupied ? F("1") : F("0"));
+
+  debugLogInitialized_ = true;
+  lastLoggedOutLevelHigh_ = snapshot.outLevelHigh;
+  lastLoggedPresence_ = snapshot.occupied;
+  lastDebugLogMs_ = nowMs;
 }
 
 RadarSnapshot RadarSensor::read() const {
   RadarSnapshot snapshot;
-  snapshot.occupied = digitalRead(pins::RADAR_OUT) == HIGH;
+  snapshot.outLevelHigh = digitalRead(pins::RADAR_OUT) == HIGH;
+  snapshot.occupied = snapshot.outLevelHigh;
   snapshot.rxLevelHigh = digitalRead(pins::RADAR_RX_FROM_MODULE_TX) == HIGH;
   return snapshot;
 }
