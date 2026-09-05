@@ -3,6 +3,8 @@
 #include <WiFi.h>
 #include <mbedtls/base64.h>
 
+#include "tongdou/BuildInfo.h"
+
 namespace tongdou {
 namespace {
 
@@ -988,6 +990,9 @@ String WebConfigServer::statusJson() const {
   body += WiFi.status() == WL_CONNECTED ? "true" : "false";
   body += ",\"portal\":";
   body += state_ == NetworkState::Portal ? "true" : "false";
+  body += ",\"firmwareVersion\":\"";
+  body += kFirmwareVersion;
+  body += "\"";
   body += ",\"ip\":\"";
   body += state_ == NetworkState::Connected ? WiFi.localIP().toString()
                                             : WiFi.softAPIP().toString();

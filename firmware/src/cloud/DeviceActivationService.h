@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 
+#include "cloud/FirmwareUpdateService.h"
 #include "hardware/FaceDisplay.h"
 #include "realtime/RealtimeVoiceService.h"
 #include "system/ServerEndpointStore.h"
@@ -20,6 +21,7 @@ class DeviceActivationService {
   String activationCode() const;
   String lastError() const;
   bool consumeActivationCodeEvent(String& code);
+  bool consumeFirmwareUpdateOffer(FirmwareUpdateOffer& offer);
 
  private:
   enum class State : uint8_t {
@@ -33,6 +35,7 @@ class DeviceActivationService {
   static constexpr unsigned long kSecondFailureRetryMs = 2000;
   static constexpr unsigned long kThirdFailureRetryMs = 5000;
   static constexpr unsigned long kSteadyRetryIntervalMs = 30000;
+  static constexpr unsigned long kActivatedCheckIntervalMs = 15UL * 60UL * 1000UL;
 
   void requestActivation();
   String buildReportJson() const;
@@ -51,9 +54,11 @@ class DeviceActivationService {
   String activationCode_;
   String activationCodeEvent_;
   String lastError_;
+  FirmwareUpdateOffer firmwareUpdateOffer_;
   bool codeDisplayed_ = false;
   bool activationCodeEventPending_ = false;
   bool voiceConfigured_ = false;
+  bool firmwareUpdateOfferPending_ = false;
 };
 
 }  // namespace tongdou

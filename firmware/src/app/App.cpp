@@ -29,7 +29,9 @@ void App::begin() {
   delay(200);
   Serial.println();
   Serial.print(kProjectName);
-  Serial.print(" firmware stage: ");
+  Serial.print(" firmware version: ");
+  Serial.print(kFirmwareVersion);
+  Serial.print(" stage: ");
   Serial.println(kFirmwareStage);
 
   scenarioExecutor_.begin();
@@ -57,6 +59,9 @@ void App::begin() {
 
   deviceActivationService_.begin();
   Serial.println("device activation ready");
+
+  firmwareUpdateService_.begin();
+  Serial.println("firmware update service ready");
 
   wifiConfigStore_.begin();
   Serial.println("wifi config ready");
@@ -120,6 +125,8 @@ void App::update() {
   updateLocaleResourceEndpoint();
   handleLocaleResourceRepair();
   deviceActivationService_.update();
+  firmwareUpdateService_.update();
+  handleFirmwareUpdate();
   handleAudioCueEvents();
   handleStartupReport();
   handleSerialDiagnostics();
@@ -131,6 +138,52 @@ void App::update() {
   scenarioExecutor_.update();
   voiceVisualFeedback_.update(reminderAlertService_.blocksVoiceInteraction());
   reminderAlertService_.update();
+}
+
+void App::handleFirmwareUpdate() {
+  FirmwareUpdateOffer offer;
+  if (deviceActivationService_.consumeFirmwareUpdateOffer(offer)) {
+    if (firmwareUpdateService_.acceptOffer(offer)) {
+      nextFirmwareUpdateAttemptMs_ = 0;
+      firmwareUpdateWaitingLogged_ = false;
+    }
+  }
+  if (!firmwareUpdateService_.offerPending()) {
+    return;
+  }
+
+  const RealtimeVoiceSnapshot voice = realtimeVoiceService_.snapshot();
+  const bool safeToRestart =
+      hardware_.battery().read().usbPresent &&
+      voice.state == RealtimeVoiceState::Idle &&
+      reminderAlertService_.canStart() && !voiceConversationActive_ &&
+      !conversationFollowUpPending_ && !reminderResponseStartPending_ &&
+      reminderCompletionCommitPendingId_ == 0 &&
+      hardware_.audioOutput().streamDrained();
+  if (!safeToRestart) {
+    if (!firmwareUpdateWaitingLogged_) {
+      Serial.println(hardware_.battery().read().usbPresent
+                         ? F("firmware update: waiting for active work to finish")
+                         : F("firmware update: waiting for usb power"));
+      firmwareUpdateWaitingLogged_ = true;
+    }
+    return;
+  }
+
+  const unsigned long nowMs = millis();
+  if (nextFirmwareUpdateAttemptMs_ != 0 &&
+      static_cast<long>(nowMs - nextFirmwareUpdateAttemptMs_) < 0) {
+    return;
+  }
+
+  firmwareUpdateWaitingLogged_ = false;
+  scenarioExecutor_.finishActivePlan();
+  hardware_.motors().stop();
+  if (!firmwareUpdateService_.installPendingAndRestart()) {
+    Serial.print(F("firmware update: install handoff failed error="));
+    Serial.println(firmwareUpdateService_.lastError());
+    nextFirmwareUpdateAttemptMs_ = nowMs + 60000;
+  }
 }
 
 void App::updateLocaleResourceEndpoint() {
@@ -755,7 +808,9 @@ void App::printStartupReport(const char* title) {
   Serial.println();
   Serial.println(title);
   Serial.print(kProjectName);
-  Serial.print(" firmware stage: ");
+  Serial.print(" firmware version: ");
+  Serial.print(kFirmwareVersion);
+  Serial.print(" stage: ");
   Serial.println(kFirmwareStage);
   hardware_.printStartupReport(Serial);
   Serial.println("application begin");

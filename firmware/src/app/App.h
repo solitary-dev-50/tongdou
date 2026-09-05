@@ -5,6 +5,7 @@
 #include "app/AppCommandService.h"
 #include "audio/AudioVolumeService.h"
 #include "cloud/DeviceActivationService.h"
+#include "cloud/FirmwareUpdateService.h"
 #include "hardware/HardwareManager.h"
 #include "mcp/McpServer.h"
 #include "realtime/LocalAudioPipeline.h"
@@ -54,6 +55,7 @@ class App {
   void closeConversationWindow(bool playExitCue);
   void handleAudioCueEvents();
   void handleRealtimeVoiceEvents();
+  void handleFirmwareUpdate();
   void updateLocaleResourceEndpoint();
   void handleLocaleResourceRepair();
   void handleSerialDiagnostics();
@@ -97,6 +99,7 @@ class App {
   DeviceActivationService deviceActivationService_{realtimeVoiceService_,
                                                   hardware_.faceDisplay(),
                                                   serverEndpointStore_};
+  FirmwareUpdateService firmwareUpdateService_{serverEndpointStore_};
   AppCommandService appCommandService_{scenarioEngine_, scenarioExecutor_, scenarioContext_,
                                       realtimeVoiceService_, audioVolumeService_};
   McpServer mcpServer_{timeService_, reminderStore_, hardware_.selfTest(), appCommandService_};
@@ -124,6 +127,8 @@ class App {
   unsigned long reminderCompletionCommitRetryAtMs_ = 0;
   unsigned long nextLocaleResourceEndpointSyncMs_ = 0;
   unsigned long nextLocaleResourceRepairMs_ = 0;
+  unsigned long nextFirmwareUpdateAttemptMs_ = 0;
+  bool firmwareUpdateWaitingLogged_ = false;
 };
 
 }  // namespace tongdou

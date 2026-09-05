@@ -113,7 +113,7 @@ def build_model_image():
     load_pack_function()(model_input_dir, model_image)
 
     image_size = os.path.getsize(model_image)
-    partition_size = 0xF0000
+    partition_size = 0xE0000
     if image_size > partition_size:
         raise RuntimeError(
             "ESP-SR model image is %d bytes, larger than the %d-byte model partition"

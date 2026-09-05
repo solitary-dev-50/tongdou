@@ -59,9 +59,6 @@ void DeviceActivationService::begin() {
 }
 
 void DeviceActivationService::update() {
-  if (state_ == State::Activated) {
-    return;
-  }
   if (!WiFi.isConnected()) {
     return;
   }
@@ -151,9 +148,8 @@ void DeviceActivationService::requestActivation() {
   }
 
   consecutiveFailures_ = 0;
-  if (state_ != State::Activated) {
-    scheduleRetry(kSteadyRetryIntervalMs);
-  }
+  scheduleRetry(state_ == State::Activated ? kActivatedCheckIntervalMs
+                                           : kSteadyRetryIntervalMs);
 }
 
 String DeviceActivationService::buildReportJson() const {
@@ -171,7 +167,7 @@ String DeviceActivationService::buildReportJson() const {
   doc["chip_info"]["revision"] = ESP.getChipRevision();
   doc["chip_info"]["features"] = 0;
   doc["application"]["name"] = kProjectName;
-  doc["application"]["version"] = kFirmwareStage;
+  doc["application"]["version"] = kFirmwareVersion;
   doc["application"]["compile_time"] = String(__DATE__) + " " + String(__TIME__);
   doc["application"]["idf_version"] = ESP.getSdkVersion();
   doc["application"]["elf_sha256"] = "";
@@ -204,6 +200,27 @@ bool DeviceActivationService::applyResponse(const String& response) {
     Serial.print("device activation failed: ");
     Serial.println(responseError);
     return false;
+  }
+
+  const char* firmwareVersion = doc["firmware"]["version"] | "";
+  const char* firmwareUrl = doc["firmware"]["url"] | "";
+  const char* firmwareSha256 = doc["firmware"]["sha256"] | "";
+  const uint32_t firmwareSize = doc["firmware"]["size"] | 0;
+  if (strlen(firmwareUrl) > 0 && strlen(firmwareVersion) > 0 &&
+      String(firmwareVersion) != kFirmwareVersion) {
+    FirmwareUpdateOffer offer;
+    offer.version = firmwareVersion;
+    offer.url = firmwareUrl;
+    offer.sha256 = firmwareSha256;
+    offer.size = firmwareSize;
+    if (!firmwareUpdateOfferPending_ ||
+        firmwareUpdateOffer_.version != offer.version ||
+        firmwareUpdateOffer_.url != offer.url ||
+        firmwareUpdateOffer_.sha256 != offer.sha256 ||
+        firmwareUpdateOffer_.size != offer.size) {
+      firmwareUpdateOffer_ = offer;
+      firmwareUpdateOfferPending_ = true;
+    }
   }
 
   const char* code = doc["activation"]["code"] | "";
@@ -239,6 +256,16 @@ bool DeviceActivationService::applyResponse(const String& response) {
   activationCodeEvent_ = "";
   activationCodeEventPending_ = false;
   Serial.println("device activation active");
+  return true;
+}
+
+bool DeviceActivationService::consumeFirmwareUpdateOffer(
+    FirmwareUpdateOffer& offer) {
+  if (!firmwareUpdateOfferPending_) {
+    return false;
+  }
+  offer = firmwareUpdateOffer_;
+  firmwareUpdateOfferPending_ = false;
   return true;
 }
 
