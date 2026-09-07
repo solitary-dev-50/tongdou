@@ -145,12 +145,13 @@ void MotorDriver::driveLeft(WheelDrive drive, uint8_t duty) {
 void MotorDriver::driveRight(WheelDrive drive, uint8_t duty) {
   switch (drive) {
     case WheelDrive::Forward:
-      ledcWrite(kMotorBin2Channel, 0);
-      ledcWrite(kMotorBin1Channel, duty);
-      break;
-    case WheelDrive::Reverse:
+      // 右侧电机安装方向与左侧镜像，逻辑正转需要反接输出极性。
       ledcWrite(kMotorBin1Channel, 0);
       ledcWrite(kMotorBin2Channel, duty);
+      break;
+    case WheelDrive::Reverse:
+      ledcWrite(kMotorBin2Channel, 0);
+      ledcWrite(kMotorBin1Channel, duty);
       break;
     case WheelDrive::Stop:
     default:

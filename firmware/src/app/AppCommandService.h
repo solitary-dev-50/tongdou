@@ -3,6 +3,7 @@
 #include <Arduino.h>
 
 #include "audio/AudioVolumeService.h"
+#include "network/NetworkInfoService.h"
 #include "realtime/RealtimeVoiceService.h"
 #include "scenario/ScenarioContext.h"
 #include "scenario/ScenarioEngine.h"
@@ -22,7 +23,8 @@ class AppCommandService {
                     ScenarioExecutor& scenarioExecutor,
                     ScenarioContext& scenarioContext,
                     RealtimeVoiceService& realtimeVoiceService,
-                    AudioVolumeService& audioVolumeService);
+                    AudioVolumeService& audioVolumeService,
+                    NetworkInfoService& networkInfoService);
 
   AppCommandResult playScenario(const String& eventName);
   AppCommandResult setPersonality(const String& personalityName);
@@ -43,6 +45,7 @@ class AppCommandService {
   String voiceCodecSelfTestJson();
   const char* personalityName() const;
   uint8_t audioVolume() const;
+  NetworkInfoResult showNetworkInfo();
 
  private:
   bool parseEventName(String name, ScenarioEventType& eventType) const;
@@ -53,6 +56,7 @@ class AppCommandService {
   ScenarioContext& scenarioContext_;
   RealtimeVoiceService& realtimeVoiceService_;
   AudioVolumeService& audioVolumeService_;
+  NetworkInfoService& networkInfoService_;
 };
 
 }  // namespace tongdou

@@ -14,7 +14,7 @@ class VoiceVisualFeedback {
                       FaceDisplay& faceDisplay, LedPixel& led);
 
   void begin();
-  void update(bool higherPriorityActive = false);
+  void update(bool higherPriorityActive = false, bool preserveFace = false);
 
  private:
   enum class VisualState : uint8_t {
@@ -38,6 +38,7 @@ class VoiceVisualFeedback {
   uint32_t ledRevision_ = 0;
   unsigned long idleSinceMs_ = 0;
   bool controlling_ = false;
+  bool preserveFace_ = false;
 };
 
 }  // namespace tongdou

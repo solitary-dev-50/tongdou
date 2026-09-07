@@ -19,7 +19,9 @@ void VoiceVisualFeedback::begin() {
   release();
 }
 
-void VoiceVisualFeedback::update(bool higherPriorityActive) {
+void VoiceVisualFeedback::update(bool higherPriorityActive, bool preserveFace) {
+  const bool faceReleased = preserveFace_ && !preserveFace;
+  preserveFace_ = preserveFace;
   const RealtimeVoiceSnapshot snapshot = voiceService_.snapshot();
   if (higherPriorityActive || snapshot.reminderAnnouncementActive ||
       snapshot.state == RealtimeVoiceState::Failed) {
@@ -37,7 +39,7 @@ void VoiceVisualFeedback::update(bool higherPriorityActive) {
   const bool displayWasChanged =
       controlling_ && (faceDisplay_.revision() != faceRevision_ ||
                        led_.revision() != ledRevision_);
-  if (!controlling_ || requested != appliedState_ || displayWasChanged) {
+  if (!controlling_ || requested != appliedState_ || displayWasChanged || faceReleased) {
     apply(requested);
   }
 }
@@ -57,15 +59,21 @@ VoiceVisualFeedback::VisualState VoiceVisualFeedback::visualState(
 void VoiceVisualFeedback::apply(VisualState state) {
   switch (state) {
     case VisualState::Listening:
-      faceDisplay_.show(FaceExpression::Listening);
+      if (!preserveFace_) {
+        faceDisplay_.show(FaceExpression::Listening);
+      }
       led_.show(kListeningColor);
       break;
     case VisualState::Thinking:
-      faceDisplay_.show(FaceExpression::Serious);
+      if (!preserveFace_) {
+        faceDisplay_.show(FaceExpression::Serious);
+      }
       led_.show(kThinkingColor);
       break;
     case VisualState::Speaking:
-      faceDisplay_.show(FaceExpression::Smile);
+      if (!preserveFace_) {
+        faceDisplay_.show(FaceExpression::Smile);
+      }
       led_.show(kSpeakingColor);
       break;
     case VisualState::Released:
@@ -103,7 +111,9 @@ void VoiceVisualFeedback::settleToIdle(unsigned long nowMs) {
     return;
   }
 
-  faceDisplay_.show(FaceExpression::Sleep);
+  if (!preserveFace_) {
+    faceDisplay_.show(FaceExpression::Sleep);
+  }
   led_.off();
   Serial.println(F("voice visual state=idle"));
   release();

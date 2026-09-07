@@ -136,6 +136,19 @@ void McpServer::addTools() {
   const auto setVolume = [this](const McpToolArguments& arguments) -> McpToolResult {
     return setAudioVolume(arguments);
   };
+  const auto networkInfo = [this](const McpToolArguments& arguments) -> McpToolResult {
+    return showNetworkInfo(arguments);
+  };
+  const char* networkInfoDescription =
+      "用户想知道铜豆自己的网络访问地址、如何进入铜豆本机控制台、或如何在网络中找到铜豆时调用。"
+      "例如‘你的地址是多少’‘我怎么进入你的控制台’‘铜豆我怎么找到你’‘告诉我你的网络地址’，"
+      "这些只是示例，按自然语言意思判断，不要求固定口令。不要用于询问现实住址、位置、其他设备或服务器管理后台。"
+      "无需参数，每次读取设备当前真实地址并显示在屏幕上，不能根据聊天记录猜测地址。"
+      "只有 displayed=true 才能告诉用户地址已经显示；成功后用当前对话语言简短口头确认，"
+      "中文可说‘我的地址已经显示在屏幕上了，照着找我就行。’，保持铜豆角色风格。"
+      "默认不逐位朗读地址；失败时按实际原因说明并给下一步，不能假装已经显示。";
+  registry_.addTool("tongdou.network.show_info", networkInfoDescription, {}, networkInfo);
+  voiceRegistry_.addTool("tongdou.network.show_info", networkInfoDescription, {}, networkInfo);
 
   const std::vector<McpProperty> reminderCreateProperties = {
       McpProperty::OptionalInteger("dueAt"),
@@ -716,6 +729,31 @@ McpToolResult McpServer::setAudioVolume(const McpToolArguments& arguments) {
   doc["previousVolume"] = previousVolume;
   doc["volume"] = appCommandService_.audioVolume();
   return {serializeDoc(doc), !result.ok};
+}
+
+McpToolResult McpServer::showNetworkInfo(const McpToolArguments&) {
+  const NetworkInfoResult result = appCommandService_.showNetworkInfo();
+  JsonDocument doc;
+  doc["ok"] = result.displayed;
+  doc["displayed"] = result.displayed;
+  doc["code"] = result.code;
+  doc["ip"] = result.ip;
+  doc["url"] = result.url;
+  doc["accessMode"] = result.accessMode;
+  if (result.displayed) {
+    doc["message"] = "我的地址已经显示在屏幕上了，照着找我就行。";
+    doc["hint"] = result.accessMode == "setup_hotspot"
+                      ? "先连接铜豆配网热点，再在浏览器打开屏幕上的地址。"
+                      : "手机或电脑与铜豆连接同一无线网络，再在浏览器打开屏幕上的地址。";
+    doc["displaySeconds"] = 30;
+  } else if (result.code == "network_unavailable") {
+    doc["message"] = "我还没拿到可用的网络地址，先帮我连上无线网络，再问我一次。";
+  } else if (result.code == "reminder_busy") {
+    doc["message"] = "屏幕正在显示提醒，等这条提醒说完再问我一次。";
+  } else {
+    doc["message"] = "地址查到了，但我的屏幕暂时用不了；可以把返回的真实地址告诉用户，在同一网络的浏览器里打开。";
+  }
+  return {serializeDoc(doc), !result.displayed};
 }
 
 std::string McpServer::commandResultJson(const AppCommandResult& result) const {

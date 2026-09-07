@@ -27,12 +27,18 @@ AppCommandService::AppCommandService(ScenarioEngine& scenarioEngine,
                                      ScenarioExecutor& scenarioExecutor,
                                      ScenarioContext& scenarioContext,
                                      RealtimeVoiceService& realtimeVoiceService,
-                                     AudioVolumeService& audioVolumeService)
+                                     AudioVolumeService& audioVolumeService,
+                                     NetworkInfoService& networkInfoService)
     : scenarioEngine_(scenarioEngine),
       scenarioExecutor_(scenarioExecutor),
       scenarioContext_(scenarioContext),
       realtimeVoiceService_(realtimeVoiceService),
-      audioVolumeService_(audioVolumeService) {}
+      audioVolumeService_(audioVolumeService),
+      networkInfoService_(networkInfoService) {}
+
+NetworkInfoResult AppCommandService::showNetworkInfo() {
+  return networkInfoService_.show(realtimeVoiceService_.snapshot());
+}
 
 AppCommandResult AppCommandService::playScenario(const String& eventName) {
   ScenarioEventType eventType;

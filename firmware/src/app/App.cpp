@@ -136,7 +136,14 @@ void App::update() {
   handleProactiveReminderEvents();
   updateWakeWordArming();
   scenarioExecutor_.update();
-  voiceVisualFeedback_.update(reminderAlertService_.blocksVoiceInteraction());
+  const RealtimeVoiceSnapshot voiceSnapshot = realtimeVoiceService_.snapshot();
+  networkInfoService_.update(
+      voiceSnapshot.state == RealtimeVoiceState::AwaitingResponse ||
+      voiceSnapshot.state == RealtimeVoiceState::Ending ||
+      voiceSnapshot.speechOutputActive,
+      voiceSnapshot);
+  voiceVisualFeedback_.update(reminderAlertService_.blocksVoiceInteraction(),
+                              networkInfoService_.active());
   reminderAlertService_.update();
 }
 
