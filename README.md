@@ -2,6 +2,59 @@
 
 [![TongDou demo keyframes](media/images/tongdou-demo-keyframes.gif)](media/videos/tongdou-demo-devil-descends.mp4)
 
+## Latest Release — v0.1.2 Early Tester
+
+**The complete TongDou application firmware and matching server are available
+for early testing on V9 hardware (ESP32-S3-MINI-1-N4R2, 4 MB flash).**
+
+[**Download TongDou v0.1.2 Early Tester →**](https://github.com/solitary-dev-50/tongdou/releases/tag/v0.1.2-early-tester)
+
+Download both named packages from the release assets:
+
+- `TongDou_Application_Firmware_v0.1.2_Early_Tester.zip`
+- `TongDou_Server_v0.1.2_Early_Tester.zip`
+
+GitHub's automatically generated **Source code** archives are repository
+snapshots, not the firmware installation package.
+
+### What's included in v0.1.2
+
+- Precompiled application firmware with a complete USB flash image, recovery
+  images, a Windows one-click flashing tool, and English installation and
+  recovery guidance.
+- Device IP address and local-console queries, confirmed on hardware.
+- A matching server package with **PowerMem 1.1.7 background long-term memory
+  support** and a **local voiceprint service**. Follow the included guides to
+  configure memory and voiceprints with your own service credentials.
+- Server configuration examples, help documents, and package checksums.
+
+Long-term memory runs on the configured server. This remains an **Early Tester
+release**; multi-speaker and cross-session behaviour still needs real-use
+testing.
+
+### Installation and upgrades
+
+Extract both ZIP files completely before using them.
+
+**Firmware:** Run `FLASH_TONGDOU.bat` with TongDou connected by USB. Upgrading
+from v0.1.0 requires the **complete USB image** because the partition layout has
+changed. Full flashing clears saved Wi-Fi, server address, language, volume,
+reminders, and motor settings; configure the device again afterwards.
+Use USB installation for this release: remote updates through the paired full
+server dashboard have not been verified. The application-only OTA image must
+never be flashed at address `0x0`. Follow the included recovery guide if needed;
+the board has no RESET button.
+
+**Server:** Install and start Docker Desktop, then run
+`START_TONGDOU_SERVER.bat`. The first start needs internet access to download
+dependencies and build the services. Supply your own speech, model, and
+embedding credentials as described in the package guides. For an existing
+installation, stop the old server and follow the included backup and migration
+instructions, preserving local credentials and persistent data.
+
+For version-specific setup, memory, voiceprint, upgrade, and recovery
+instructions, use the documents inside the **v0.1.2 packages**.
+
 ## Featured on Hackaday
 
 TongDou was featured on Hackaday:
@@ -13,8 +66,10 @@ Written by Zoe Skyforest - July 31, 2026
 > **Work in Progress**
 >
 > TongDou is being actively documented and open-sourced step by step.
-> Hardware test firmware, demo scene firmware, prototype photos, and selected
-> hardware documents are public now. Other design files, manufacturing
+> The complete application firmware and matching TongDou Server are available
+> as an Early Tester release. Hardware test firmware, demo scene firmware,
+> prototype photos, and selected hardware documents are also public.
+> Other design files, manufacturing
 > documents, and build guides will be released progressively.
 > Please see the [Roadmap](#roadmap) below for the current release plan.
 
@@ -134,7 +189,7 @@ and an onboard QMI8658A 6-axis IMU.
 
 This repository currently includes:
 
-- [TongDou v0.1.0 Early Tester](https://github.com/solitary-dev-50/tongdou/releases/tag/v0.1.0-early-tester)
+- [TongDou v0.1.2 Early Tester](https://github.com/solitary-dev-50/tongdou/releases/tag/v0.1.2-early-tester)
 - Project overview
 - Hardware test and engineering firmware
 - Demo scene firmware source
@@ -146,9 +201,11 @@ This repository currently includes:
 - License, attribution, and notice files
 - Open-source release plan
 
-**TongDou v0.1.0 Early Tester is now available.** Download the application
-firmware and TongDou Server from the
-[GitHub Release](https://github.com/solitary-dev-50/tongdou/releases/tag/v0.1.0-early-tester).
+**TongDou v0.1.2 Early Tester is now available.** Download the application
+firmware and matching TongDou Server from the
+[GitHub Release](https://github.com/solitary-dev-50/tongdou/releases/tag/v0.1.2-early-tester).
+See [Latest Release](#latest-release--v012-early-tester) above for package names
+and upgrade instructions.
 
 Current schematic PDFs:
 
@@ -204,7 +261,15 @@ The public demo firmware source is available now as a developer scene example.
 It includes Scene 8, Scene 6, and development scene templates. It is not the
 complete TongDou application firmware.
 
-### 4. Additional hardware design materials
+### 4. Complete application firmware and TongDou Server
+
+The first complete Early Tester release, v0.1.0, was published on August 29,
+2026. The matching application firmware and server have now been updated to
+[v0.1.2](https://github.com/solitary-dev-50/tongdou/releases/tag/v0.1.2-early-tester),
+published on September 8, 2026. Current work focuses on early tester feedback,
+real-use validation, and continued development of TongDou's behaviour.
+
+### 5. Additional hardware design materials
 
 Existing schematic PDFs are available now. Editable PCB source files, Gerber
 files, BOM, pick-and-place files, mechanical source files, and production
@@ -212,7 +277,7 @@ calibration and manufacturing files are not published yet.
 
 Further hardware notes and validation records will be added progressively.
 
-### 5. Assembly and validation records
+### 6. Assembly and validation records
 
 Brass-frame soldering, assembly, power-on checks, testing records, and
 troubleshooting material.
@@ -241,9 +306,12 @@ TongDou is a real hardware product, not only a document package. Some files can
 be used to directly manufacture, clone, or misrepresent the product before the
 first official release is ready.
 
-For this stage, the public repository is intentionally limited to project
-presentation, schematic-level reference, real media, hardware test firmware,
-demo scene firmware, licensing boundaries, and the future open-source path.
+At this stage, the public repository provides project presentation,
+schematic-level reference, real media, hardware test and demo scene firmware,
+licensing boundaries, and the future open-source path. GitHub Releases also
+provide the precompiled complete application firmware and matching TongDou
+Server package for early testers. Availability of a release package does not
+change the license scope described below.
 
 ## License Scope
 
@@ -277,6 +345,11 @@ Official TongDou products and crowdfunding campaigns will only be announced
 through https://gettongdou.com
 
 ## Repository Documents
+
+For v0.1.2, start with the English guides included in the
+[firmware and server packages](https://github.com/solitary-dev-50/tongdou/releases/tag/v0.1.2-early-tester).
+The v0.1 documents below remain useful background, but do not replace the
+v0.1.2 installation and migration instructions.
 
 - [TongDou v0.1 Early Tester Quick Start](docs/TongDou_v0.1_Early_Tester_Quick_Start_EN.md)
 - [TongDou v0.1 Early Tester Features and Usage](docs/TongDou_v0.1_Early_Tester_Features_and_Usage_EN.md)
