@@ -2,22 +2,38 @@
 
 [![TongDou demo keyframes](media/images/tongdou-demo-keyframes.gif)](media/videos/tongdou-demo-devil-descends.mp4)
 
-## Latest Release — v0.1.2 Early Tester
+## Latest Release — v0.1.3 Early Tester
 
 **The complete TongDou application firmware and matching server are available
 for early testing on V9 hardware (ESP32-S3-MINI-1-N4R2, 4 MB flash).**
 
-[**Download TongDou v0.1.2 Early Tester →**](https://github.com/solitary-dev-50/tongdou/releases/tag/v0.1.2-early-tester)
+[**Download TongDou Firmware v0.1.3 →**](https://github.com/solitary-dev-50/tongdou/releases/tag/v0.1.3-early-tester)
 
-Download both named packages from the release assets:
+**This firmware-only update improves wake-word recognition stability.**
+Keep using TongDou Server **v0.1.2**; an existing v0.1.2 server does not need
+to be reinstalled. New users need these two packages:
 
-- `TongDou_Application_Firmware_v0.1.2_Early_Tester.zip`
-- `TongDou_Server_v0.1.2_Early_Tester.zip`
+- [TongDou_Application_Firmware_v0.1.3_Early_Tester.zip](https://github.com/solitary-dev-50/tongdou/releases/download/v0.1.3-early-tester/TongDou_Application_Firmware_v0.1.3_Early_Tester.zip)
+- [TongDou_Server_v0.1.2_Early_Tester.zip](https://github.com/solitary-dev-50/tongdou/releases/download/v0.1.2-early-tester/TongDou_Server_v0.1.2_Early_Tester.zip)
+
+The [previous v0.1.2 firmware](https://github.com/solitary-dev-50/tongdou/releases/tag/v0.1.2-early-tester)
+remains available for rollback.
 
 GitHub's automatically generated **Source code** archives are repository
 snapshots, not the firmware installation package.
 
-### What's included in v0.1.2
+### What's changed in firmware v0.1.3
+
+- The local recognition timeout is extended from 3 to 10 seconds to reduce
+  frequent recognition resets. A detected wake phrase still starts a response
+  immediately; it does not wait for the 10-second timeout.
+- The project owner reported a noticeable improvement, with nine successful
+  wake-and-conversation cycles recorded. First-attempt success rate and
+  long-duration false activations remain follow-up tests.
+- Voice gain, recognition threshold, flash layout, and server protocol are
+  unchanged. See the [v0.1.3 release notes](docs/TongDou_v0.1.3_Release_Notes_EN.md).
+
+### Included firmware and server features
 
 - Precompiled application firmware with a complete USB flash image, recovery
   images, a Windows one-click flashing tool, and English installation and
@@ -34,18 +50,23 @@ testing.
 
 ### Installation and upgrades
 
-Extract both ZIP files completely before using them.
+Extract the firmware ZIP completely before using it. New users should also
+extract and configure the server v0.1.2 ZIP.
 
 **Firmware:** Run `FLASH_TONGDOU.bat` with TongDou connected by USB. Upgrading
 from v0.1.0 requires the **complete USB image** because the partition layout has
 changed. Full flashing clears saved Wi-Fi, server address, language, volume,
 reminders, and motor settings; configure the device again afterwards.
+The v0.1.2 and v0.1.3 layouts are the same, but the bundled one-click script
+still performs a full installation and clears settings. Returning to an older
+firmware with its full-image installer also clears settings.
 Use USB installation for this release: remote updates through the paired full
 server dashboard have not been verified. The application-only OTA image must
 never be flashed at address `0x0`. Follow the included recovery guide if needed;
 the board has no RESET button.
 
-**Server:** Install and start Docker Desktop, then run
+**Server:** Existing v0.1.2 users can keep their current server. For a new
+installation, install and start Docker Desktop, then run
 `START_TONGDOU_SERVER.bat`. The first start needs internet access to download
 dependencies and build the services. Supply your own speech, model, and
 embedding credentials as described in the package guides. For an existing
@@ -53,7 +74,8 @@ installation, stop the old server and follow the included backup and migration
 instructions, preserving local credentials and persistent data.
 
 For version-specific setup, memory, voiceprint, upgrade, and recovery
-instructions, use the documents inside the **v0.1.2 packages**.
+instructions, use the documents inside the **firmware v0.1.3 and server v0.1.2
+packages**.
 
 ## Featured on Hackaday
 
@@ -189,7 +211,8 @@ and an onboard QMI8658A 6-axis IMU.
 
 This repository currently includes:
 
-- [TongDou v0.1.2 Early Tester](https://github.com/solitary-dev-50/tongdou/releases/tag/v0.1.2-early-tester)
+- [TongDou Firmware v0.1.3 Early Tester](https://github.com/solitary-dev-50/tongdou/releases/tag/v0.1.3-early-tester)
+- [TongDou Server v0.1.2 and previous firmware](https://github.com/solitary-dev-50/tongdou/releases/tag/v0.1.2-early-tester)
 - Project overview
 - Hardware test and engineering firmware
 - Demo scene firmware source
@@ -201,10 +224,9 @@ This repository currently includes:
 - License, attribution, and notice files
 - Open-source release plan
 
-**TongDou v0.1.2 Early Tester is now available.** Download the application
-firmware and matching TongDou Server from the
-[GitHub Release](https://github.com/solitary-dev-50/tongdou/releases/tag/v0.1.2-early-tester).
-See [Latest Release](#latest-release--v012-early-tester) above for package names
+**TongDou Firmware v0.1.3 Early Tester is now available.** Use it with
+TongDou Server v0.1.2. Both download links and the previous firmware are listed
+under [Latest Release](#latest-release--v013-early-tester) above, with package names
 and upgrade instructions.
 
 Current schematic PDFs:
@@ -264,9 +286,10 @@ complete TongDou application firmware.
 ### 4. Complete application firmware and TongDou Server
 
 The first complete Early Tester release, v0.1.0, was published on August 29,
-2026. The matching application firmware and server have now been updated to
-[v0.1.2](https://github.com/solitary-dev-50/tongdou/releases/tag/v0.1.2-early-tester),
-published on September 8, 2026. Current work focuses on early tester feedback,
+2026. Firmware and server v0.1.2 followed on September 8, 2026.
+[Firmware v0.1.3](https://github.com/solitary-dev-50/tongdou/releases/tag/v0.1.3-early-tester),
+published on September 9, 2026, improves wake-word recognition stability and
+continues to use server v0.1.2. Current work focuses on early tester feedback,
 real-use validation, and continued development of TongDou's behaviour.
 
 ### 5. Additional hardware design materials
@@ -346,10 +369,12 @@ through https://gettongdou.com
 
 ## Repository Documents
 
-For v0.1.2, start with the English guides included in the
-[firmware and server packages](https://github.com/solitary-dev-50/tongdou/releases/tag/v0.1.2-early-tester).
+Start with the [v0.1.3 release notes](docs/TongDou_v0.1.3_Release_Notes_EN.md)
+and the English guides included in the
+[firmware v0.1.3 package](https://github.com/solitary-dev-50/tongdou/releases/tag/v0.1.3-early-tester)
+and [server v0.1.2 package](https://github.com/solitary-dev-50/tongdou/releases/tag/v0.1.2-early-tester).
 The v0.1 documents below remain useful background, but do not replace the
-v0.1.2 installation and migration instructions.
+current package installation and migration instructions.
 
 - [TongDou v0.1 Early Tester Quick Start](docs/TongDou_v0.1_Early_Tester_Quick_Start_EN.md)
 - [TongDou v0.1 Early Tester Features and Usage](docs/TongDou_v0.1_Early_Tester_Features_and_Usage_EN.md)
