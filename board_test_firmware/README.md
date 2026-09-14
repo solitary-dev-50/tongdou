@@ -27,6 +27,22 @@ This firmware targets TongDou V9 hardware:
 - LD2412 radar module
 - TP4057 charging and battery monitoring circuit
 
+## Console Languages And Local Preview
+
+The board-test console supports English, Chinese, and Russian. The language
+button cycles through these three languages. Open `/motor?lang=ru` to select
+Russian directly. Diagnostic command output keeps its original technical text.
+
+For local screenshots without a board, run from the repository root:
+
+```bash
+python board_test_firmware/firmware/tools/preview_console.py
+```
+
+Open `http://127.0.0.1:8765/motor?lang=ru`. This preview reads the actual firmware
+page, labels itself as disconnected, and disables hardware controls. It does
+not provide simulated test results. Stop the preview with Ctrl+C.
+
 ## Build System
 
 The project uses PlatformIO, not a native ESP-IDF project.

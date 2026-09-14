@@ -50,6 +50,8 @@ class WebConfigServer {
 
   void startPortal();
   void startStation(const WifiCredentials& credentials);
+  void startMdns();
+  void stopMdns();
   void ensureHttpServer();
   void setupRoutes();
   void handleRoot();
@@ -64,6 +66,8 @@ class WebConfigServer {
   void handleReminderDelete();
   void handleProactiveReminderGet();
   void handleProactiveReminderSave();
+  void handleMotorConfigGet();
+  void handleMotorConfigSave();
   void handleDiagnosticCommand();
   void handleMcp();
   void handleVoiceDebugPage();
@@ -98,6 +102,7 @@ class WebConfigServer {
   NetworkState state_ = NetworkState::Idle;
   bool serverStarted_ = false;
   bool dnsStarted_ = false;
+  bool mdnsStarted_ = false;
   bool pendingStationConnect_ = false;
   bool setupPortalStartedEvent_ = false;
   bool localeChangedEvent_ = false;

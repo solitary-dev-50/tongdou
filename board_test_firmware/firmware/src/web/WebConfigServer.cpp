@@ -434,11 +434,12 @@ const text={
   zh:{
     title:'铜豆 V9 板测',
     subtitle:'热点：TongDou-BoardTest · 页面：192.168.4.1/motor',
-    langToggle:'English',
+    langToggle:'Русский',
     status:'状态',
     display:'屏幕',
     led:'灯珠',
     power:'供电',
+    batteryLevel:'电池电量',
     system:'系统',
     ready:'正常',
     check:'检查',
@@ -495,12 +496,79 @@ const text={
     gyroAuto:'陀螺仪自动直行',
     motorNote:'手动电机会自动超时。拿起板子前先点停止。',
     log:'日志'
+  },
+  ru:{
+    title:'TongDou V9 — проверка платы',
+    subtitle:'Точка доступа: TongDou-BoardTest · Адрес: 192.168.4.1/motor',
+    langToggle:'English',
+    status:'Состояние',
+    display:'Экран',
+    led:'Светодиод',
+    power:'Питание',
+    batteryLevel:'Заряд батареи',
+    system:'Система',
+    ready:'Готово',
+    check:'Проверить',
+    usbPower:'Питание от USB',
+    batteryPower:'От батареи',
+    charging:'Заряжается',
+    standby:'Заряжено',
+    healthy:'В норме',
+    degraded:'Ограниченный режим',
+    copyLog:'Копировать журнал',
+    clearLog:'Очистить журнал',
+    quickChecks:'Быстрая проверка',
+    selfTest:'Самопроверка',
+    battery:'Батарея',
+    mic:'Микрофон',
+    speaker:'Динамик',
+    audioLoopback:'Записать звук',
+    waveform:'Сигнал микрофона',
+    i2cScan:'Поиск устройств I2C',
+    imu:'Гироскоп',
+    lastIdle:'Нажмите кнопку проверки, чтобы увидеть результат.',
+    running:'Выполняется',
+    requestFailed:'Ошибка запроса',
+    radarPanel:'Обнаружение радаром',
+    radarNotTested:'Не проверено',
+    radarReady:'Готово к проверке',
+    radarStart:'Начать наблюдение',
+    radarStop:'Остановить',
+    radarCalibrate:'Калибровка без людей',
+    radarCalibrating:'Калибровка пустого помещения',
+    radarCalComplete:'Калибровка завершена',
+    radarCalFailed:'Ошибка калибровки',
+    radarSeen:'Цель обнаружена',
+    radarClear:'Целей нет',
+    radarNoFrame:'Нет данных от радара',
+    soundLight:'Звук и свет',
+    volume:'Громкость динамика',
+    applyVolume:'Применить',
+    red:'Красный',
+    green:'Зелёный',
+    blue:'Синий',
+    off:'Выключить',
+    motorTitle:'Направление и мощность моторов',
+    leftReversed:'Реверс слева',
+    rightReversed:'Реверс справа',
+    leftPwm:'Мощность слева',
+    rightPwm:'Мощность справа',
+    saveMotor:'Сохранить настройки',
+    stop:'Стоп',
+    pulseForward:'Коротко вперёд',
+    pulseReverse:'Коротко назад',
+    manualForward:'Вперёд вручную',
+    manualReverse:'Назад вручную',
+    gyroAuto:'Прямо по гироскопу',
+    motorNote:'При ручном управлении моторы останавливаются по таймеру. Перед поднятием платы нажмите «Стоп».',
+    log:'Журнал'
   }
 };
 function applyLanguage(language){
   currentLanguage=language;
   const dict=text[language];
   document.documentElement.lang=language;
+  document.title=dict.title;
   document.querySelectorAll('[data-i18n]').forEach(el=>{
     const key=el.dataset.i18n;
     if(dict[key])el.textContent=dict[key];
@@ -520,7 +588,8 @@ function applyLanguage(language){
   }
 }
 function toggleLanguage(){
-  applyLanguage(currentLanguage==='en'?'zh':'en');
+  const languages=['en','zh','ru'];
+  applyLanguage(languages[(languages.indexOf(currentLanguage)+1)%languages.length]);
 }
 document.addEventListener('contextmenu',event=>{
   if(event.target.closest('button'))event.preventDefault();
@@ -834,7 +903,8 @@ async function copyLog(){
 }
 function clearLog(){$('log').textContent=''}
 window.addEventListener('beforeunload',()=>navigator.sendBeacon('/api/diagnostic','command=motor%20stop'));
-applyLanguage('en');
+const requestedLanguage=new URLSearchParams(location.search).get('lang');
+applyLanguage(['en','zh','ru'].includes(requestedLanguage)?requestedLanguage:'en');
 loadMotorConfig();
 refreshStatus();
 </script>

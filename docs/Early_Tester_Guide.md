@@ -1,4 +1,4 @@
-# TongDou v0.1 Early Tester Guide
+# TongDou v0.1.2 Early Tester Guide
 
 Thank you for helping test TongDou.
 
@@ -152,7 +152,7 @@ All three must work for a complete voice conversation.
 
 ### 3.2 Extract the server package
 
-1. Fully extract `TongDou_Server_v0.1.0_Early_Tester.zip` to a normal folder.
+1. Fully extract `TongDou_Server_v0.1.2_Early_Tester.zip` to a normal folder.
 2. Keep the folder structure unchanged.
 3. Do not run files from inside the ZIP preview window.
 
@@ -218,10 +218,10 @@ Voiceprint recognition is optional. It is only needed when you want TongDou Serv
 To find the token currently used by the running voiceprint container, open PowerShell in the TongDou Server folder and run:
 
 ```powershell
-docker inspect voiceprint-api --format "{{range .Config.Env}}{{println .}}{{end}}" | findstr VOICEPRINT_API_TOKEN
+docker compose exec -T voiceprint-api printenv VOICEPRINT_API_TOKEN
 ```
 
-Copy the complete value after `VOICEPRINT_API_TOKEN=`. Keep this token private. If the command says that the container does not exist, start TongDou Server first. If the token is not configured, create `main/xiaozhi-server/.env` from `.env.example` and set `VOICEPRINT_API_TOKEN` to a random string of at least 32 letters, numbers, underscores, or hyphens.
+Copy the complete printed value. Keep this token private. If the command says that the container does not exist, start TongDou Server first. The v0.1.2 launcher generates the token in the package-root `.env` on first start. Keep that file when updating.
 
 In the dashboard, open **Parameter Management**, find `server.voice_print`, and set its value to:
 
@@ -273,7 +273,7 @@ The default Early Tester device address looks like:
 
 `http://192.168.x.x:8102`
 
-The numbers will be different on your network. Use port `8102` unless your server package prints a customised port. Do not use ports `8100`, `8103`, or an old `8002` example.
+The numbers will be different on your network. Use port `8102` unless your server package prints a customised port. Do not use ports `8100`, `8103`, or port `8002`.
 
 TongDou and the server computer must be on the same local network. Guest Wi-Fi, client isolation, some corporate networks, and some VPN configurations can prevent devices from reaching each other even when both appear connected.
 
@@ -483,3 +483,13 @@ The package supports changing its three `TONGDOU_*_PORT` values in `.env`, but t
 The supplied stop script keeps normal server data. Back up the extracted server folder and Docker data before replacing the package with a major new test version.
 
 Thank you for testing a real, unfinished TongDou and helping make it more reliable.
+
+## v0.1.2 delivery notes
+
+Use the matching v0.1.2 application and server packages. The server package now includes the current memory worker and the local voiceprint service. Model and embedding credentials must be supplied by the tester; memory is not ready merely because an image has been installed. See the included Features & Usage document for the memory boundary and follow-up tests.
+
+IP / device-console queries were physically tested and confirmed by the project owner on 2026-09-07. The device address and the server dashboard address are different.
+
+The first move from the v0.1.0 flash layout requires the full USB image and clears Wi-Fi, server address, reminders, language, volume, and motor direction/power settings. Reconfigure these after flashing. The hardware has no RESET button: power-cycle with its switch. If a board has an accessible BOOT input, hold it low while switching the power on to enter download mode, then release it. Otherwise request board-specific recovery instructions; do not short unidentified pads.
+
+Remote update support is supplied for early testing. Production-level power-loss stress testing was not performed for this release and is not a release gate.

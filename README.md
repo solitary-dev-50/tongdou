@@ -71,6 +71,13 @@ files will be published after bring-up checks are complete.
 For the currently published electrical reference documents, see the
 [TongDou PCB v8 package](hardware/pcb/tongdou-pcb-v8/).
 
+## Setup Guide for Delivered Units
+
+For delivered units running the formal application firmware, see the
+[single-page setup guide — English / 中文 / Русский](docs/tongdou-setup.html).
+Download the HTML file and open it in a browser. It includes all images and
+defaults to English, with a language switcher for Chinese and Russian.
+
 ## Hardware Test Firmware
 
 [Open the TongDou hardware test firmware](board_test_firmware/)

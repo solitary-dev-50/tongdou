@@ -1,4 +1,4 @@
-# TongDou v0.1 Early Tester – Quick Start
+# TongDou v0.1.2 Early Tester – Quick Start
 
 ## 1. Before you start
 
@@ -100,3 +100,13 @@ When reporting a problem, please include:
 - The approximate local time.
 - A photo, short video, device log, or Server log when useful.
 - The desk layout and nearby movement if the issue is radar-related.
+
+## v0.1.2 delivery notes
+
+Use the matching v0.1.2 application and server packages. The server package now includes the current memory worker and the local voiceprint service. Model and embedding credentials must be supplied by the tester; memory is not ready merely because an image has been installed. See the included Features & Usage document for the memory boundary and follow-up tests.
+
+IP / device-console queries were physically tested and confirmed by the project owner on 2026-09-07. The device address and the server dashboard address are different.
+
+The first move from the v0.1.0 flash layout requires the full USB image and clears Wi-Fi, server address, reminders, language, volume, and motor direction/power settings. Reconfigure these after flashing. The hardware has no RESET button: power-cycle with its switch. If a board has an accessible BOOT input, hold it low while switching the power on to enter download mode, then release it. Otherwise request board-specific recovery instructions; do not short unidentified pads.
+
+Remote update support is supplied for early testing. Production-level power-loss stress testing was not performed for this release and is not a release gate.

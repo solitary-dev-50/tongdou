@@ -46,6 +46,12 @@ class HardwareSelfTestService {
   void update();
   HardwareDiagnosticStatus status() const;
   BatterySnapshot batterySnapshot() const;
+  bool motorLeftInverted() const;
+  bool motorRightInverted() const;
+  uint8_t motorLeftDefaultDuty() const;
+  uint8_t motorRightDefaultDuty() const;
+  void saveMotorCalibration(bool leftInverted, bool rightInverted,
+                            uint8_t leftDuty, uint8_t rightDuty);
   void printHelp(Print& out) const;
   bool handleCommand(const String& command, Print& out);
 

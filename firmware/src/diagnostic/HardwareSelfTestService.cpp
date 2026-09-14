@@ -94,6 +94,29 @@ BatterySnapshot HardwareSelfTestService::batterySnapshot() const {
   return battery_.read();
 }
 
+bool HardwareSelfTestService::motorLeftInverted() const {
+  return motors_.leftInverted();
+}
+
+bool HardwareSelfTestService::motorRightInverted() const {
+  return motors_.rightInverted();
+}
+
+uint8_t HardwareSelfTestService::motorLeftDefaultDuty() const {
+  return motors_.leftDefaultDuty();
+}
+
+uint8_t HardwareSelfTestService::motorRightDefaultDuty() const {
+  return motors_.rightDefaultDuty();
+}
+
+void HardwareSelfTestService::saveMotorCalibration(bool leftInverted,
+                                                    bool rightInverted,
+                                                    uint8_t leftDuty,
+                                                    uint8_t rightDuty) {
+  motors_.saveCalibration(leftInverted, rightInverted, leftDuty, rightDuty);
+}
+
 void HardwareSelfTestService::printHelp(Print& out) const {
   out.println(F("self-test commands:"));
   out.println(F("  selftest"));

@@ -1,4 +1,4 @@
-# TongDou v0.1 Early Tester – Features & Usage
+# TongDou v0.1.2 Early Tester – Features & Usage
 
 ## 1. What this release is
 
@@ -184,7 +184,7 @@ Movements are intentionally short and are not used for every spoken reply. TongD
 
 ### First setup
 
-1. Start TongDou Server and use the address shown by the TongDou Server startup script. In the supplied Docker setup, enter `http://<server-PC-LAN-IP>:8102`, replacing `<server-PC-LAN-IP>` with the LAN IP address of the computer running the Server. Do not use port `8100`, port `8103`, or the legacy port `8002` example still shown in the Web Config input field.
+1. Start TongDou Server and use the address shown by the TongDou Server startup script. In the supplied Docker setup, enter `http://<server-PC-LAN-IP>:8102`, replacing `<server-PC-LAN-IP>` with the LAN IP address of the computer running the Server. Do not use port `8100`, port `8103`, or port `8002`.
 2. Power on TongDou. If it has no saved Wi-Fi connection, it creates a Wi-Fi network named **TongDou-Setup**.
 3. Connect a phone or computer to **TongDou-Setup**.
 4. If the setup page does not open automatically, open `http://192.168.4.1/`.
@@ -210,6 +210,18 @@ The factory firmware includes the English (United Kingdom) (`en-GB`) local promp
 The selected locale is saved on the device and is used for the local setup page, local prompts, activation-code speech, and reminder locale requests.
 
 The local wake phrase remains **“Ni hao, TongDou”** in every setup locale. Natural conversation language and voice depend on the speech recognition, language model, and text-to-speech configuration assigned by TongDou Server. Not every complete voice path has been separately verified in all seven locales.
+
+## Network address and local console
+
+Ask “What is your IP address?” or “How do I open your settings?”. With the voice server and device tools connected, TongDou reads its current local address, shows it on the OLED, and gives a short spoken confirmation. Open the displayed address from a browser on the same network. This is the device console, not the server dashboard. The project owner confirmed physical IP/console use on 2026-09-07. The `http://tongdou.local/` alias is also implemented; use the displayed numeric address if your network does not resolve it.
+
+## Long-term memory and speaker separation
+
+The paired v0.1.2 server includes PowerMem 1.1.7 background memory saving. Configure the memory model and embedding credentials, enable user profiles, and enrol a voiceprint for each intended user in the server dashboard. The tested storage setup uses SQLite with `data/powermem_dev.db` for both memory and the background queue, and collection `memories`. Ordinary memory is filtered by trusted speaker ID and device ID; profiles are per speaker. Unrecognised speakers do not read or write long-term memory.
+
+Saving runs in the background after a conversation. It can be delayed by model errors or rate limits; a spoken acknowledgement does not prove that a memory task has finished. Back up the entire server `data/` folder with the service stopped, including the memory database and its `.replay.sqlite` plan/receipt file. No personal memories, voiceprints or provider credentials are included in this package.
+
+Automated memory and identity checks are distinct from real conversation quality. Cross-session recall, corrections and multiple speakers remain follow-up tests; they are not labelled as fully verified multi-user behaviour.
 
 ## 8. Advanced / experimental
 

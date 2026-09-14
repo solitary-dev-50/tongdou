@@ -1,7 +1,9 @@
 #include "web/WebConfigServer.h"
 
+#include <ESPmDNS.h>
 #include <WiFi.h>
 #include <mbedtls/base64.h>
+#include <stdlib.h>
 
 #include "tongdou/BuildInfo.h"
 
@@ -9,6 +11,7 @@ namespace tongdou {
 namespace {
 
 constexpr const char* kPortalSsid = "TongDou-Setup";
+constexpr const char* kMdnsHostname = "tongdou";
 constexpr uint16_t kDnsPort = 53;
 const IPAddress kPortalIp(192, 168, 4, 1);
 const IPAddress kPortalGateway(192, 168, 4, 1);
@@ -33,6 +36,24 @@ String jsonEscape(const String& value) {
   escaped.replace("\\", "\\\\");
   escaped.replace("\"", "\\\"");
   return escaped;
+}
+
+String boolJson(bool value) {
+  return value ? "true" : "false";
+}
+
+uint8_t parseDutyArg(const String& value, uint8_t fallback) {
+  if (value.length() == 0) {
+    return fallback;
+  }
+
+  char* end = nullptr;
+  const long parsed = strtol(value.c_str(), &end, 10);
+  if (end == value.c_str()) {
+    return fallback;
+  }
+
+  return static_cast<uint8_t>(constrain(parsed, 0L, 255L));
 }
 
 bool normalizeOtaUrl(const String& input, String& output) {
@@ -142,6 +163,12 @@ void WebConfigServer::update() {
     server_.handleClient();
   }
 
+  if (state_ == NetworkState::Connected && WiFi.status() == WL_CONNECTED) {
+    startMdns();
+  } else if (mdnsStarted_ && WiFi.status() != WL_CONNECTED) {
+    stopMdns();
+  }
+
   if (pendingStationConnect_ && millis() - stationConnectAfterMs_ >= kDeferredConnectDelayMs) {
     pendingStationConnect_ = false;
     startStation(pendingCredentials_);
@@ -151,6 +178,7 @@ void WebConfigServer::update() {
     if (WiFi.status() == WL_CONNECTED) {
       state_ = NetworkState::Connected;
       wifiConnectedEvent_ = true;
+      startMdns();
       timeService_.configureNetworkTime();
       Serial.print("wifi connected ip=");
       Serial.println(WiFi.localIP());
@@ -189,6 +217,7 @@ WebConfigEvent WebConfigServer::consumeEvent() {
 }
 
 void WebConfigServer::startPortal() {
+  stopMdns();
   WiFi.mode(WIFI_AP_STA);
   WiFi.setSleep(false);
   WiFi.disconnect(false, false);
@@ -208,6 +237,7 @@ void WebConfigServer::startPortal() {
 }
 
 void WebConfigServer::startStation(const WifiCredentials& credentials) {
+  stopMdns();
   WiFi.mode(state_ == NetworkState::Portal ? WIFI_AP_STA : WIFI_STA);
   WiFi.setSleep(false);
   WiFi.begin(credentials.ssid.c_str(), credentials.password.c_str());
@@ -216,6 +246,31 @@ void WebConfigServer::startStation(const WifiCredentials& credentials) {
 
   Serial.print("wifi connecting ssid=");
   Serial.println(credentials.ssid);
+}
+
+void WebConfigServer::startMdns() {
+  if (mdnsStarted_ || WiFi.status() != WL_CONNECTED) {
+    return;
+  }
+
+  if (!MDNS.begin(kMdnsHostname)) {
+    Serial.println("mDNS start failed hostname=tongdou");
+    return;
+  }
+
+  MDNS.addService("http", "tcp", 80);
+  mdnsStarted_ = true;
+  Serial.println("mDNS started hostname=tongdou.local");
+}
+
+void WebConfigServer::stopMdns() {
+  if (!mdnsStarted_) {
+    return;
+  }
+
+  MDNS.end();
+  mdnsStarted_ = false;
+  Serial.println("mDNS stopped");
 }
 
 void WebConfigServer::ensureHttpServer() {
@@ -250,6 +305,8 @@ void WebConfigServer::setupRoutes() {
              [this]() { handleProactiveReminderGet(); });
   server_.on("/api/proactive-reminders", HTTP_POST,
              [this]() { handleProactiveReminderSave(); });
+  server_.on("/api/motor/config", HTTP_GET, [this]() { handleMotorConfigGet(); });
+  server_.on("/api/motor/config", HTTP_POST, [this]() { handleMotorConfigSave(); });
   server_.on("/api/diagnostic", HTTP_POST, [this]() { handleDiagnosticCommand(); });
   server_.on("/api/mcp", HTTP_POST, [this]() { handleMcp(); });
   server_.on("/voice", HTTP_GET, [this]() { handleVoiceDebugPage(); });
@@ -320,7 +377,7 @@ small{color:#aaa}
 <input id="ssid" name="ssid" list="wifiOptions" placeholder="WiFi 名称" data-i18n-placeholder="wifiName" required>
 <datalist id="wifiOptions"></datalist>
 <input id="password" name="password" type="password" placeholder="WiFi 密码" data-i18n-placeholder="wifiPassword">
-<input id="serverUrl" name="serverUrl" placeholder="铜豆服务器地址，例如 http://192.168.1.20:8002" data-i18n-placeholder="serverUrl" required>
+<input id="serverUrl" name="serverUrl" placeholder="铜豆服务器地址，例如 http://192.168.1.20:8102" data-i18n-placeholder="serverUrl" required>
 <small data-i18n="serverHelp">请填写启动脚本显示的 TongDou LAN server 地址。</small>
 <div class="row"><button id="scanBtn" type="button" class="secondary" onclick="scanWifi()" data-i18n="scanWifi">扫描附近 WiFi</button><button type="submit" data-i18n="saveConnect">保存并连接</button></div>
 </form><div id="wifiList" class="grid"></div><button onclick="syncTime()" data-i18n="syncTime">同步当前时间</button><small id="msg"></small></section>
@@ -366,6 +423,18 @@ small{color:#aaa}
 <button onclick="diag('motor stop')" data-i18n="motorStop">电机停止</button>
 </div></section>
 
+<section class="card"><h2 data-i18n="motorConfig">电机方向和速度</h2>
+<div class="row">
+<label><input id="motorLeftInverted" type="checkbox" style="width:auto"> <span data-i18n="motorLeftReversed">左轮反向</span></label>
+<label><input id="motorRightInverted" type="checkbox" style="width:auto"> <span data-i18n="motorRightReversed">右轮反向</span></label>
+</div>
+<div class="row">
+<label><span data-i18n="motorLeftPwm">左轮力度</span><input id="motorLeftPwm" type="number" min="1" max="255"></label>
+<label><span data-i18n="motorRightPwm">右轮力度</span><input id="motorRightPwm" type="number" min="1" max="255"></label>
+</div>
+<button onclick="saveMotorConfig()" data-i18n="saveMotorConfig">保存电机设置</button>
+<small data-i18n="motorConfigHelp">保存后立即停止电机，重启后仍然保留。</small></section>
+
 <section class="card"><h2 data-i18n="hardwareRead">硬件读取</h2><div class="grid">
 <button onclick="diag('selftest')" data-i18n="fullSelftest">完整自检</button>
 <button onclick="diag('status')" data-i18n="hardwareStatus">硬件状态</button>
@@ -393,20 +462,22 @@ small{color:#aaa}
 <script>
 const $=id=>document.getElementById(id);let micTimer=null,radarTimer=null;
 const I18N={
-'zh-CN':{appTitle:'铜豆控制台',appSub:'本地配置、状态查看和硬件诊断。',language:'语言',languageHelp:'提示音、验证码播报和配置页面会使用这个语言。',status:'状态',network:'网络',address:'地址',time:'时间',battery:'电池',hardware:'硬件',capability:'能力',loading:'读取中',refreshStatus:'刷新状态',connectionTime:'连接和时间',wifiName:'WiFi 名称',wifiPassword:'WiFi 密码',serverUrl:'铜豆服务器地址，例如 http://192.168.1.20:8002',serverHelp:'请填写启动脚本显示的 TongDou LAN server 地址。',missingServer:'请先填写铜豆服务器地址',status:'状态',scanWifi:'扫描附近 WiFi',saveConnect:'保存并连接',syncTime:'同步当前时间',microphone:'麦克风',startTest:'开始持续测试',stop:'停止',currentReading:'当前读数',notStarted:'未开始',radar:'雷达',occupied:'是否有人',distance:'距离',rawAux:'原始辅助值',state:'状态',notRead:'未读取',distanceUnused:'不用于判断',outputTest:'输出测试',speakerTone:'喇叭短音',successCue:'成功提示',errorCue:'错误提示',wifiCue:'配网提示',codeCue:'验证码播报',redLed:'红灯',greenLed:'绿灯',blueLed:'蓝灯',ledOff:'关灯',motorFault:'电机故障',motorFaultOn:'模拟电机故障',motorFaultOff:'取消模拟故障',motorForward:'电机正转',motorReverse:'电机反转',motorLeft:'电机左扭',motorRight:'电机右扭',motorStop:'电机停止',hardwareRead:'硬件读取',fullSelftest:'完整自检',hardwareStatus:'硬件状态',batteryCharge:'电池/充电',i2cScan:'I2C 扫描',logoTouch:'Logo 触摸',radarLevel:'雷达电平',radarTarget:'雷达目标',radarSample:'雷达连续采样',micOnce:'麦克风单次',scenarioTest:'剧情测试',bootScenario:'开机场景',recognitionFailed:'识别失败',logoSingle:'Logo 单击',logoDouble:'Logo 双击',logoLong:'Logo 长按',voiceStatus:'语音状态',output:'输出',waiting:'等待操作',wifiConnected:'已连接',portalMode:'配网模式',connecting:'连接中',timeNotReady:'未校时',readFailed:'读取失败',usb:'USB',yes:'是',no:'否',charging:'充电',normal:'正常',degraded:'降级',reminders:'提醒',web:'网页',visual:'视觉',sound:'声音',voiceInput:'麦克风',none:'无',savingLanguage:'正在保存语言',scanStart:'正在扫描附近 WiFi，可能需要几秒',scanEmpty:'没有扫到 WiFi，铜豆已经自动重试过一次，可以再点扫描或手动填写',scanDone:'点一个 WiFi 名称，或继续手动填写',scanFailed:'扫描失败，请再试一次，或手动填写',missingSsid:'请先选择或填写 WiFi 名称',savingWifi:'正在保存并连接',running:'执行中：',unknown:'未知',present:'有人',absent:'无人',radarUnused:'不可用：LD2412 只用于有人/无人',movingRaw:'移动原始',energy:'能量',staticRaw:'静止原始',radar0:'无人',radar1:'移动目标',radar2:'静止目标',radar3:'移动+静止'},
-'en-GB':{appTitle:'Tong Dou Console',appSub:'Local setup, status, and hardware diagnostics.',language:'Language',languageHelp:'This language is used for prompts, activation codes, and this page.',status:'Status',network:'Network',address:'Address',time:'Time',battery:'Battery',hardware:'Hardware',capability:'Capabilities',loading:'Loading',refreshStatus:'Refresh status',connectionTime:'Connection and time',wifiName:'WiFi name',wifiPassword:'WiFi password',serverUrl:'TongDou server address, for example http://192.168.1.20:8002',serverHelp:'Enter the TongDou LAN server address shown by the startup script.',missingServer:'Enter the TongDou server address first.',scanWifi:'Scan nearby WiFi',saveConnect:'Save and connect',syncTime:'Sync current time',microphone:'Microphone',startTest:'Start continuous test',stop:'Stop',currentReading:'Current reading',notStarted:'Not started',radar:'Radar',occupied:'Presence',distance:'Distance',rawAux:'Raw auxiliary values',state:'State',notRead:'Not read',distanceUnused:'Not used for decisions',outputTest:'Output test',speakerTone:'Speaker tone',successCue:'Success prompt',errorCue:'Error prompt',wifiCue:'Setup prompt',codeCue:'Activation code prompt',redLed:'Red light',greenLed:'Green light',blueLed:'Blue light',ledOff:'Light off',motorFault:'Motor fault',motorFaultOn:'Simulate motor fault',motorFaultOff:'Clear simulated fault',motorForward:'Motor forward',motorReverse:'Motor reverse',motorLeft:'Motor twist left',motorRight:'Motor twist right',motorStop:'Motor stop',hardwareRead:'Hardware readings',fullSelftest:'Full self-test',hardwareStatus:'Hardware status',batteryCharge:'Battery/charging',i2cScan:'I2C scan',logoTouch:'Logo touch',radarLevel:'Radar level',radarTarget:'Radar target',radarSample:'Radar samples',micOnce:'Microphone once',scenarioTest:'Scenario test',bootScenario:'Boot scenario',recognitionFailed:'Recognition failed',logoSingle:'Logo single tap',logoDouble:'Logo double tap',logoLong:'Logo long press',voiceStatus:'Voice status',output:'Output',waiting:'Waiting',wifiConnected:'Connected',portalMode:'Setup mode',connecting:'Connecting',timeNotReady:'Time not set',readFailed:'Read failed',usb:'USB',yes:'yes',no:'no',charging:'charging',normal:'Normal',degraded:'Degraded',reminders:'Reminders',web:'Web',visual:'Visual',sound:'Sound',voiceInput:'Microphone',none:'None',savingLanguage:'Saving language',scanStart:'Scanning nearby WiFi. This may take a few seconds.',scanEmpty:'No WiFi found. Tong Dou already retried once. Scan again or enter it manually.',scanDone:'Pick a WiFi name, or enter one manually.',scanFailed:'Scan failed. Try again or enter it manually.',missingSsid:'Choose or enter a WiFi name first.',savingWifi:'Saving and connecting',running:'Running: ',unknown:'Unknown',present:'Present',absent:'Absent',radarUnused:'Not used: LD2412 is only used for presence.',movingRaw:'moving raw',energy:'energy',staticRaw:'static raw',radar0:'No target',radar1:'Moving target',radar2:'Static target',radar3:'Moving + static'},
+'zh-CN':{appTitle:'铜豆控制台',appSub:'本地配置、状态查看和硬件诊断。',language:'语言',languageHelp:'提示音、验证码播报和配置页面会使用这个语言。',status:'状态',network:'网络',address:'地址',time:'时间',battery:'电池',hardware:'硬件',capability:'能力',loading:'读取中',refreshStatus:'刷新状态',connectionTime:'连接和时间',wifiName:'WiFi 名称',wifiPassword:'WiFi 密码',serverUrl:'铜豆服务器地址，例如 http://192.168.1.20:8102',serverHelp:'请填写启动脚本显示的 TongDou LAN server 地址。',missingServer:'请先填写铜豆服务器地址',status:'状态',scanWifi:'扫描附近 WiFi',saveConnect:'保存并连接',syncTime:'同步当前时间',microphone:'麦克风',startTest:'开始持续测试',stop:'停止',currentReading:'当前读数',notStarted:'未开始',radar:'雷达',occupied:'是否有人',distance:'距离',rawAux:'原始辅助值',state:'状态',notRead:'未读取',distanceUnused:'不用于判断',outputTest:'输出测试',speakerTone:'喇叭短音',successCue:'成功提示',errorCue:'错误提示',wifiCue:'配网提示',codeCue:'验证码播报',redLed:'红灯',greenLed:'绿灯',blueLed:'蓝灯',ledOff:'关灯',motorFault:'电机故障',motorFaultOn:'模拟电机故障',motorFaultOff:'取消模拟故障',motorForward:'电机正转',motorReverse:'电机反转',motorLeft:'电机左扭',motorRight:'电机右扭',motorStop:'电机停止',hardwareRead:'硬件读取',fullSelftest:'完整自检',hardwareStatus:'硬件状态',batteryCharge:'电池/充电',i2cScan:'I2C 扫描',logoTouch:'Logo 触摸',radarLevel:'雷达电平',radarTarget:'雷达目标',radarSample:'雷达连续采样',micOnce:'麦克风单次',scenarioTest:'剧情测试',bootScenario:'开机场景',recognitionFailed:'识别失败',logoSingle:'Logo 单击',logoDouble:'Logo 双击',logoLong:'Logo 长按',voiceStatus:'语音状态',output:'输出',waiting:'等待操作',wifiConnected:'已连接',portalMode:'配网模式',connecting:'连接中',timeNotReady:'未校时',readFailed:'读取失败',usb:'USB',yes:'是',no:'否',charging:'充电',normal:'正常',degraded:'降级',reminders:'提醒',web:'网页',visual:'视觉',sound:'声音',voiceInput:'麦克风',none:'无',savingLanguage:'正在保存语言',scanStart:'正在扫描附近 WiFi，可能需要几秒',scanEmpty:'没有扫到 WiFi，铜豆已经自动重试过一次，可以再点扫描或手动填写',scanDone:'点一个 WiFi 名称，或继续手动填写',scanFailed:'扫描失败，请再试一次，或手动填写',missingSsid:'请先选择或填写 WiFi 名称',savingWifi:'正在保存并连接',running:'执行中：',unknown:'未知',present:'有人',absent:'无人',radarUnused:'不可用：LD2412 只用于有人/无人',movingRaw:'移动原始',energy:'能量',staticRaw:'静止原始',radar0:'无人',radar1:'移动目标',radar2:'静止目标',radar3:'移动+静止'},
+'en-GB':{appTitle:'Tong Dou Console',appSub:'Local setup, status, and hardware diagnostics.',language:'Language',languageHelp:'This language is used for prompts, activation codes, and this page.',status:'Status',network:'Network',address:'Address',time:'Time',battery:'Battery',hardware:'Hardware',capability:'Capabilities',loading:'Loading',refreshStatus:'Refresh status',connectionTime:'Connection and time',wifiName:'WiFi name',wifiPassword:'WiFi password',serverUrl:'TongDou server address, for example http://192.168.1.20:8102',serverHelp:'Enter the TongDou LAN server address shown by the startup script.',missingServer:'Enter the TongDou server address first.',scanWifi:'Scan nearby WiFi',saveConnect:'Save and connect',syncTime:'Sync current time',microphone:'Microphone',startTest:'Start continuous test',stop:'Stop',currentReading:'Current reading',notStarted:'Not started',radar:'Radar',occupied:'Presence',distance:'Distance',rawAux:'Raw auxiliary values',state:'State',notRead:'Not read',distanceUnused:'Not used for decisions',outputTest:'Output test',speakerTone:'Speaker tone',successCue:'Success prompt',errorCue:'Error prompt',wifiCue:'Setup prompt',codeCue:'Activation code prompt',redLed:'Red light',greenLed:'Green light',blueLed:'Blue light',ledOff:'Light off',motorFault:'Motor fault',motorFaultOn:'Simulate motor fault',motorFaultOff:'Clear simulated fault',motorForward:'Motor forward',motorReverse:'Motor reverse',motorLeft:'Motor twist left',motorRight:'Motor twist right',motorStop:'Motor stop',hardwareRead:'Hardware readings',fullSelftest:'Full self-test',hardwareStatus:'Hardware status',batteryCharge:'Battery/charging',i2cScan:'I2C scan',logoTouch:'Logo touch',radarLevel:'Radar level',radarTarget:'Radar target',radarSample:'Radar samples',micOnce:'Microphone once',scenarioTest:'Scenario test',bootScenario:'Boot scenario',recognitionFailed:'Recognition failed',logoSingle:'Logo single tap',logoDouble:'Logo double tap',logoLong:'Logo long press',voiceStatus:'Voice status',output:'Output',waiting:'Waiting',wifiConnected:'Connected',portalMode:'Setup mode',connecting:'Connecting',timeNotReady:'Time not set',readFailed:'Read failed',usb:'USB',yes:'yes',no:'no',charging:'charging',normal:'Normal',degraded:'Degraded',reminders:'Reminders',web:'Web',visual:'Visual',sound:'Sound',voiceInput:'Microphone',none:'None',savingLanguage:'Saving language',scanStart:'Scanning nearby WiFi. This may take a few seconds.',scanEmpty:'No WiFi found. Tong Dou already retried once. Scan again or enter it manually.',scanDone:'Pick a WiFi name, or enter one manually.',scanFailed:'Scan failed. Try again or enter it manually.',missingSsid:'Choose or enter a WiFi name first.',savingWifi:'Saving and connecting',running:'Running: ',unknown:'Unknown',present:'Present',absent:'Absent',radarUnused:'Not used: LD2412 is only used for presence.',movingRaw:'moving raw',energy:'energy',staticRaw:'static raw',radar0:'No target',radar1:'Moving target',radar2:'Static target',radar3:'Moving + static'},
 'en-CA':null,'fr-FR':null,'fr-CA':null,'nl-NL':null,'ru-RU':null};
 I18N['en-CA']=I18N['en-GB'];
 Object.assign(I18N['zh-CN'],{proactiveReminders:'主动提醒',moveReminder:'提醒我起来活动',waterReminder:'提醒我喝水',everyMinutes:'每隔多少分钟',saveProactive:'保存主动提醒'});
 Object.assign(I18N['en-GB'],{proactiveReminders:'Proactive reminders',moveReminder:'Remind me to move',waterReminder:'Remind me to drink water',everyMinutes:'Every how many minutes',saveProactive:'Save proactive reminders'});
+Object.assign(I18N['zh-CN'],{motorConfig:'电机方向和速度',motorLeftReversed:'左轮反向',motorRightReversed:'右轮反向',motorLeftPwm:'左轮力度',motorRightPwm:'右轮力度',saveMotorConfig:'保存电机设置',motorConfigHelp:'保存后立即停止电机，重启后仍然保留。'});
+Object.assign(I18N['en-GB'],{motorConfig:'Motor direction and speed',motorLeftReversed:'Reverse left wheel',motorRightReversed:'Reverse right wheel',motorLeftPwm:'Left wheel power',motorRightPwm:'Right wheel power',saveMotorConfig:'Save motor settings',motorConfigHelp:'Saving stops the motor immediately. The settings survive a restart.'});
 I18N['fr-FR']={...I18N['en-GB'],appTitle:'Console Tong Dou',appSub:'Configuration locale, état et diagnostic matériel.',language:'Langue',languageHelp:'Cette langue est utilisée pour les annonces, le code d’activation et cette page.',status:'État',network:'Réseau',address:'Adresse',time:'Heure',battery:'Batterie',hardware:'Matériel',capability:'Capacités',loading:'Chargement',refreshStatus:'Actualiser',connectionTime:'Connexion et heure',wifiName:'Nom du WiFi',wifiPassword:'Mot de passe WiFi',scanWifi:'Scanner les WiFi proches',saveConnect:'Enregistrer et connecter',syncTime:'Synchroniser l’heure',microphone:'Microphone',startTest:'Démarrer le test continu',stop:'Arrêter',currentReading:'Lecture actuelle',notStarted:'Pas démarré',radar:'Radar',occupied:'Présence',distance:'Distance',rawAux:'Valeurs brutes',state:'État',notRead:'Non lu',distanceUnused:'Non utilisé pour décider',outputTest:'Test de sortie',speakerTone:'Son haut-parleur',successCue:'Annonce de succès',errorCue:'Annonce d’erreur',wifiCue:'Annonce de configuration',codeCue:'Annonce du code',hardwareRead:'Lecture matériel',fullSelftest:'Autotest complet',hardwareStatus:'État matériel',batteryCharge:'Batterie/charge',logoTouch:'Toucher logo',radarLevel:'Niveau radar',radarTarget:'Cible radar',radarSample:'Échantillons radar',micOnce:'Micro une fois',scenarioTest:'Test scénario',bootScenario:'Scénario démarrage',recognitionFailed:'Reconnaissance échouée',voiceStatus:'État voix',output:'Sortie',waiting:'En attente',wifiConnected:'Connecté',portalMode:'Mode configuration',connecting:'Connexion',timeNotReady:'Heure non réglée',readFailed:'Lecture échouée',yes:'oui',no:'non',charging:'charge',normal:'Normal',degraded:'Dégradé',reminders:'Rappels',visual:'Visuel',sound:'Son',voiceInput:'Microphone',none:'Aucun',savingLanguage:'Enregistrement de la langue',scanStart:'Recherche des WiFi proches. Cela peut prendre quelques secondes.',scanEmpty:'Aucun WiFi trouvé. Tong Dou a déjà réessayé. Relancez ou saisissez manuellement.',scanDone:'Choisissez un WiFi ou saisissez-le manuellement.',scanFailed:'Échec du scan. Réessayez ou saisissez manuellement.',missingSsid:'Choisissez ou saisissez d’abord un nom WiFi.',savingWifi:'Enregistrement et connexion',running:'Exécution : ',unknown:'Inconnu',present:'Présent',absent:'Absent',radarUnused:'Non utilisé : le LD2412 sert seulement à détecter une présence.'};
-I18N['fr-FR'].serverUrl='Adresse du serveur TongDou, par exemple http://192.168.1.20:8002';
+I18N['fr-FR'].serverUrl='Adresse du serveur TongDou, par exemple http://192.168.1.20:8102';
 I18N['fr-FR'].serverHelp='Saisissez l’adresse du serveur TongDou affichée par le script de démarrage.';
 I18N['fr-FR'].missingServer='Saisissez d’abord l’adresse du serveur TongDou.';
 I18N['fr-CA']=I18N['fr-FR'];
 I18N['nl-NL']={...I18N['en-GB'],appTitle:'Tong Dou-console',appSub:'Lokale configuratie, status en hardwarediagnose.',language:'Taal',languageHelp:'Deze taal wordt gebruikt voor meldingen, activatiecodes en deze pagina.',status:'Status',network:'Netwerk',address:'Adres',time:'Tijd',battery:'Batterij',hardware:'Hardware',capability:'Mogelijkheden',loading:'Laden',refreshStatus:'Status vernieuwen',connectionTime:'Verbinding en tijd',wifiName:'WiFi-naam',wifiPassword:'WiFi-wachtwoord',scanWifi:'WiFi in de buurt zoeken',saveConnect:'Opslaan en verbinden',syncTime:'Huidige tijd synchroniseren',microphone:'Microfoon',startTest:'Continue test starten',stop:'Stoppen',currentReading:'Huidige waarde',notStarted:'Niet gestart',radar:'Radar',occupied:'Aanwezigheid',distance:'Afstand',rawAux:'Ruwe hulpwaarden',state:'Status',notRead:'Niet gelezen',distanceUnused:'Niet gebruikt voor beslissing',outputTest:'Uitvoertest',speakerTone:'Luidsprekertoon',successCue:'Succesmelding',errorCue:'Foutmelding',wifiCue:'Configuratiemelding',codeCue:'Activatiecode voorlezen',hardwareRead:'Hardwarewaarden',fullSelftest:'Volledige zelftest',hardwareStatus:'Hardwarestatus',batteryCharge:'Batterij/laden',logoTouch:'Logo-aanraking',radarLevel:'Radarniveau',radarTarget:'Radardoel',radarSample:'Radarsamples',micOnce:'Microfoon eenmalig',scenarioTest:'Scenariotest',bootScenario:'Opstartscenario',recognitionFailed:'Herkenning mislukt',voiceStatus:'Spraakstatus',output:'Uitvoer',waiting:'Wachten',wifiConnected:'Verbonden',portalMode:'Configuratiemodus',connecting:'Verbinden',timeNotReady:'Tijd niet ingesteld',readFailed:'Lezen mislukt',yes:'ja',no:'nee',charging:'laden',normal:'Normaal',degraded:'Beperkt',reminders:'Herinneringen',visual:'Visueel',sound:'Geluid',voiceInput:'Microfoon',none:'Geen',savingLanguage:'Taal opslaan',scanStart:'WiFi in de buurt zoeken. Dit kan een paar seconden duren.',scanEmpty:'Geen WiFi gevonden. Tong Dou heeft al opnieuw geprobeerd. Scan opnieuw of vul handmatig in.',scanDone:'Kies een WiFi-naam of vul handmatig in.',scanFailed:'Scannen mislukt. Probeer opnieuw of vul handmatig in.',missingSsid:'Kies of vul eerst een WiFi-naam in.',savingWifi:'Opslaan en verbinden',running:'Bezig: ',unknown:'Onbekend',present:'Aanwezig',absent:'Afwezig',radarUnused:'Niet gebruikt: LD2412 wordt alleen gebruikt voor aanwezigheid.'};
 I18N['ru-RU']={...I18N['en-GB'],appTitle:'Панель Tong Dou',appSub:'Локальная настройка, состояние и диагностика.',language:'Язык',languageHelp:'Этот язык используется для подсказок, кода активации и этой страницы.',status:'Состояние',network:'Сеть',address:'Адрес',time:'Время',battery:'Батарея',hardware:'Оборудование',capability:'Возможности',loading:'Загрузка',refreshStatus:'Обновить состояние',connectionTime:'Подключение и время',wifiName:'Имя WiFi',wifiPassword:'Пароль WiFi',scanWifi:'Сканировать WiFi рядом',saveConnect:'Сохранить и подключить',syncTime:'Синхронизировать время',microphone:'Микрофон',startTest:'Начать непрерывный тест',stop:'Стоп',currentReading:'Текущее значение',notStarted:'Не начато',radar:'Радар',occupied:'Присутствие',distance:'Расстояние',rawAux:'Сырые значения',state:'Состояние',notRead:'Не прочитано',distanceUnused:'Не используется для решения',outputTest:'Тест вывода',speakerTone:'Короткий звук',successCue:'Сигнал успеха',errorCue:'Сигнал ошибки',wifiCue:'Подсказка настройки',codeCue:'Озвучить код',hardwareRead:'Данные оборудования',fullSelftest:'Полная самопроверка',hardwareStatus:'Состояние оборудования',batteryCharge:'Батарея/заряд',logoTouch:'Касание логотипа',radarLevel:'Уровень радара',radarTarget:'Цель радара',radarSample:'Сэмплы радара',micOnce:'Микрофон один раз',scenarioTest:'Тест сценария',bootScenario:'Сценарий запуска',recognitionFailed:'Ошибка распознавания',voiceStatus:'Состояние голоса',output:'Вывод',waiting:'Ожидание',wifiConnected:'Подключено',portalMode:'Режим настройки',connecting:'Подключение',timeNotReady:'Время не задано',readFailed:'Ошибка чтения',yes:'да',no:'нет',charging:'заряд',normal:'Норма',degraded:'Ограничено',reminders:'Напоминания',visual:'Визуально',sound:'Звук',voiceInput:'Микрофон',none:'Нет',savingLanguage:'Сохранение языка',scanStart:'Сканирование WiFi рядом. Это может занять несколько секунд.',scanEmpty:'WiFi не найден. Tong Dou уже повторил попытку. Сканируйте снова или введите вручную.',scanDone:'Выберите WiFi или введите вручную.',scanFailed:'Сканирование не удалось. Повторите или введите вручную.',missingSsid:'Сначала выберите или введите имя WiFi.',savingWifi:'Сохранение и подключение',running:'Выполняется: ',unknown:'Неизвестно',present:'Есть',absent:'Нет',radarUnused:'Не используется: LD2412 только определяет присутствие.'};
-I18N['ru-RU'].serverUrl='Адрес сервера TongDou, например http://192.168.1.20:8002';
+I18N['ru-RU'].serverUrl='Адрес сервера TongDou, например http://192.168.1.20:8102';
 I18N['ru-RU'].serverHelp='Введите адрес сервера TongDou, показанный скриптом запуска.';
 I18N['ru-RU'].missingServer='Сначала введите адрес сервера TongDou.';
 let currentLocale='en-GB';
@@ -414,11 +485,13 @@ function tr(k){let d=I18N[currentLocale]||I18N['en-GB'];return (d&&d[k])||I18N['
 function applyI18n(){document.documentElement.lang=currentLocale;document.title=tr('appTitle');document.querySelectorAll('[data-i18n]').forEach(e=>e.textContent=tr(e.dataset.i18n));document.querySelectorAll('[data-i18n-placeholder]').forEach(e=>e.placeholder=tr(e.dataset.i18nPlaceholder))}
 function localeName(v){return {'en-GB':'English UK','en-CA':'English Canada','fr-FR':'Français','fr-CA':'Français Canada','nl-NL':'Nederlands','ru-RU':'Русский','zh-CN':'中文'}[v]||v}
 function capText(c){let a=[];if(c.reminders)a.push(tr('reminders'));if(c.web)a.push(tr('web'));if(c.visual)a.push(tr('visual'));if(c.sound)a.push(tr('sound'));if(c.voiceInput)a.push(tr('voiceInput'));return a.join(' / ')||tr('none')}
-async function loadStatus(){try{let r=await fetch('/api/status');let j=await r.json();currentLocale=j.locale||currentLocale;if($('locale').value!==currentLocale)$('locale').value=currentLocale;if(!$('serverUrl').value&&j.serverOtaUrl)$('serverUrl').value=j.serverOtaUrl.replace(/\/xiaozhi\/ota\/$/,'');applyI18n();$('wifi').textContent=j.wifiConnected?tr('wifiConnected'):(j.portal?tr('portalMode'):tr('connecting'));$('ip').textContent=j.ip||'-';$('time').textContent=j.timeReady?j.now:tr('timeNotReady');$('localeStatus').textContent=localeName(currentLocale);$('battery').textContent=`${tr('usb')} ${j.battery.usb?tr('yes'):tr('no')} / ${tr('charging')} ${j.battery.charging?tr('yes'):tr('no')} / ADC ${j.battery.rawAdc}`;$('hardware').textContent=j.hardware.degraded?(j.hardware.motorFault?tr('motorFault'):tr('degraded')):tr('normal');$('capability').textContent=capText(j.capabilities)}catch(e){$('wifi').textContent=tr('readFailed')}}
+async function loadStatus(){try{let r=await fetch('/api/status');let j=await r.json();currentLocale=j.locale||currentLocale;if($('locale').value!==currentLocale)$('locale').value=currentLocale;if(!$('serverUrl').value&&j.serverOtaUrl)$('serverUrl').value=j.serverOtaUrl.replace(/\/xiaozhi\/ota\/$/,'');applyI18n();$('wifi').textContent=j.wifiConnected?tr('wifiConnected'):(j.portal?tr('portalMode'):tr('connecting'));$('ip').textContent=j.mdns?(j.mdns+' / '+(j.ip||'-')):(j.ip||'-');$('time').textContent=j.timeReady?j.now:tr('timeNotReady');$('localeStatus').textContent=localeName(currentLocale);$('battery').textContent=`${tr('usb')} ${j.battery.usb?tr('yes'):tr('no')} / ${tr('charging')} ${j.battery.charging?tr('yes'):tr('no')} / ADC ${j.battery.rawAdc}`;$('hardware').textContent=j.hardware.degraded?(j.hardware.motorFault?tr('motorFault'):tr('degraded')):tr('normal');$('capability').textContent=capText(j.capabilities)}catch(e){$('wifi').textContent=tr('readFailed')}}
 async function saveLocale(){let v=$('locale').value;$('localeMsg').textContent=tr('savingLanguage');try{let r=await fetch('/api/locale',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'locale='+encodeURIComponent(v)});$('localeMsg').textContent=await r.text();if(r.ok){currentLocale=v;applyI18n();$('localeStatus').textContent=localeName(v)}else{$('locale').value=currentLocale}}catch(e){$('locale').value=currentLocale;$('localeMsg').textContent=tr('readFailed')}}
 async function syncTime(){let e=Math.floor(Date.now()/1000);let r=await fetch('/api/time/sync',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'epoch='+e});$('msg').textContent=await r.text();loadStatus()}
 async function loadProactiveReminders(){try{let r=await fetch('/api/proactive-reminders'),j=await r.json();$('activityEnabled').checked=!!j.activity.enabled;$('activityMinutes').value=j.activity.intervalMinutes;$('hydrationEnabled').checked=!!j.hydration.enabled;$('hydrationMinutes').value=j.hydration.intervalMinutes}catch(e){$('proactiveMsg').textContent=tr('readFailed')}}
 async function saveProactiveReminders(){let a=Number($('activityMinutes').value),h=Number($('hydrationMinutes').value);if(!Number.isInteger(a)||!Number.isInteger(h)||a<1||h<1||a>1440||h>1440){$('proactiveMsg').textContent='1-1440';return}let b='activityEnabled='+$('activityEnabled').checked+'&activityIntervalMinutes='+a+'&hydrationEnabled='+$('hydrationEnabled').checked+'&hydrationIntervalMinutes='+h;try{let r=await fetch('/api/proactive-reminders',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:b});$('proactiveMsg').textContent=r.ok?'OK':await r.text();if(r.ok)loadProactiveReminders()}catch(e){$('proactiveMsg').textContent=tr('readFailed')}}
+async function loadMotorConfig(){try{let r=await fetch('/api/motor/config',{cache:'no-store'}),j=await r.json();$('motorLeftInverted').checked=!!j.leftInverted;$('motorRightInverted').checked=!!j.rightInverted;$('motorLeftPwm').value=j.leftPwm;$('motorRightPwm').value=j.rightPwm}catch(e){$('diag').textContent=tr('readFailed')}}
+async function saveMotorConfig(){let l=Number($('motorLeftPwm').value),r=Number($('motorRightPwm').value);if(!Number.isInteger(l)||!Number.isInteger(r)||l<1||r<1||l>255||r>255){$('diag').textContent='1-255';return}let b='leftInverted='+($('motorLeftInverted').checked?'1':'0')+'&rightInverted='+($('motorRightInverted').checked?'1':'0')+'&leftPwm='+l+'&rightPwm='+r;try{let response=await fetch('/api/motor/config',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:b});$('diag').textContent=response.ok?tr('saveMotorConfig'):await response.text();if(response.ok)await loadMotorConfig()}catch(e){$('diag').textContent=tr('readFailed')}}
 async function scanWifi(){let m=$('msg'),l=$('wifiList'),d=$('wifiOptions'),btn=$('scanBtn');m.textContent=tr('scanStart');l.innerHTML='';if(btn)btn.disabled=true;try{let r=await fetch('/api/wifi/scan');let a=await r.json();d.innerHTML='';if(!a.length){m.textContent=tr('scanEmpty');return}a.sort((x,y)=>y.rssi-x.rssi);a.slice(0,16).forEach(n=>{let o=document.createElement('option');o.value=n.ssid;d.appendChild(o);let b=document.createElement('button');b.type='button';b.className='secondary';b.textContent=n.ssid+'  '+n.rssi+' dBm';b.onclick=()=>{$('ssid').value=n.ssid;$('password').focus()};l.appendChild(b)});m.textContent=tr('scanDone')}catch(e){m.textContent=tr('scanFailed')}finally{if(btn)btn.disabled=false}}
 async function saveWifi(e){e.preventDefault();let s=$('ssid').value.trim(),p=$('password').value,u=$('serverUrl').value.trim();if(!s){$('msg').textContent=tr('missingSsid');return}if(!u){$('msg').textContent=tr('missingServer');return}$('msg').textContent=tr('savingWifi');let r=await fetch('/api/setup/wifi',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'ssid='+encodeURIComponent(s)+'&password='+encodeURIComponent(p)+'&serverUrl='+encodeURIComponent(u)});$('msg').textContent=await r.text();setTimeout(loadStatus,1200)}
 async function diag(c){$('diag').textContent=tr('running')+c;let r=await fetch('/api/diagnostic',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'command='+encodeURIComponent(c)});let t=await r.text();$('diag').textContent=t;return t}
@@ -431,7 +504,7 @@ async function pollRadar(){let t=await diag('radar target');let has=val(t,'has_t
 function startRadarTest(){if(radarTimer)return;pollRadar();radarTimer=setInterval(pollRadar,700)}
 function stopRadarTest(){if(!radarTimer)return;clearInterval(radarTimer);radarTimer=null}
 async function mcpTool(n,a){$('diag').textContent='执行中：'+n;let p={jsonrpc:'2.0',id:Date.now(),method:'tools/call',params:{name:n,arguments:a||{}}};let r=await fetch('/api/mcp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});$('diag').textContent=await r.text()}
-loadStatus();loadProactiveReminders();setInterval(loadStatus,5000);
+loadStatus();loadProactiveReminders();loadMotorConfig();setInterval(loadStatus,5000);
 </script></main></body></html>)HTML");
     sendText(200, "text/html; charset=utf-8", body);
     return;
@@ -749,6 +822,33 @@ void WebConfigServer::handleProactiveReminderSave() {
   sendText(200, "application/json", proactiveRemindersJson());
 }
 
+void WebConfigServer::handleMotorConfigGet() {
+  String body = "{";
+  body += "\"leftInverted\":";
+  body += boolJson(hardwareSelfTest_.motorLeftInverted());
+  body += ",\"rightInverted\":";
+  body += boolJson(hardwareSelfTest_.motorRightInverted());
+  body += ",\"leftPwm\":";
+  body += hardwareSelfTest_.motorLeftDefaultDuty();
+  body += ",\"rightPwm\":";
+  body += hardwareSelfTest_.motorRightDefaultDuty();
+  body += "}";
+  sendText(200, "application/json", body);
+}
+
+void WebConfigServer::handleMotorConfigSave() {
+  const bool leftInverted = server_.arg("leftInverted") == "1";
+  const bool rightInverted = server_.arg("rightInverted") == "1";
+  const uint8_t leftDuty =
+      parseDutyArg(server_.arg("leftPwm"), hardwareSelfTest_.motorLeftDefaultDuty());
+  const uint8_t rightDuty =
+      parseDutyArg(server_.arg("rightPwm"), hardwareSelfTest_.motorRightDefaultDuty());
+
+  hardwareSelfTest_.saveMotorCalibration(leftInverted, rightInverted, leftDuty,
+                                         rightDuty);
+  sendText(200, "application/json", "{\"ok\":true}");
+}
+
 void WebConfigServer::handleDiagnosticCommand() {
   String command = server_.arg("command");
   command.trim();
@@ -996,6 +1096,11 @@ String WebConfigServer::statusJson() const {
   body += ",\"ip\":\"";
   body += state_ == NetworkState::Connected ? WiFi.localIP().toString()
                                             : WiFi.softAPIP().toString();
+  body += "\"";
+  body += ",\"mdns\":\"";
+  if (mdnsStarted_) {
+    body += "http://tongdou.local";
+  }
   body += "\"";
   body += ",\"timeReady\":";
   body += timeService_.ready() ? "true" : "false";

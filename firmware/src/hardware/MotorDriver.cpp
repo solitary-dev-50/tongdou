@@ -1,6 +1,7 @@
 #include "hardware/MotorDriver.h"
 
 #include <Arduino.h>
+#include <Preferences.h>
 
 #include "tongdou/Pins.h"
 
@@ -14,6 +15,11 @@ constexpr uint8_t kMotorBin2Channel = 3;
 constexpr uint32_t kMotorPwmHz = 20000;
 constexpr uint8_t kMotorPwmBits = 8;
 constexpr uint8_t kDefaultDuty = 190;
+constexpr const char* kMotorPrefsNamespace = "td_motor";
+constexpr const char* kLeftInvertKey = "left_inv";
+constexpr const char* kRightInvertKey = "right_inv";
+constexpr const char* kLeftDutyKey = "left_pwm";
+constexpr const char* kRightDutyKey = "right_pwm";
 
 void prepareStoppedOutput(gpio_num_t pin) {
   digitalWrite(pin, LOW);
@@ -32,10 +38,28 @@ uint8_t normalizedDuty(uint8_t duty) {
   return duty == 0 ? kDefaultDuty : duty;
 }
 
+uint8_t scaledDuty(uint8_t duty, uint8_t calibratedDuty) {
+  const uint16_t value =
+      (static_cast<uint16_t>(normalizedDuty(duty)) * calibratedDuty +
+       (kDefaultDuty / 2)) /
+      kDefaultDuty;
+  return static_cast<uint8_t>(constrain(value, 1, 255));
+}
+
 }  // namespace
 
 void MotorDriver::begin() {
   pinMode(pins::MOTOR_FAULT, INPUT_PULLUP);
+
+  Preferences prefs;
+  if (prefs.begin(kMotorPrefsNamespace, true)) {
+    leftInverted_ = prefs.getBool(kLeftInvertKey, leftInverted_);
+    rightInverted_ = prefs.getBool(kRightInvertKey, rightInverted_);
+    leftDefaultDuty_ = normalizedDuty(prefs.getUChar(kLeftDutyKey, leftDefaultDuty_));
+    rightDefaultDuty_ = normalizedDuty(prefs.getUChar(kRightDutyKey, rightDefaultDuty_));
+    prefs.end();
+  }
+
   prepareStoppedOutput(pins::MOTOR_SLEEP);
   preparePwmOutput(pins::MOTOR_AIN1, kMotorAin1Channel);
   preparePwmOutput(pins::MOTOR_AIN2, kMotorAin2Channel);
@@ -49,12 +73,16 @@ void MotorDriver::drive(WheelDrive left, WheelDrive right) {
 }
 
 void MotorDriver::drive(WheelDrive left, WheelDrive right, uint8_t duty) {
-  const uint8_t activeDuty = normalizedDuty(duty);
-  drive(left, right, activeDuty, activeDuty);
+  drive(left, right, duty, 0, 0);
 }
 
 void MotorDriver::drive(WheelDrive left, WheelDrive right, uint8_t leftDuty,
                         uint8_t rightDuty) {
+  drive(left, right, 0, leftDuty, rightDuty);
+}
+
+void MotorDriver::drive(WheelDrive left, WheelDrive right, uint8_t duty,
+                        uint8_t leftDuty, uint8_t rightDuty) {
   if (left == WheelDrive::Stop && right == WheelDrive::Stop) {
     stop();
     return;
@@ -73,8 +101,9 @@ void MotorDriver::drive(WheelDrive left, WheelDrive right, uint8_t leftDuty,
     return;
   }
 
-  driveLeft(left, normalizedDuty(leftDuty));
-  driveRight(right, normalizedDuty(rightDuty));
+  const uint8_t baseDuty = normalizedDuty(duty);
+  driveLeft(left, scaledDuty(leftDuty == 0 ? baseDuty : leftDuty, leftDefaultDuty_));
+  driveRight(right, scaledDuty(rightDuty == 0 ? baseDuty : rightDuty, rightDefaultDuty_));
 }
 
 void MotorDriver::stop() {
@@ -105,6 +134,49 @@ void MotorDriver::setFaultSimulation(bool active) {
   }
 }
 
+bool MotorDriver::leftInverted() const {
+  return leftInverted_;
+}
+
+bool MotorDriver::rightInverted() const {
+  return rightInverted_;
+}
+
+uint8_t MotorDriver::leftDefaultDuty() const {
+  return leftDefaultDuty_;
+}
+
+uint8_t MotorDriver::rightDefaultDuty() const {
+  return rightDefaultDuty_;
+}
+
+void MotorDriver::setCalibration(bool leftInverted, bool rightInverted,
+                                 uint8_t leftDuty, uint8_t rightDuty) {
+  leftInverted_ = leftInverted;
+  rightInverted_ = rightInverted;
+  leftDefaultDuty_ = normalizedDuty(leftDuty);
+  rightDefaultDuty_ = normalizedDuty(rightDuty);
+  stop();
+}
+
+void MotorDriver::saveCalibration(bool leftInverted, bool rightInverted,
+                                  uint8_t leftDuty, uint8_t rightDuty) {
+  setCalibration(leftInverted, rightInverted, leftDuty, rightDuty);
+
+  Preferences prefs;
+  if (!prefs.begin(kMotorPrefsNamespace, false)) {
+    Serial.println(F("motor calibration save failed: preferences open failed"));
+    return;
+  }
+
+  prefs.putBool(kLeftInvertKey, leftInverted_);
+  prefs.putBool(kRightInvertKey, rightInverted_);
+  prefs.putUChar(kLeftDutyKey, leftDefaultDuty_);
+  prefs.putUChar(kRightDutyKey, rightDefaultDuty_);
+  prefs.end();
+  Serial.println(F("motor calibration saved"));
+}
+
 bool MotorDriver::available() const {
   return !faultActive();
 }
@@ -125,6 +197,7 @@ void MotorDriver::sleep() {
 }
 
 void MotorDriver::driveLeft(WheelDrive drive, uint8_t duty) {
+  drive = applyLeftDirection(drive);
   switch (drive) {
     case WheelDrive::Forward:
       ledcWrite(kMotorAin2Channel, 0);
@@ -143,15 +216,15 @@ void MotorDriver::driveLeft(WheelDrive drive, uint8_t duty) {
 }
 
 void MotorDriver::driveRight(WheelDrive drive, uint8_t duty) {
+  drive = applyRightDirection(drive);
   switch (drive) {
     case WheelDrive::Forward:
-      // 右侧电机安装方向与左侧镜像，逻辑正转需要反接输出极性。
-      ledcWrite(kMotorBin1Channel, 0);
-      ledcWrite(kMotorBin2Channel, duty);
-      break;
-    case WheelDrive::Reverse:
       ledcWrite(kMotorBin2Channel, 0);
       ledcWrite(kMotorBin1Channel, duty);
+      break;
+    case WheelDrive::Reverse:
+      ledcWrite(kMotorBin1Channel, 0);
+      ledcWrite(kMotorBin2Channel, duty);
       break;
     case WheelDrive::Stop:
     default:
@@ -159,6 +232,32 @@ void MotorDriver::driveRight(WheelDrive drive, uint8_t duty) {
       ledcWrite(kMotorBin2Channel, 0);
       break;
   }
+}
+
+WheelDrive MotorDriver::applyLeftDirection(WheelDrive drive) const {
+  if (!leftInverted_) {
+    return drive;
+  }
+  if (drive == WheelDrive::Forward) {
+    return WheelDrive::Reverse;
+  }
+  if (drive == WheelDrive::Reverse) {
+    return WheelDrive::Forward;
+  }
+  return drive;
+}
+
+WheelDrive MotorDriver::applyRightDirection(WheelDrive drive) const {
+  if (!rightInverted_) {
+    return drive;
+  }
+  if (drive == WheelDrive::Forward) {
+    return WheelDrive::Reverse;
+  }
+  if (drive == WheelDrive::Reverse) {
+    return WheelDrive::Forward;
+  }
+  return drive;
 }
 
 }  // namespace tongdou
