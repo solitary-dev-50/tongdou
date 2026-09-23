@@ -70,6 +70,23 @@ void ScenarioExecutor::finishActivePlan() {
   Serial.println(F("scenario active plan finished state=idle"));
 }
 
+bool ScenarioExecutor::startUserMotion(MotionAction action) {
+  if (gyroMotion_.running()) {
+    return false;
+  }
+  startMotion(action, millis());
+  return gyroMotion_.running();
+}
+
+void ScenarioExecutor::stopMotion() {
+  motionSequence_ = {};
+  gyroMotion_.stop();
+}
+
+bool ScenarioExecutor::motionRunning() const {
+  return gyroMotion_.running();
+}
+
 void ScenarioExecutor::startLight(LightAction action, unsigned long nowMs) {
   lightSequence_ = lightPack_.sequence(action);
   lightFrameIndex_ = 0;

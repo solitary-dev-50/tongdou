@@ -22,6 +22,10 @@ class ScenarioExecutor {
   void begin();
   void execute(const ScenarioPlan& plan);
   void finishActivePlan();
+  // 只替换电机表现，保留当前提醒、表情、灯光和声音。
+  bool startUserMotion(MotionAction action);
+  void stopMotion();
+  bool motionRunning() const;
   void update();
 
  private:

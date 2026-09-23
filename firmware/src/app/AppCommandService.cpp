@@ -29,14 +29,47 @@ AppCommandService::AppCommandService(ScenarioEngine& scenarioEngine,
                                      RealtimeVoiceService& realtimeVoiceService,
                                      AudioVolumeService& audioVolumeService,
                                      NetworkInfoService& networkInfoService,
-                                     BatteryMonitor& batteryMonitor)
+                                     BatteryMonitor& batteryMonitor,
+                                     ReminderAlertService& reminderAlertService)
     : scenarioEngine_(scenarioEngine),
       scenarioExecutor_(scenarioExecutor),
       scenarioContext_(scenarioContext),
       realtimeVoiceService_(realtimeVoiceService),
       audioVolumeService_(audioVolumeService),
       networkInfoService_(networkInfoService),
-      batteryMonitor_(batteryMonitor) {}
+      batteryMonitor_(batteryMonitor),
+      reminderAlertService_(reminderAlertService) {}
+
+AppCommandResult AppCommandService::controlMotion(MotionAction action) {
+  // 停止必须先处理：即使提醒、低电量或动作故障，也不能拒绝停机。
+  if (action == MotionAction::Stop) {
+    scenarioExecutor_.stopMotion();
+    return {true, "motion_stopped", "motor sequence stopped; no return motion"};
+  }
+  if (action != MotionAction::NudgeForward &&
+      action != MotionAction::ShrinkBack && action != MotionAction::TinyShake) {
+    return {false, "invalid_motion", "unsupported user motion"};
+  }
+  if (reminderAlertService_.blocksVoiceInteraction()) {
+    return {false, "reminder_active", "wait until the reminder finishes"};
+  }
+  if (scenarioContext_.quietMode) {
+    return {false, "quiet_mode", "motion is disabled in quiet mode"};
+  }
+  const BatterySnapshot battery = batteryMonitor_.read();
+  if (scenarioContext_.lowBattery ||
+      (battery.usingFuelGauge && battery.gauge.lowBattery)) {
+    return {false, "low_battery", "charge the battery before requesting motion"};
+  }
+  if (scenarioExecutor_.motionRunning()) {
+    return {false, "motion_busy", "wait for the current motion or stop it first"};
+  }
+  if (!scenarioExecutor_.startUserMotion(action)) {
+    return {false, "motion_unavailable", "check motor fault and gyroscope readiness"};
+  }
+  return {true, "motion_started",
+          "short motion accepted; completion and exact distance are not measured"};
+}
 
 NetworkInfoResult AppCommandService::showNetworkInfo() {
   return networkInfoService_.show(realtimeVoiceService_.snapshot());

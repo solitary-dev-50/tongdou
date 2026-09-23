@@ -104,7 +104,8 @@ class App {
                                         reminderAlertService_, deviceLocaleStore_};
   AppCommandService appCommandService_{scenarioEngine_, scenarioExecutor_, scenarioContext_,
                                       realtimeVoiceService_, audioVolumeService_,
-                                      networkInfoService_, hardware_.battery()};
+                                      networkInfoService_, hardware_.battery(),
+                                      reminderAlertService_};
   McpServer mcpServer_{timeService_, reminderStore_, hardware_.selfTest(), appCommandService_};
   ScenarioConfigStore scenarioConfigStore_;
   ScenarioConfigApi scenarioConfigApi_{scenarioConfigStore_};

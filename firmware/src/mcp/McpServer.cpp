@@ -161,6 +161,33 @@ void McpServer::addTools() {
   registry_.addTool("tongdou.battery.get_status", batteryStatusDescription, {}, batteryStatus);
   voiceRegistry_.addTool("tongdou.battery.get_status", batteryStatusDescription, {}, batteryStatus);
 
+  // 固定短动作，不向模型开放轮速、持续时间或循环次数。
+  const auto addMotionTool = [this](const char* name, const char* description,
+                                     MotionAction action) {
+    const auto execute = [this, action](const McpToolArguments&) -> McpToolResult {
+      const AppCommandResult result = appCommandService_.controlMotion(action);
+      return {commandResultJson(result), !result.ok};
+    };
+    registry_.addTool(name, description, {}, execute);
+    voiceRegistry_.addTool(name, description, {}, execute);
+  };
+  addMotionTool("tongdou.motion.forward",
+                "用户明确要求铜豆向前走、前进或往前挪时调用一次。无需参数，只执行一次固定短前移并自动停止。"
+                "不支持精确步数或距离，不得通过重复调用拼成长距离。ok=true 只表示动作已启动，不能说已走完几步；失败按真实原因说明。",
+                MotionAction::NudgeForward);
+  addMotionTool("tongdou.motion.backward",
+                "用户明确要求铜豆后退、倒退或往后挪时调用一次。无需参数，只执行一次固定短后移并自动停止。"
+                "不支持精确步数或距离，不得通过重复调用拼成长距离。ok=true 只表示动作已启动，不能说已走完几步；失败按真实原因说明。",
+                MotionAction::ShrinkBack);
+  addMotionTool("tongdou.motion.wiggle",
+                "用户明确要求铜豆扭一扭、左右扭动身体时调用一次。无需参数，只执行一次短小左右扭动并自动停止。"
+                "不要为普通聊天自动加动作，不要重复调用延长表演。ok=true 只表示动作已启动；失败按真实原因说明。",
+                MotionAction::TinyShake);
+  addMotionTool("tongdou.motion.stop",
+                "用户要求铜豆停止移动、别动、停下电机或停止扭动时立即调用。无需参数，取消当前电机动作和回正，不结束对话、不取消提醒。"
+                "即使已经停下也可调用。只有 ok=true 才能确认已停止。语音播报期间不支持同时收音，不能承诺语音即时急停。",
+                MotionAction::Stop);
+
   const std::vector<McpProperty> reminderCreateProperties = {
       McpProperty::OptionalInteger("dueAt"),
       McpProperty::OptionalInteger("delaySeconds"),

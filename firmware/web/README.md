@@ -16,6 +16,8 @@
 
 ## API 规划
 
+正式固件的 `POST /api/mcp` 已增加 `tongdou.motion.forward`（前挪）、`tongdou.motion.backward`（后退）、`tongdou.motion.wiggle`（短扭）、`tongdou.motion.stop`（停止）四个无参数短动作工具。它们与语音共用请求检查和动作执行器，停止只取消电机动作与回正，不取消提醒。详见 [语音动作控制](../../docs/语音动作控制.md)。
+
 前端后续统一调用这些接口：
 
 | 方法和路径 | 用途 |

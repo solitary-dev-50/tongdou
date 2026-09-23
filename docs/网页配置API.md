@@ -704,6 +704,8 @@ command=selftest
 
 ## 13. 版本边界
 
+正式语音短动作也可从 `POST /api/mcp` 调用：`tongdou.motion.forward`（前挪）、`tongdou.motion.backward`（后退）、`tongdou.motion.wiggle`（短扭）、`tongdou.motion.stop`（停止）。四项均传空参数对象，不开放轮速、时长和循环次数；走应用命令层与现有剧情执行器，不走诊断电机入口。返回码和调用示例见 [语音动作控制](语音动作控制.md)。
+
 第一版只保证：
 
 - 配置可读。

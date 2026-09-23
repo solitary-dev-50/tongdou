@@ -6,6 +6,7 @@
 #include "hardware/BatteryMonitor.h"
 #include "network/NetworkInfoService.h"
 #include "realtime/RealtimeVoiceService.h"
+#include "reminder/ReminderAlertService.h"
 #include "scenario/ScenarioContext.h"
 #include "scenario/ScenarioEngine.h"
 #include "scenario/ScenarioExecutor.h"
@@ -26,9 +27,11 @@ class AppCommandService {
                     RealtimeVoiceService& realtimeVoiceService,
                     AudioVolumeService& audioVolumeService,
                     NetworkInfoService& networkInfoService,
-                    BatteryMonitor& batteryMonitor);
+                    BatteryMonitor& batteryMonitor,
+                    ReminderAlertService& reminderAlertService);
 
   AppCommandResult playScenario(const String& eventName);
+  AppCommandResult controlMotion(MotionAction action);
   AppCommandResult setPersonality(const String& personalityName);
   AppCommandResult configureVoiceBackend(const String& host, int port, const String& path,
                                          const String& token, const String& deviceId,
@@ -61,6 +64,7 @@ class AppCommandService {
   AudioVolumeService& audioVolumeService_;
   NetworkInfoService& networkInfoService_;
   BatteryMonitor& batteryMonitor_;
+  ReminderAlertService& reminderAlertService_;
 };
 
 }  // namespace tongdou
