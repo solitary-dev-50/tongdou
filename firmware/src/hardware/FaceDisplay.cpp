@@ -50,7 +50,7 @@ void FaceDisplay::show(FaceExpression expression) {
 
   clear();
   drawExpression(expression);
-  drawBatteryStatus();
+  drawStatusBar();
   flush();
   ++revision_;
   statusBarEnabled_ = true;
@@ -103,16 +103,32 @@ void FaceDisplay::updateStatusBar() {
   const uint8_t percent = battery.usingFuelGauge
                               ? static_cast<uint8_t>(min<uint16_t>(100, battery.gauge.stateOfChargePercent))
                               : 255;
-  if (battery.voltageMv == lastStatusVoltageMv_ && percent == lastStatusPercent_ &&
+  if (!connectionStatusDirty_ &&
+      battery.voltageMv == lastStatusVoltageMv_ && percent == lastStatusPercent_ &&
       battery.charging == lastStatusCharging_ &&
       battery.usingFuelGauge == lastStatusAvailable_) {
     lastStatusBarAtMs_ = now;
     return;
   }
-  drawBatteryStatus();
+  drawStatusBar();
   flush();
   ++revision_;
   lastStatusBarAtMs_ = now;
+}
+
+void FaceDisplay::setConnectionStatus(bool wifiConnected, int32_t signalDbm,
+                                       bool voiceConnected, bool voiceReady,
+                                       bool voiceConnecting) {
+  const uint8_t bars = !wifiConnected ? 0 : signalDbm >= -55 ? 4 :
+                      signalDbm >= -67 ? 3 : signalDbm >= -75 ? 2 : 1;
+  const VoiceStatus voice = !wifiConnected ? VoiceStatus::Offline :
+      voiceConnected && voiceReady ? VoiceStatus::Ready :
+      voiceConnecting ? VoiceStatus::Connecting : VoiceStatus::Offline;
+  if (wifiBars_ != bars || voiceStatus_ != voice) {
+    wifiBars_ = bars;
+    voiceStatus_ = voice;
+    connectionStatusDirty_ = true;
+  }
 }
 
 bool FaceDisplay::ready() const {
@@ -152,12 +168,48 @@ void FaceDisplay::clear() {
   memset(buffer_, 0, sizeof(buffer_));
 }
 
+void FaceDisplay::drawStatusBar() {
+  fillRect(0, 0, kWidth, 16, false);
+  drawConnectionStatus();
+  drawBatteryStatus();
+  connectionStatusDirty_ = false;
+}
+
+void FaceDisplay::drawConnectionStatus() {
+  // 左侧信号格；断网显示叉，已连接至少一格。
+  if (wifiBars_ == 0) {
+    line(5, 4, 13, 12);
+    line(5, 12, 13, 4);
+  } else {
+    for (uint8_t i = 0; i < 4; ++i) {
+      const int16_t height = 3 + i * 3;
+      if (i < wifiBars_) fillRect(2 + i * 5, 14 - height, 3, height);
+      else line(2 + i * 5, 13, 4 + i * 5, 13);
+    }
+  }
+
+  // 对话气泡内：勾为服务可用，三点为连接中，叉为不可用。
+  rect(26, 2, 19, 11);
+  line(29, 13, 29, 15);
+  line(29, 15, 32, 12);
+  if (voiceStatus_ == VoiceStatus::Ready) {
+    line(30, 7, 33, 10);
+    line(33, 10, 40, 4);
+  } else if (voiceStatus_ == VoiceStatus::Connecting) {
+    pixel(30, 7);
+    pixel(35, 7);
+    pixel(40, 7);
+  } else {
+    line(32, 4, 38, 10);
+    line(32, 10, 38, 4);
+  }
+}
+
 void FaceDisplay::drawBatteryStatus() {
   const BatterySnapshot battery = battery_.read();
   const uint8_t percent = battery.usingFuelGauge
                               ? static_cast<uint8_t>(min<uint16_t>(100, battery.gauge.stateOfChargePercent))
                               : 255;
-  fillRect(0, 0, kWidth, 16, false);
   if (battery.usingFuelGauge) {
     drawDigit(static_cast<char>('0' + percent / 100), 84, 3, 1);
     drawDigit(static_cast<char>('0' + (percent / 10) % 10), 91, 3, 1);

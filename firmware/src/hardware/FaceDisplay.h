@@ -14,6 +14,9 @@ class FaceDisplay {
   void begin();
   void show(FaceExpression expression);
   void updateStatusBar();
+  void setConnectionStatus(bool wifiConnected, int32_t signalDbm,
+                           bool voiceConnected, bool voiceReady,
+                           bool voiceConnecting);
   void showActivationCode(const String& code);
   bool showBitmap128x48(const uint8_t* bitmap, size_t length);
   bool ready() const;
@@ -38,6 +41,8 @@ class FaceDisplay {
   void drawDigit(char digit, int16_t x, int16_t y, uint8_t scale);
   void drawExpression(FaceExpression expression);
   void drawBatteryStatus();
+  void drawStatusBar();
+  void drawConnectionStatus();
   void drawBatteryIcon(uint8_t percent, bool charging, bool available);
 
   bool available_ = false;
@@ -47,6 +52,10 @@ class FaceDisplay {
   uint8_t lastStatusPercent_ = 255;
   bool lastStatusCharging_ = false;
   bool lastStatusAvailable_ = false;
+  enum class VoiceStatus : uint8_t { Offline, Connecting, Ready };
+  uint8_t wifiBars_ = 0;
+  VoiceStatus voiceStatus_ = VoiceStatus::Offline;
+  bool connectionStatusDirty_ = false;
   BatteryMonitor& battery_;
   uint8_t buffer_[kBufferSize] = {};
   uint32_t revision_ = 0;

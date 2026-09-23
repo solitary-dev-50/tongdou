@@ -137,6 +137,11 @@ void App::update() {
   updateWakeWordArming();
   scenarioExecutor_.update();
   const RealtimeVoiceSnapshot voiceSnapshot = realtimeVoiceService_.snapshot();
+  hardware_.faceDisplay().setConnectionStatus(
+      WiFi.isConnected(), WiFi.RSSI(), voiceSnapshot.backendConnected,
+      voiceSnapshot.backendReady && voiceSnapshot.backendCodecReady,
+      voiceSnapshot.backendState == "connecting" ||
+          voiceSnapshot.backendState == "handshaking");
   networkInfoService_.update(
       voiceSnapshot.state == RealtimeVoiceState::AwaitingResponse ||
       voiceSnapshot.state == RealtimeVoiceState::Ending ||
