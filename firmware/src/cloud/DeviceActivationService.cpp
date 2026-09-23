@@ -5,12 +5,12 @@
 #include <WiFi.h>
 
 #include "tongdou/BuildInfo.h"
+#include "tongdou/BoardProfile.h"
 #include "tongdou/ServerConfig.h"
 
 namespace tongdou {
 namespace {
 
-constexpr const char* kBoardType = "tongdou-esp32s3";
 constexpr const char* kOtaUrl = TONGDOU_OTA_URL;
 
 String macAddress() {
@@ -173,6 +173,10 @@ String DeviceActivationService::buildReportJson() const {
   doc["application"]["elf_sha256"] = "";
   doc["ota"]["label"] = "app";
   doc["board"]["type"] = kBoardType;
+  doc["board"]["revision"] = kBoardVersion;
+  // 发布脚本核对这个完整标识，避免错主板或旧构建被当作新版本发布。
+  doc["board"]["firmware_identity"] =
+      "tongdou-image:" TONGDOU_BOARD_TYPE ":" TONGDOU_FIRMWARE_VERSION ";";
   doc["board"]["ssid"] = WiFi.SSID();
   doc["board"]["rssi"] = WiFi.RSSI();
   doc["board"]["channel"] = WiFi.channel();

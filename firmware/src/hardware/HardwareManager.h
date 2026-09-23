@@ -38,7 +38,7 @@ class HardwareManager {
  private:
   BatteryMonitor battery_;
   DisplayBus displayBus_;
-  FaceDisplay faceDisplay_;
+  FaceDisplay faceDisplay_{battery_};
   ImuSensor imu_;
   LedPixel led_;
   LogoTouchInput logoTouch_;

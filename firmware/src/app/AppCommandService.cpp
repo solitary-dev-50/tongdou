@@ -28,13 +28,15 @@ AppCommandService::AppCommandService(ScenarioEngine& scenarioEngine,
                                      ScenarioContext& scenarioContext,
                                      RealtimeVoiceService& realtimeVoiceService,
                                      AudioVolumeService& audioVolumeService,
-                                     NetworkInfoService& networkInfoService)
+                                     NetworkInfoService& networkInfoService,
+                                     BatteryMonitor& batteryMonitor)
     : scenarioEngine_(scenarioEngine),
       scenarioExecutor_(scenarioExecutor),
       scenarioContext_(scenarioContext),
       realtimeVoiceService_(realtimeVoiceService),
       audioVolumeService_(audioVolumeService),
-      networkInfoService_(networkInfoService) {}
+      networkInfoService_(networkInfoService),
+      batteryMonitor_(batteryMonitor) {}
 
 NetworkInfoResult AppCommandService::showNetworkInfo() {
   return networkInfoService_.show(realtimeVoiceService_.snapshot());
@@ -269,6 +271,40 @@ String AppCommandService::voiceStatusJson() const {
   doc["lastErrorCode"] = snapshot.lastErrorCode;
   doc["lastErrorMessage"] = snapshot.lastErrorMessage;
 
+  String output;
+  serializeJson(doc, output);
+  return output;
+}
+
+String AppCommandService::batteryStatusJson() const {
+  const BatterySnapshot battery = batteryMonitor_.read();
+  JsonDocument doc;
+  doc["ok"] = true;
+  doc["available"] = battery.usingFuelGauge;
+  doc["source"] = battery.usingFuelGauge ? "bq27220" : "adc";
+  doc["voltageMv"] = battery.voltageMv;
+  doc["adcVoltageMv"] = battery.adcVoltageMv;
+  doc["charging"] = battery.charging;
+  doc["usbPresent"] = battery.usbPresent;
+  doc["lowBattery"] = battery.usingFuelGauge ? battery.gauge.lowBattery : false;
+  if (battery.usingFuelGauge) {
+    doc["currentMa"] = battery.gauge.currentMa;
+    doc["averageCurrentMa"] = battery.gauge.averageCurrentMa;
+    doc["socPercent"] = battery.gauge.stateOfChargePercent;
+    doc["remainingCapacityMah"] = battery.gauge.remainingCapacityMah;
+    doc["fullChargeCapacityMah"] = battery.gauge.fullChargeCapacityMah;
+    doc["temperatureC"] = battery.gauge.temperatureCentiC / 100.0f;
+    doc["healthPercent"] = battery.gauge.stateOfHealthPercent;
+  } else {
+    doc["currentMa"] = nullptr;
+    doc["averageCurrentMa"] = nullptr;
+    doc["socPercent"] = nullptr;
+    doc["remainingCapacityMah"] = nullptr;
+    doc["fullChargeCapacityMah"] = nullptr;
+    doc["temperatureC"] = nullptr;
+    doc["healthPercent"] = nullptr;
+  }
+  doc["error"] = battery.gaugeError;
   String output;
   serializeJson(doc, output);
   return output;

@@ -9,10 +9,10 @@ namespace tongdou {
 void HardwareManager::begin() {
   motors_.begin();
 
+  displayBus_.begin();
+
   battery_.begin();
   startupBattery_ = battery_.read();
-
-  displayBus_.begin();
 
   faceDisplay_.begin();
   imu_.begin();
@@ -33,6 +33,8 @@ void HardwareManager::update() {
   radar_.update();
   audioInput_.update();
   selfTest_.update();
+  battery_.update();
+  faceDisplay_.updateStatusBar();
 }
 
 void HardwareManager::printStartupReport(Print& out) const {

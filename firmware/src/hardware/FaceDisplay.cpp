@@ -50,8 +50,10 @@ void FaceDisplay::show(FaceExpression expression) {
 
   clear();
   drawExpression(expression);
+  drawBatteryStatus();
   flush();
   ++revision_;
+  statusBarEnabled_ = true;
 }
 
 void FaceDisplay::showActivationCode(const String& code) {
@@ -60,6 +62,7 @@ void FaceDisplay::showActivationCode(const String& code) {
   }
 
   clear();
+  statusBarEnabled_ = false;
   rect(8, 8, 112, 48);
   const uint8_t scale = 3;
   const int16_t digitWidth = 5 * scale;
@@ -85,10 +88,31 @@ bool FaceDisplay::showBitmap128x48(const uint8_t* bitmap, size_t length) {
   }
 
   clear();
+  statusBarEnabled_ = false;
   memcpy(buffer_ + kWidth, bitmap, kBitmapSize);
   flush();
   ++revision_;
   return true;
+}
+
+void FaceDisplay::updateStatusBar() {
+  if (!available_ || !statusBarEnabled_) return;
+  const uint32_t now = millis();
+  if (now - lastStatusBarAtMs_ < 1000) return;
+  const BatterySnapshot battery = battery_.read();
+  const uint8_t percent = battery.usingFuelGauge
+                              ? static_cast<uint8_t>(min<uint16_t>(100, battery.gauge.stateOfChargePercent))
+                              : 255;
+  if (battery.voltageMv == lastStatusVoltageMv_ && percent == lastStatusPercent_ &&
+      battery.charging == lastStatusCharging_ &&
+      battery.usingFuelGauge == lastStatusAvailable_) {
+    lastStatusBarAtMs_ = now;
+    return;
+  }
+  drawBatteryStatus();
+  flush();
+  ++revision_;
+  lastStatusBarAtMs_ = now;
 }
 
 bool FaceDisplay::ready() const {
@@ -126,6 +150,40 @@ void FaceDisplay::flush() {
 
 void FaceDisplay::clear() {
   memset(buffer_, 0, sizeof(buffer_));
+}
+
+void FaceDisplay::drawBatteryStatus() {
+  const BatterySnapshot battery = battery_.read();
+  const uint8_t percent = battery.usingFuelGauge
+                              ? static_cast<uint8_t>(min<uint16_t>(100, battery.gauge.stateOfChargePercent))
+                              : 255;
+  fillRect(0, 0, kWidth, 16, false);
+  if (battery.usingFuelGauge) {
+    drawDigit(static_cast<char>('0' + percent / 100), 84, 3, 1);
+    drawDigit(static_cast<char>('0' + (percent / 10) % 10), 91, 3, 1);
+    drawDigit(static_cast<char>('0' + percent % 10), 98, 3, 1);
+  } else {
+    line(85, 7, 89, 7);
+    line(92, 7, 96, 7);
+  }
+  drawBatteryIcon(percent, battery.charging, battery.usingFuelGauge);
+  lastStatusVoltageMv_ = battery.voltageMv;
+  lastStatusPercent_ = percent;
+  lastStatusCharging_ = battery.charging;
+  lastStatusAvailable_ = battery.usingFuelGauge;
+}
+
+void FaceDisplay::drawBatteryIcon(uint8_t percent, bool charging, bool available) {
+  rect(108, 3, 16, 10);
+  fillRect(124, 6, 2, 4);
+  if (charging) {
+    line(115, 4, 112, 9);
+    line(112, 9, 116, 9);
+    line(116, 9, 119, 4);
+  } else if (available && percent != 255) {
+    const int16_t width = static_cast<int16_t>(percent) * 12 / 100;
+    if (width > 0) fillRect(110, 5, width, 6);
+  }
 }
 
 void FaceDisplay::pixel(int16_t x, int16_t y, bool on) {

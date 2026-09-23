@@ -53,6 +53,13 @@ open-source phase.
 
 ## Hardware Platform
 
+The new V9.4 board adds a BQ27220 fuel gauge and changes interrupt wiring.
+V9.0 remains supported. Application and recovery builds use separate update
+channels for each board. V9.4 fuel-gauge support is implemented; physical
+validation remains pending. See [fuel-gauge integration](docs/BQ27220电量计接入.md),
+[hardware details](docs/硬件说明.md) and
+[firmware update instructions](docs/远程固件升级.md).
+
 - ESP32-S3-MINI-1-N4R2
 - IM72D128V01XTMA1 PDM microphone
 - NS4168 I2S audio amplifier

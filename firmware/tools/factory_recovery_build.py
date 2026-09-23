@@ -11,7 +11,7 @@ RECOVERY_PARTITION_SIZE = 0xD0000
 
 project_dir = env.subst("$PROJECT_DIR")
 python_executable = env.subst("$PYTHONEXE")
-recovery_environment = "esp32s3_recovery"
+recovery_environment = env.GetProjectOption("custom_recovery_environment")
 recovery_image = os.path.join(
     project_dir, ".pio", "build", recovery_environment, "firmware.bin"
 )

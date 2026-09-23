@@ -4,13 +4,16 @@
 #include <stdint.h>
 
 #include "face/FaceExpression.h"
+#include "hardware/BatteryMonitor.h"
 
 namespace tongdou {
 
 class FaceDisplay {
  public:
+  explicit FaceDisplay(BatteryMonitor& battery) : battery_(battery) {}
   void begin();
   void show(FaceExpression expression);
+  void updateStatusBar();
   void showActivationCode(const String& code);
   bool showBitmap128x48(const uint8_t* bitmap, size_t length);
   bool ready() const;
@@ -34,8 +37,17 @@ class FaceDisplay {
   void drawEyePair(int16_t leftX, int16_t rightX, int16_t y, int16_t w, int16_t h);
   void drawDigit(char digit, int16_t x, int16_t y, uint8_t scale);
   void drawExpression(FaceExpression expression);
+  void drawBatteryStatus();
+  void drawBatteryIcon(uint8_t percent, bool charging, bool available);
 
   bool available_ = false;
+  bool statusBarEnabled_ = false;
+  uint32_t lastStatusBarAtMs_ = 0;
+  uint16_t lastStatusVoltageMv_ = 0;
+  uint8_t lastStatusPercent_ = 255;
+  bool lastStatusCharging_ = false;
+  bool lastStatusAvailable_ = false;
+  BatteryMonitor& battery_;
   uint8_t buffer_[kBufferSize] = {};
   uint32_t revision_ = 0;
 };

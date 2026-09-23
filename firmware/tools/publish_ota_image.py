@@ -11,7 +11,10 @@ import tempfile
 from pathlib import Path
 
 
-MODEL = "tongdou-esp32s3"
+MODELS = {
+    "esp32s3": "tongdou-esp32s3",
+    "esp32s3_v94": "tongdou-esp32s3-v9.4",
+}
 MAIN_PARTITION_SIZE = 0x200000
 
 
@@ -32,17 +35,25 @@ def configured_version(firmware_directory: Path) -> str:
     return version
 
 
+def validate_image_identity(image: Path, model: str, version: str) -> None:
+    identity = f"tongdou-image:{model}:{version};".encode("ascii") + b"\x00"
+    identities = re.findall(rb"tongdou-image:[^;\x00]+;\x00", image.read_bytes())
+    if not identities or set(identities) != {identity}:
+        raise SystemExit("firmware identity mismatch; rebuild the selected board/version")
+
+
 def main() -> None:
     firmware_directory = Path(__file__).resolve().parents[1]
     parser = argparse.ArgumentParser()
     parser.add_argument("--server-bin-dir", type=Path)
     parser.add_argument("--check-only", action="store_true")
     parser.add_argument("--replace", action="store_true")
+    parser.add_argument("--environment", choices=MODELS, default="esp32s3")
     args = parser.parse_args()
 
-    image = firmware_directory / ".pio" / "build" / "esp32s3" / "firmware.bin"
+    image = firmware_directory / ".pio" / "build" / args.environment / "firmware.bin"
     if not image.is_file():
-        raise SystemExit("firmware image missing; run platformio run -e esp32s3 first")
+        raise SystemExit(f"firmware image missing; run platformio run -e {args.environment} first")
     size = image.stat().st_size
     if size <= 0 or size > MAIN_PARTITION_SIZE:
         raise SystemExit(
@@ -50,8 +61,11 @@ def main() -> None:
         )
 
     version = configured_version(firmware_directory)
+    model = MODELS[args.environment]
+    validate_image_identity(image, model, version)
     digest = sha256(image)
-    filename = f"{MODEL}_{version}.bin"
+    filename = f"{model}_{version}.bin"
+    print(f"model={model}")
     print(f"version={version}")
     print(f"filename={filename}")
     print(f"size={size}")

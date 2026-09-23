@@ -2,6 +2,7 @@
 
 #include <Wire.h>
 #include <cstring>
+#include "tongdou/Pins.h"
 
 namespace tongdou {
 namespace {
@@ -325,6 +326,8 @@ void HardwareSelfTestService::printI2cScan(Print& out) const {
     printHexByte(out, address);
     if (address == 0x3C) {
       out.print(F(" oled_candidate"));
+    } else if (address == 0x55) {
+      out.print(F(" bq27220_candidate"));
     } else if (address == 0x6A || address == 0x6B) {
       out.print(F(" qmi8658a_candidate"));
     }
@@ -337,6 +340,13 @@ void HardwareSelfTestService::printI2cScan(Print& out) const {
 
 void HardwareSelfTestService::printImu(Print& out) {
   out.println(F("imu:"));
+#if TONGDOU_BOARD_REVISION == 94
+  out.print(F("  int1_pin="));
+  out.println(static_cast<int>(pins::QMI8658_INT1));
+  out.print(F("  int2_pin="));
+  out.println(static_cast<int>(pins::QMI8658_INT2));
+#endif
+  out.println(F("  sampling=polling"));
   printBool(out, F("  ready="), imu_.ready());
   if (!imu_.ready()) {
     return;
@@ -408,6 +418,32 @@ void HardwareSelfTestService::printBattery(Print& out) const {
   printBool(out, F("  standby="), snapshot.standby);
   out.print(F("  raw_adc="));
   out.println(snapshot.rawAdc);
+  out.print(F("  source="));
+  out.println(snapshot.usingFuelGauge ? F("bq27220") : F("adc"));
+  out.print(F("  voltage_mv="));
+  out.println(snapshot.voltageMv);
+  out.print(F("  adc_voltage_mv="));
+  out.println(snapshot.adcVoltageMv);
+  out.print(F("  gauge_error="));
+  out.println(snapshot.gaugeError);
+  out.print(F("  gpout_interrupt_count="));
+  out.println(snapshot.gauge.interruptCount);
+  if (!snapshot.usingFuelGauge) {
+    out.println(F("  current/soc/capacity/temperature/health=unavailable"));
+    return;
+  }
+  out.print(F("  current_ma=")); out.println(snapshot.gauge.currentMa);
+  out.print(F("  average_current_ma=")); out.println(snapshot.gauge.averageCurrentMa);
+  out.print(F("  soc_percent=")); out.println(snapshot.gauge.stateOfChargePercent);
+  out.print(F("  remaining_capacity_mah=")); out.println(snapshot.gauge.remainingCapacityMah);
+  out.print(F("  full_charge_capacity_mah=")); out.println(snapshot.gauge.fullChargeCapacityMah);
+  out.print(F("  temperature_c=")); out.println(snapshot.gauge.temperatureCentiC / 100.0f, 2);
+  out.println(F("  temperature_source=internal_sensor"));
+  out.print(F("  health_percent=")); out.println(snapshot.gauge.stateOfHealthPercent);
+  printBool(out, F("  low_battery="), snapshot.gauge.lowBattery);
+  printBool(out, F("  gauge_sleeping="), snapshot.gauge.sleeping);
+  out.print(F("  soc_change_count=")); out.println(snapshot.gauge.socChangeCount);
+  out.print(F("  low_battery_event_count=")); out.println(snapshot.gauge.lowBatteryEventCount);
 }
 
 void HardwareSelfTestService::printRadar(Print& out) const {

@@ -47,6 +47,8 @@ def private_write(path, content, replace=False):
     flags = os.O_WRONLY | os.O_CREAT | (os.O_TRUNC if replace else os.O_EXCL)
     fd = os.open(path, flags, 0o600)
     with os.fdopen(fd, 'w', encoding='utf-8', newline='\n') as stream:
+        if hasattr(os, 'fchmod'):
+            os.fchmod(stream.fileno(), 0o600)
         stream.write(content)
     path.chmod(0o600)
 
@@ -112,8 +114,8 @@ def initialize_env():
         for key in missing:
             value = secrets.token_urlsafe(32)
             values[key] = value
-            if re.search(r'^' + key + '=', text, flags=re.M):
-                text = re.sub(r'^' + key + r'=.*$', key + '=' + value, text, flags=re.M)
+            if re.search(r'^[ \t]*' + key + '=', text, flags=re.M):
+                text = re.sub(r'^[ \t]*' + key + r'=.*$', key + '=' + value, text, flags=re.M)
             else:
                 text += '\n' + key + '=' + value + '\n'
         private_write(path, text, replace=path.exists())

@@ -6,6 +6,8 @@
 #include <esp_partition.h>
 #include <mbedtls/sha256.h>
 
+#include "tongdou/BoardProfile.h"
+
 namespace {
 
 constexpr const char* kRecoveryVersion = "1.0.0";
@@ -262,7 +264,8 @@ bool requestReplacementOffer(const PendingUpdate& failed,
   const String deviceId = WiFi.macAddress();
   String body = F("{\"application\":{\"name\":\"Tong Dou recovery\",\"version\":\"");
   body += failed.version;
-  body += F("\"},\"board\":{\"type\":\"tongdou-esp32s3\"}}");
+  body += F("\"},\"board\":{\"type\":\"" TONGDOU_BOARD_TYPE
+            "\",\"revision\":\"" TONGDOU_BOARD_VERSION "\"}}");
 
   WiFiClient client;
   client.setTimeout(15000);

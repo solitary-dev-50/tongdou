@@ -3,6 +3,8 @@
 The latest companion server is v0.1.2. Firmware v0.1.3 does not replace it.
 Use the complete extracted server ZIP plus the Linux startup fix if you have the
 original v0.1.2 ZIP. The original ZIP only contained Windows initialization scripts.
+If your complete package includes `REPACK_INFO.json`, the Linux fix is already
+included: skip "Apply the fix" and go directly to "First start".
 
 ## Prerequisites
 

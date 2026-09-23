@@ -18,6 +18,7 @@
 - 固件中已有接口返回状态：`firmware/src/web/WebApiResult.h`
 - 固件中已有剧情配置 API 骨架：`firmware/src/web/ScenarioConfigApi.*`
 - 固件首页已有配网、校时和硬件诊断控制台。
+- `/api/status` 的 `battery` 对象提供电量计八项数据与备用电压，字段和失效规则见 [BQ27220 电量计接入](BQ27220电量计接入.md)。
 - 静态网页原型已同步硬件诊断界面：`firmware/web/*`
 - 固件已提供 `/api/mcp`，用于把网页收到的 MCP JSON-RPC 请求转交给 `McpServer`。
 
@@ -34,7 +35,7 @@
 | 方法 | 路径 | 用途 |
 | --- | --- | --- |
 | `GET` | `/api/health` | 查询设备是否在线 |
-| `GET` | `/api/status` | 查询联网和时间状态 |
+| `GET` | `/api/status` | 查询联网、时间和电池状态 |
 | `GET` | `/api/wifi/scan` | 扫描附近 WiFi |
 | `POST` | `/api/setup/wifi` | 保存 WiFi 并开始连接 |
 | `GET` | `/api/locale` | 读取设备语言 |

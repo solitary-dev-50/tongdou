@@ -54,6 +54,7 @@ class McpServer {
   McpToolResult getAudioVolume(const McpToolArguments& arguments);
   McpToolResult setAudioVolume(const McpToolArguments& arguments);
   McpToolResult showNetworkInfo(const McpToolArguments& arguments);
+  McpToolResult getBatteryStatus(const McpToolArguments& arguments);
   std::string commandResultJson(const AppCommandResult& result) const;
   std::string remindersJson() const;
   std::string statusJson() const;

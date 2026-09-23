@@ -139,6 +139,9 @@ void McpServer::addTools() {
   const auto networkInfo = [this](const McpToolArguments& arguments) -> McpToolResult {
     return showNetworkInfo(arguments);
   };
+  const auto batteryStatus = [this](const McpToolArguments& arguments) -> McpToolResult {
+    return getBatteryStatus(arguments);
+  };
   const char* networkInfoDescription =
       "用户想知道铜豆自己的网络访问地址、如何进入铜豆本机控制台、或如何在网络中找到铜豆时调用。"
       "例如‘你的地址是多少’‘我怎么进入你的控制台’‘铜豆我怎么找到你’‘告诉我你的网络地址’，"
@@ -149,6 +152,14 @@ void McpServer::addTools() {
       "默认不逐位朗读地址；失败时按实际原因说明并给下一步，不能假装已经显示。";
   registry_.addTool("tongdou.network.show_info", networkInfoDescription, {}, networkInfo);
   voiceRegistry_.addTool("tongdou.network.show_info", networkInfoDescription, {}, networkInfo);
+
+  const char* batteryStatusDescription =
+      "用户询问铜豆当前电量、电池电压、充电状态或剩余容量时调用。"
+      "必须读取设备当前真实电池快照，不能根据对话记忆猜测。"
+      "当电量计不可用时，socPercent、电流、容量、温度和健康度会是 null；"
+      "此时只能告诉用户当前电池电压和电量计暂不可用。无需参数。";
+  registry_.addTool("tongdou.battery.get_status", batteryStatusDescription, {}, batteryStatus);
+  voiceRegistry_.addTool("tongdou.battery.get_status", batteryStatusDescription, {}, batteryStatus);
 
   const std::vector<McpProperty> reminderCreateProperties = {
       McpProperty::OptionalInteger("dueAt"),
@@ -754,6 +765,11 @@ McpToolResult McpServer::showNetworkInfo(const McpToolArguments&) {
     doc["message"] = "地址查到了，但我的屏幕暂时用不了；可以把返回的真实地址告诉用户，在同一网络的浏览器里打开。";
   }
   return {serializeDoc(doc), !result.displayed};
+}
+
+McpToolResult McpServer::getBatteryStatus(const McpToolArguments&) {
+  const String status = appCommandService_.batteryStatusJson();
+  return {status.c_str(), false};
 }
 
 std::string McpServer::commandResultJson(const AppCommandResult& result) const {

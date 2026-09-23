@@ -1,6 +1,7 @@
 #include "hardware/ImuSensor.h"
 
 #include <Wire.h>
+#include "tongdou/Pins.h"
 
 namespace tongdou {
 namespace {
@@ -29,6 +30,14 @@ int16_t readInt16Le(const uint8_t* buffer) {
 }  // namespace
 
 void ImuSensor::begin() {
+#if TONGDOU_BOARD_REVISION == 94
+  pinMode(pins::QMI8658_INT1, INPUT);
+  pinMode(pins::QMI8658_INT2, INPUT);
+  // 保留当前轮询读取方式，不改变姿态采样或电机控制时序。
+  Serial.printf("imu interrupts int1=%d int2=%d mode=polling\n",
+                static_cast<int>(pins::QMI8658_INT1),
+                static_cast<int>(pins::QMI8658_INT2));
+#endif
   ready_ = false;
   address_ = 0;
   whoAmI_ = 0;

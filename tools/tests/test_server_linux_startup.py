@@ -37,9 +37,15 @@ class BootstrapTests(unittest.TestCase):
         self.empty_volume = False
         self.failed_build = False
         self.failed_start = False
+        self.no_secret = False
+        self.voice_unavailable = False
+        self.bad_config = False
+        self.daemon_unavailable = False
 
     def docker(self, args, env, quiet=False, input_text=None, check=True):
         self.calls.append((args, env, input_text))
+        if args[1] == 'info' and self.daemon_unavailable:
+            raise RuntimeError('simulated daemon unavailable')
         out = ''
         if args[1:3] == ['volume', 'ls']:
             out = self.volumes
@@ -57,9 +63,13 @@ class BootstrapTests(unittest.TestCase):
                 'VOICEPRINT_API_ENDPOINT': 'http://voiceprint-api:8005/voiceprint/health?key=' + token}
             services['voiceprint-api']['environment'] = {
                 'VOICEPRINT_MYSQL_PASSWORD': password, 'VOICEPRINT_API_TOKEN': token}
+            if self.bad_config:
+                services['voiceprint-api']['environment']['VOICEPRINT_API_TOKEN'] = 'mismatch'
             out = json.dumps({'services': services})
         if input_text and input_text.startswith('SELECT '):
-            out = 'private-manager-secret\n'
+            out = '' if self.no_secret else 'private-manager-secret\n'
+        if 'exec' in args and 'tongdou-voice' in args and self.voice_unavailable:
+            return subprocess.CompletedProcess(args, 1, '', '')
         if ('build' in args and self.failed_build) or ('up' in args and self.failed_start):
             raise RuntimeError('simulated Docker failure')
         return subprocess.CompletedProcess(args, 0, out, '')
@@ -70,7 +80,8 @@ class BootstrapTests(unittest.TestCase):
             argv.append('--configure-only')
         stream = io.StringIO()
         with patch.object(launcher, 'run', self.docker), patch('sys.argv', argv), \
-                patch.object(launcher.urllib.request, 'urlopen') as http, contextlib.redirect_stdout(stream):
+                patch.object(launcher.urllib.request, 'urlopen') as http, \
+                patch.object(launcher.time, 'sleep'), contextlib.redirect_stdout(stream):
             http.return_value.__enter__.return_value.status = 200
             launcher.main()
         return stream.getvalue()
@@ -113,6 +124,46 @@ class BootstrapTests(unittest.TestCase):
         shutil.copyfile(self.root / '.env.example', self.root / '.env')
         self.invoke(configure_only=True)
         self.assertNotIn('GENERATED_ON_FIRST_START', (self.root / '.env').read_text())
+
+    def test_indented_template_keys_are_replaced_not_duplicated(self):
+        text = (self.root / '.env.example').read_text().replace('MYSQL_ROOT_PASSWORD=', '  MYSQL_ROOT_PASSWORD=')
+        (self.root / '.env').write_text(text)
+        self.invoke(configure_only=True)
+        values = launcher.read_env(self.root / '.env')
+        self.assertRegex(values['MYSQL_ROOT_PASSWORD'], r'^[A-Za-z0-9_-]{43}$')
+
+    def test_daemon_failure_does_not_create_credentials(self):
+        self.daemon_unavailable = True
+        with self.assertRaisesRegex(RuntimeError, 'daemon unavailable'):
+            self.invoke()
+        self.assertFalse((self.root / '.env').exists())
+
+    def test_mismatched_compose_credentials_stop_before_build(self):
+        self.bad_config = True
+        with self.assertRaisesRegex(RuntimeError, 'does not match'):
+            self.invoke()
+        self.assertFalse(any('build' in args for args, _, _ in self.calls))
+
+    def test_database_initialization_timeout_does_not_start_voice(self):
+        self.no_secret = True
+        with self.assertRaisesRegex(RuntimeError, '15 minutes'):
+            self.invoke()
+        self.assertFalse((self.root / 'data/.config.yaml').exists())
+        self.assertEqual(sum('up' in args for args, _, _ in self.calls), 1)
+
+    def test_voice_probe_failure_is_not_success(self):
+        self.voice_unavailable = True
+        with self.assertRaisesRegex(RuntimeError, 'Voice process did not open'):
+            self.invoke()
+
+    def test_private_file_mode_is_set_before_replacing_contents(self):
+        path = self.root / 'private-file'
+        path.write_text('old')
+        path.chmod(0o644)
+        launcher.private_write(path, 'new', replace=True)
+        self.assertEqual(path.read_text(), 'new')
+        if os.name == 'posix':
+            self.assertEqual(path.stat().st_mode & 0o777, 0o600)
 
     def test_empty_volumes_from_failed_first_attempt_are_reused_read_only(self):
         self.volumes = 'tongdou-test-mysql-data\ntongdou-test-voiceprint-data\n'
