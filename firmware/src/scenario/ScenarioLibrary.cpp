@@ -82,7 +82,7 @@ constexpr ScenarioRule kRules[] = {
         true,
         PersonalityStyle::Gentle,
         {true, FaceAction::Nervous, LightAction::WarmShortFlash,
-         MotionAction::ShrinkBack, VoiceLine::RecognitionCoffeeChoke, 1200},
+         MotionAction::MicroTwist, VoiceLine::RecognitionCoffeeChoke, 1200},
     },
     {
         ScenarioEventType::ConversationWindowTimeout,

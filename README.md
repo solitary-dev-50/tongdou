@@ -85,6 +85,10 @@ For delivered units running the formal application firmware, see the
 Download the HTML file and open it in a browser. It includes all images and
 defaults to English, with a language switcher for Chinese and Russian.
 
+The separate V9.4 build for `xiaozhi.me` is documented in the
+[V9.4 Xiaozhi cloud firmware guide](docs/V9.4小智云版固件.md). Its cloud pairing
+and voice flow still require V9.4 hardware validation.
+
 ## Hardware Test Firmware
 
 [Open the TongDou hardware test firmware](board_test_firmware/)

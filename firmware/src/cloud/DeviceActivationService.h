@@ -6,6 +6,10 @@
 #include "hardware/FaceDisplay.h"
 #include "realtime/RealtimeVoiceService.h"
 #include "system/ServerEndpointStore.h"
+#include "tongdou/ServerConfig.h"
+#if TONGDOU_XIAOZHI_CLOUD
+#include "cloud/XiaozhiCloudIdentityStore.h"
+#endif
 
 namespace tongdou {
 
@@ -36,8 +40,14 @@ class DeviceActivationService {
   static constexpr unsigned long kThirdFailureRetryMs = 5000;
   static constexpr unsigned long kSteadyRetryIntervalMs = 30000;
   static constexpr unsigned long kActivatedCheckIntervalMs = 15UL * 60UL * 1000UL;
+#if TONGDOU_XIAOZHI_CLOUD
+  static constexpr unsigned long kBindingPollIntervalMs = 3000;
+#endif
 
   void requestActivation();
+#if TONGDOU_XIAOZHI_CLOUD
+  void confirmCloudActivation();
+#endif
   String buildReportJson() const;
   bool applyResponse(const String& response);
   bool configureVoiceBackend(const String& websocketUrl, const String& token);
@@ -59,6 +69,12 @@ class DeviceActivationService {
   bool activationCodeEventPending_ = false;
   bool voiceConfigured_ = false;
   bool firmwareUpdateOfferPending_ = false;
+#if TONGDOU_XIAOZHI_CLOUD
+  XiaozhiCloudIdentityStore cloudIdentityStore_;
+  String activationChallenge_;
+  String configuredWebsocketUrl_;
+  String configuredToken_;
+#endif
 };
 
 }  // namespace tongdou

@@ -43,15 +43,15 @@ class FaceDisplay {
   void drawBatteryStatus();
   void drawStatusBar();
   void drawConnectionStatus();
-  void drawBatteryIcon(uint8_t percent, bool charging, bool available);
+  void drawBatteryIcon(uint8_t percent, bool charging, bool available, bool blinkOff);
 
   bool available_ = false;
   bool statusBarEnabled_ = false;
   uint32_t lastStatusBarAtMs_ = 0;
-  uint16_t lastStatusVoltageMv_ = 0;
   uint8_t lastStatusPercent_ = 255;
   bool lastStatusCharging_ = false;
   bool lastStatusAvailable_ = false;
+  bool lastStatusBlinkOff_ = false;
   enum class VoiceStatus : uint8_t { Offline, Connecting, Ready };
   uint8_t wifiBars_ = 0;
   VoiceStatus voiceStatus_ = VoiceStatus::Offline;

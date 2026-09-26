@@ -21,6 +21,9 @@ struct MotionFrame {
 struct MotionSequence {
   const MotionFrame* frames = nullptr;
   size_t count = 0;
+  uint16_t maxReturnMs = 900;
+  // 0 沿用普通动作帧力度；非零值按用户保存的左右轮力度取百分比。
+  uint8_t calibratedDutyPercent = 0;
 };
 
 }  // namespace tongdou

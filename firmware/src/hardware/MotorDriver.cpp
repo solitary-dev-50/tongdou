@@ -106,6 +106,18 @@ void MotorDriver::drive(WheelDrive left, WheelDrive right, uint8_t duty,
   driveRight(right, scaledDuty(rightDuty == 0 ? baseDuty : rightDuty, rightDefaultDuty_));
 }
 
+void MotorDriver::driveAtPercent(WheelDrive left, WheelDrive right,
+                                 uint8_t percent) {
+  if (percent == 0) {
+    stop();
+    return;
+  }
+  // 这里只换算比例；最终输出仍由 drive() 按用户保存的左右轮力度计算。
+  const uint8_t duty = static_cast<uint8_t>(
+      (static_cast<uint16_t>(kDefaultDuty) * min<uint8_t>(percent, 100) + 50) / 100);
+  drive(left, right, duty);
+}
+
 void MotorDriver::stop() {
   driveLeft(WheelDrive::Stop, 0);
   driveRight(WheelDrive::Stop, 0);

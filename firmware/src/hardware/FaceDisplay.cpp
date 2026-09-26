@@ -6,6 +6,14 @@
 
 namespace tongdou {
 
+namespace {
+bool batteryBlinkOff(uint8_t percent, bool charging, uint32_t now) {
+  // 255 表示电量未知，不参与动画；满电停止充电格跳动。
+  const bool blinking = charging ? percent < 100 : percent <= 10;
+  return blinking && (now / 1000) % 2 != 0;
+}
+}  // namespace
+
 void FaceDisplay::begin() {
   Wire.beginTransmission(kAddress);
   available_ = (Wire.endTransmission() == 0);
@@ -103,8 +111,9 @@ void FaceDisplay::updateStatusBar() {
   const uint8_t percent = battery.usingFuelGauge
                               ? static_cast<uint8_t>(min<uint16_t>(100, battery.gauge.stateOfChargePercent))
                               : 255;
+  const bool blinkOff = batteryBlinkOff(percent, battery.charging, now);
   if (!connectionStatusDirty_ &&
-      battery.voltageMv == lastStatusVoltageMv_ && percent == lastStatusPercent_ &&
+      percent == lastStatusPercent_ && blinkOff == lastStatusBlinkOff_ &&
       battery.charging == lastStatusCharging_ &&
       battery.usingFuelGauge == lastStatusAvailable_) {
     lastStatusBarAtMs_ = now;
@@ -188,20 +197,31 @@ void FaceDisplay::drawConnectionStatus() {
     }
   }
 
-  // 对话气泡内：勾为服务可用，三点为连接中，叉为不可用。
-  rect(26, 2, 19, 11);
-  line(29, 13, 29, 15);
-  line(29, 15, 32, 12);
+  // 云朵表示语音服务；勾为可用，三点为连接中，叉为不可用。
+  line(30, 12, 41, 12);
+  line(30, 12, 28, 10);
+  line(28, 10, 28, 8);
+  line(28, 8, 30, 6);
+  line(30, 6, 33, 6);
+  line(33, 6, 34, 3);
+  line(34, 3, 37, 2);
+  line(37, 2, 40, 3);
+  line(40, 3, 41, 6);
+  line(41, 6, 44, 6);
+  line(44, 6, 46, 8);
+  line(46, 8, 46, 10);
+  line(46, 10, 44, 12);
+  line(41, 12, 44, 12);
   if (voiceStatus_ == VoiceStatus::Ready) {
-    line(30, 7, 33, 10);
-    line(33, 10, 40, 4);
+    line(32, 8, 35, 10);
+    line(35, 10, 41, 5);
   } else if (voiceStatus_ == VoiceStatus::Connecting) {
-    pixel(30, 7);
-    pixel(35, 7);
-    pixel(40, 7);
+    pixel(32, 8);
+    pixel(36, 8);
+    pixel(40, 8);
   } else {
-    line(32, 4, 38, 10);
-    line(32, 10, 38, 4);
+    line(34, 5, 40, 11);
+    line(34, 11, 40, 5);
   }
 }
 
@@ -210,31 +230,39 @@ void FaceDisplay::drawBatteryStatus() {
   const uint8_t percent = battery.usingFuelGauge
                               ? static_cast<uint8_t>(min<uint16_t>(100, battery.gauge.stateOfChargePercent))
                               : 255;
-  if (battery.usingFuelGauge) {
-    drawDigit(static_cast<char>('0' + percent / 100), 84, 3, 1);
-    drawDigit(static_cast<char>('0' + (percent / 10) % 10), 91, 3, 1);
-    drawDigit(static_cast<char>('0' + percent % 10), 98, 3, 1);
-  } else {
-    line(85, 7, 89, 7);
-    line(92, 7, 96, 7);
-  }
-  drawBatteryIcon(percent, battery.charging, battery.usingFuelGauge);
-  lastStatusVoltageMv_ = battery.voltageMv;
+  const bool blinkOff = batteryBlinkOff(percent, battery.charging, millis());
+  drawBatteryIcon(percent, battery.charging, battery.usingFuelGauge, blinkOff);
   lastStatusPercent_ = percent;
   lastStatusCharging_ = battery.charging;
   lastStatusAvailable_ = battery.usingFuelGauge;
+  lastStatusBlinkOff_ = blinkOff;
 }
 
-void FaceDisplay::drawBatteryIcon(uint8_t percent, bool charging, bool available) {
-  rect(108, 3, 16, 10);
+void FaceDisplay::drawBatteryIcon(uint8_t percent, bool charging, bool available,
+                                  bool blinkOff) {
+  // 右对齐的五格电池；外框常亮，充电时只闪正在充入的下一格。
+  rect(101, 2, 23, 12);
   fillRect(124, 6, 2, 4);
-  if (charging) {
-    line(115, 4, 112, 9);
-    line(112, 9, 116, 9);
-    line(116, 9, 119, 4);
-  } else if (available && percent != 255) {
-    const int16_t width = static_cast<int16_t>(percent) * 12 / 100;
-    if (width > 0) fillRect(110, 5, width, 6);
+  if (!available) {
+    // 问号：没有可信百分比，不能画成空电池。
+    line(111, 4, 113, 4);
+    pixel(110, 5);
+    line(114, 5, 114, 6);
+    line(113, 7, 112, 8);
+    pixel(112, 10);
+  } else if (charging) {
+    // 已充满的整格常亮，下一格亮一秒、灭一秒；100% 五格常亮。
+    const uint8_t solidBars = percent / 20;
+    const uint8_t bars = solidBars + (solidBars < 5 && !blinkOff ? 1 : 0);
+    for (uint8_t i = 0; i < bars; ++i) {
+      fillRect(103 + i * 4, 4, 3, 8);
+    }
+  } else if (!blinkOff) {
+    // 1～20% 一格，之后每 20% 增一格；0% 也保留闪烁提示。
+    const uint8_t bars = max<uint8_t>(1, (percent + 19) / 20);
+    for (uint8_t i = 0; i < bars; ++i) {
+      fillRect(103 + i * 4, 4, 3, 8);
+    }
   }
 }
 

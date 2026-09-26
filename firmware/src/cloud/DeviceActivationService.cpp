@@ -3,6 +3,12 @@
 #include <ArduinoJson.h>
 #include <HTTPClient.h>
 #include <WiFi.h>
+#include <time.h>
+
+#if TONGDOU_XIAOZHI_CLOUD
+#include <WiFiClientSecure.h>
+#include "tongdou/XiaozhiCloudRootCa.h"
+#endif
 
 #include "tongdou/BuildInfo.h"
 #include "tongdou/BoardProfile.h"
@@ -14,13 +20,18 @@ namespace {
 constexpr const char* kOtaUrl = TONGDOU_OTA_URL;
 
 String macAddress() {
-  return WiFi.macAddress();
+  String address = WiFi.macAddress();
+#if TONGDOU_XIAOZHI_CLOUD
+  address.toLowerCase();
+#endif
+  return address;
 }
 
 String localIpAddress() {
   return WiFi.localIP().toString();
 }
 
+#if !TONGDOU_XIAOZHI_CLOUD
 String urlEncode(const String& value) {
   String encoded;
   const char* hex = "0123456789ABCDEF";
@@ -39,6 +50,18 @@ String urlEncode(const String& value) {
   }
   return encoded;
 }
+#endif
+
+#if TONGDOU_XIAOZHI_CLOUD
+void addCloudHeaders(HTTPClient& http, const String& clientId) {
+  http.addHeader("Content-Type", "application/json");
+  http.addHeader("Activation-Version", "1");
+  http.addHeader("Device-Id", macAddress());
+  http.addHeader("Client-Id", clientId);
+  http.addHeader("User-Agent", String(kBoardType) + "/" + kFirmwareVersion);
+  http.addHeader("Accept-Language", "zh-CN");
+}
+#endif
 
 }  // namespace
 
@@ -68,6 +91,12 @@ void DeviceActivationService::update() {
     return;
   }
 
+#if TONGDOU_XIAOZHI_CLOUD
+  if (state_ == State::WaitingForBinding && activationChallenge_.length() > 0) {
+    confirmCloudActivation();
+    return;
+  }
+#endif
   requestActivation();
 }
 
@@ -94,6 +123,20 @@ bool DeviceActivationService::consumeActivationCodeEvent(String& code) {
 }
 
 void DeviceActivationService::requestActivation() {
+#if TONGDOU_XIAOZHI_CLOUD
+  if (cloudIdentityStore_.clientId().length() == 0 &&
+      !cloudIdentityStore_.begin()) {
+    lastError_ = "cloud_client_id_unavailable";
+    Serial.println("device activation failed: cloud_client_id_unavailable");
+    scheduleFailureRetry();
+    return;
+  }
+  if (time(nullptr) < 1700000000) {
+    lastError_ = "cloud_time_not_ready";
+    scheduleFailureRetry();
+    return;
+  }
+#endif
   String otaUrl = serverEndpointStore_.otaUrl();
   if (otaUrl.length() == 0) {
     otaUrl = kOtaUrl;
@@ -106,17 +149,29 @@ void DeviceActivationService::requestActivation() {
   }
 
   HTTPClient http;
-  if (!http.begin(otaUrl)) {
+#if TONGDOU_XIAOZHI_CLOUD
+  WiFiClientSecure secureClient;
+  secureClient.setCACert(kXiaozhiCloudRootCa);
+  const bool started = otaUrl.startsWith("https://") &&
+                       http.begin(secureClient, otaUrl);
+#else
+  const bool started = http.begin(otaUrl);
+#endif
+  if (!started) {
     lastError_ = "ota_begin_failed";
     Serial.println("device activation failed: ota_begin_failed");
     scheduleFailureRetry();
     return;
   }
 
+#if TONGDOU_XIAOZHI_CLOUD
+  addCloudHeaders(http, cloudIdentityStore_.clientId());
+#else
   const String deviceId = macAddress();
   http.addHeader("Content-Type", "application/json");
   http.addHeader("Device-Id", deviceId);
   http.addHeader("Client-Id", deviceId);
+#endif
 
   const String body = buildReportJson();
   const int status = http.POST(body);
@@ -148,19 +203,79 @@ void DeviceActivationService::requestActivation() {
   }
 
   consecutiveFailures_ = 0;
+#if TONGDOU_XIAOZHI_CLOUD
+  if (state_ == State::WaitingForBinding && activationChallenge_.length() > 0) {
+    scheduleRetry(kBindingPollIntervalMs);
+    return;
+  }
+#endif
   scheduleRetry(state_ == State::Activated ? kActivatedCheckIntervalMs
                                            : kSteadyRetryIntervalMs);
 }
+
+#if TONGDOU_XIAOZHI_CLOUD
+void DeviceActivationService::confirmCloudActivation() {
+  if (time(nullptr) < 1700000000) {
+    lastError_ = "cloud_time_not_ready";
+    scheduleFailureRetry();
+    return;
+  }
+
+  String url = serverEndpointStore_.otaUrl();
+  if (!url.startsWith("https://")) {
+    lastError_ = "cloud_ota_url_invalid";
+    scheduleFailureRetry();
+    return;
+  }
+  if (!url.endsWith("/")) {
+    url += "/";
+  }
+  url += "activate";
+
+  WiFiClientSecure secureClient;
+  secureClient.setCACert(kXiaozhiCloudRootCa);
+  HTTPClient http;
+  if (!http.begin(secureClient, url)) {
+    lastError_ = "cloud_activation_begin_failed";
+    scheduleFailureRetry();
+    return;
+  }
+  addCloudHeaders(http, cloudIdentityStore_.clientId());
+  const int status = http.POST("{}");
+  http.end();
+
+  if (status == 202) {
+    lastError_ = "";
+    scheduleRetry(kBindingPollIntervalMs);
+    return;
+  }
+  if (status == 200) {
+    lastError_ = "";
+    activationChallenge_ = "";
+    consecutiveFailures_ = 0;
+    scheduleRetry(0);
+    return;
+  }
+  lastError_ = "cloud_activation_http_error";
+  Serial.print("device activation failed: cloud activation status=");
+  Serial.println(status);
+  scheduleFailureRetry();
+}
+#endif
 
 String DeviceActivationService::buildReportJson() const {
   JsonDocument doc;
   const String deviceId = macAddress();
 
-  doc["version"] = 1;
+  doc["version"] = TONGDOU_XIAOZHI_CLOUD ? 2 : 1;
   doc["flash_size"] = ESP.getFlashChipSize();
   doc["minimum_free_heap_size"] = ESP.getMinFreeHeap();
   doc["mac_address"] = deviceId;
+#if TONGDOU_XIAOZHI_CLOUD
+  doc["uuid"] = cloudIdentityStore_.clientId();
+#else
   doc["uuid"] = deviceId;
+#endif
   doc["chip_model_name"] = ESP.getChipModel();
   doc["chip_info"]["model"] = 0;
   doc["chip_info"]["cores"] = ESP.getChipCores();
@@ -175,8 +290,13 @@ String DeviceActivationService::buildReportJson() const {
   doc["board"]["type"] = kBoardType;
   doc["board"]["revision"] = kBoardVersion;
   // 发布脚本核对这个完整标识，避免错主板或旧构建被当作新版本发布。
+#if TONGDOU_XIAOZHI_CLOUD
+  doc["board"]["firmware_identity"] =
+      "tongdou-cloud-image:" TONGDOU_BOARD_TYPE ":" TONGDOU_FIRMWARE_VERSION ";";
+#else
   doc["board"]["firmware_identity"] =
       "tongdou-image:" TONGDOU_BOARD_TYPE ":" TONGDOU_FIRMWARE_VERSION ";";
+#endif
   doc["board"]["ssid"] = WiFi.SSID();
   doc["board"]["rssi"] = WiFi.RSSI();
   doc["board"]["channel"] = WiFi.channel();
@@ -206,6 +326,7 @@ bool DeviceActivationService::applyResponse(const String& response) {
     return false;
   }
 
+#if !TONGDOU_XIAOZHI_CLOUD
   const char* firmwareVersion = doc["firmware"]["version"] | "";
   const char* firmwareUrl = doc["firmware"]["url"] | "";
   const char* firmwareSha256 = doc["firmware"]["sha256"] | "";
@@ -226,9 +347,13 @@ bool DeviceActivationService::applyResponse(const String& response) {
       firmwareUpdateOfferPending_ = true;
     }
   }
+#endif
 
   const char* code = doc["activation"]["code"] | "";
   if (strlen(code) > 0) {
+#if TONGDOU_XIAOZHI_CLOUD
+    activationChallenge_ = doc["activation"]["challenge"] | "";
+#endif
     const String newCode(code);
     state_ = State::WaitingForBinding;
     if (activationCode_ != newCode || !codeDisplayed_) {
@@ -251,14 +376,31 @@ bool DeviceActivationService::applyResponse(const String& response) {
     return false;
   }
 
-  if (!voiceConfigured_ && !configureVoiceBackend(String(websocketUrl), String(token))) {
+#if TONGDOU_XIAOZHI_CLOUD
+  const bool needsVoiceConfiguration =
+      !voiceConfigured_ || configuredWebsocketUrl_ != websocketUrl ||
+      configuredToken_ != token;
+#else
+  const bool needsVoiceConfiguration = !voiceConfigured_;
+#endif
+  if (needsVoiceConfiguration &&
+      !configureVoiceBackend(String(websocketUrl), String(token))) {
     return false;
   }
 
   state_ = State::Activated;
+#if TONGDOU_XIAOZHI_CLOUD
+  activationChallenge_ = "";
+  configuredWebsocketUrl_ = websocketUrl;
+  configuredToken_ = token;
+#endif
   activationCode_ = "";
   activationCodeEvent_ = "";
   activationCodeEventPending_ = false;
+#if TONGDOU_XIAOZHI_CLOUD
+  codeDisplayed_ = false;
+#endif
+  lastError_ = "";
   Serial.println("device activation active");
   return true;
 }
@@ -285,6 +427,14 @@ bool DeviceActivationService::configureVoiceBackend(const String& websocketUrl,
 
   config.authorization = token;
   config.deviceId = macAddress();
+#if TONGDOU_XIAOZHI_CLOUD
+  if (!config.useTls) {
+    lastError_ = "cloud_websocket_tls_required";
+    return false;
+  }
+  config.rootCa = kXiaozhiCloudRootCa;
+  config.clientId = cloudIdentityStore_.clientId();
+#else
   config.clientId = macAddress();
   const char separator = config.path.indexOf('?') >= 0 ? '&' : '?';
   config.path += separator;
@@ -296,6 +446,7 @@ bool DeviceActivationService::configureVoiceBackend(const String& websocketUrl,
     config.path += "&authorization=";
     config.path += urlEncode(String("Bearer ") + token);
   }
+#endif
 
   realtimeVoiceService_.configureBackend(config);
   if (!realtimeVoiceService_.connectBackend()) {

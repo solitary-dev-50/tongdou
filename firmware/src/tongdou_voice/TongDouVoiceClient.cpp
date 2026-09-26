@@ -339,7 +339,15 @@ void TongDouVoiceClient::handleTextMessage(const String& payload) {
     snapshot_.sessionId = message.sessionId;
   }
   if (message.hasAudioParams) {
+    if (!audioCodec_.configureDownlink(message.audio)) {
+      snapshot_.ready = false;
+      snapshot_.lastError = audioCodec_.stats().lastError;
+      setState(TongDouVoiceClientState::Failed);
+      return;
+    }
     snapshot_.downstreamAudio = message.audio;
+    Serial.print(F("voice downlink sample_rate="));
+    Serial.println(snapshot_.downstreamAudio.sampleRate);
   }
 
   if (message.type == TongDouVoiceMessageType::Hello) {

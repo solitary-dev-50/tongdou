@@ -4,6 +4,8 @@
 
 #include <WiFi.h>
 
+#include "tongdou/ServerConfig.h"
+
 namespace tongdou {
 namespace {
 
@@ -99,6 +101,7 @@ bool RealtimeVoiceService::connectBackend() {
   hello.audio.channels = 1;
   hello.audio.frameDurationMs = 60;
   hello.mcpEnabled = mcpEnabled_;
+  hello.goodbyeEnabled = !TONGDOU_XIAOZHI_CLOUD;
 
   backendStarted_ = voiceClient_.begin(backendConfig_, hello);
   if (!backendStarted_) {
@@ -162,6 +165,15 @@ bool RealtimeVoiceService::startWakeGreeting(const String& text) {
 bool RealtimeVoiceService::requestReminderAnnouncement(
     uint32_t reminderId, const String& text, const String& locale,
     const String& proactiveEvent) {
+#if TONGDOU_XIAOZHI_CLOUD
+  (void)reminderId;
+  (void)text;
+  (void)locale;
+  (void)proactiveEvent;
+  snapshot_.lastErrorCode = "cloud_reminder_unsupported";
+  snapshot_.lastErrorMessage = "cloud server does not support Tong Dou reminder announcements";
+  return false;
+#else
   if (reminderId == 0 || locale.length() == 0 ||
       (text.length() == 0 && proactiveEvent.length() == 0) ||
       snapshot_.state != RealtimeVoiceState::Idle || !backendStarted_ ||
@@ -200,6 +212,7 @@ bool RealtimeVoiceService::requestReminderAnnouncement(
   Serial.print(F(" locale="));
   Serial.println(locale);
   return true;
+#endif
 }
 
 bool RealtimeVoiceService::abortBackendSpeech() {
@@ -325,6 +338,19 @@ bool RealtimeVoiceService::startTurnWithMode(TongDouVoiceListenMode mode,
 }
 
 bool RealtimeVoiceService::requestConversationExit() {
+#if TONGDOU_XIAOZHI_CLOUD
+  audioOutput_.stopStream();
+  audioPipeline_.stopUpload();
+  capturedPcmFrameUsed_ = 0;
+  voiceClient_.sendAbort();
+  snapshot_.state = RealtimeVoiceState::Idle;
+  snapshot_.conversationExitRequested = false;
+  turnCompletedPending_ = false;
+  conversationTimeoutPending_ = false;
+  reminderResponseTimeoutPending_ = false;
+  conversationEndedPending_ = true;
+  return true;
+#else
   if (!backendStarted_ || !voiceClient_.snapshot().connected) {
     failTurn("voice_exit_backend_unavailable",
              "voice backend is unavailable during manual exit");
@@ -345,6 +371,7 @@ bool RealtimeVoiceService::requestConversationExit() {
   conversationTimeoutPending_ = false;
   reminderResponseTimeoutPending_ = false;
   return true;
+#endif
 }
 
 bool RealtimeVoiceService::playResponse(uint16_t clipId, const String& text) {

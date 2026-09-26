@@ -21,6 +21,12 @@ constexpr MotionFrame kTinyShake[] = {
     {WheelDrive::Reverse, WheelDrive::Forward, 70},
     {WheelDrive::Stop, WheelDrive::Stop, 0},
 };
+// 沿用用户保存的正常力度，通过短通电时间控制幅度，避免低力度无法启动。
+constexpr MotionFrame kMicroTwist[] = {
+    {WheelDrive::Forward, WheelDrive::Reverse, 20, 0},
+    {WheelDrive::Reverse, WheelDrive::Forward, 20, 0},
+    {WheelDrive::Stop, WheelDrive::Stop, 0},
+};
 constexpr MotionFrame kNudgeForward[] = {
     {WheelDrive::Forward, WheelDrive::Forward, 100},
     {WheelDrive::Stop, WheelDrive::Stop, 0},
@@ -68,6 +74,12 @@ MotionSequence MotionPack::sequence(MotionAction action) const {
       return makeSequence(kCheekyDance);
     case MotionAction::MicroNod:
       return makeSequence(kMicroNod);
+    case MotionAction::MicroTwist: {
+      MotionSequence sequence = makeSequence(kMicroTwist);
+      sequence.maxReturnMs = 20;
+      sequence.calibratedDutyPercent = 100;
+      return sequence;
+    }
     case MotionAction::None:
     default:
       return {};

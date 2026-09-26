@@ -1,6 +1,7 @@
 #include <cassert>
 #include <iostream>
 #include "scenario/ScenarioExecutor.h"
+#include "scenario/ScenarioEngine.h"
 
 unsigned long fakeMillis = 100;
 TestSerial Serial;
@@ -19,6 +20,32 @@ int main() {
     assert(!executor.motionRunning());
     assert(motors.left == WheelDrive::Stop && motors.right == WheelDrive::Stop);
   };
+
+  // 失败剧情只原地轻扭；动作及回正均使用用户保存的正常力度。
+  const ScenarioLibrary library;
+  const ScenarioEngine engine(library);
+  const auto failure = engine.select({ScenarioEventType::VoiceRecognitionFailed, 0}, {});
+  assert(failure.valid && failure.motion == MotionAction::MicroTwist);
+  executor.execute(failure);
+  tick(180);
+  assert(motors.left == WheelDrive::Forward && motors.right == WheelDrive::Reverse);
+  assert(motors.lastPercent == 100);
+  imu.rate = 100000; // 故意留下偏角，检验回正不会延长到原来的 900 毫秒。
+  tick(20);
+  assert(motors.left == WheelDrive::Reverse && motors.right == WheelDrive::Forward);
+  assert(motors.lastPercent == 100);
+  tick(20);
+  assert(motors.left == WheelDrive::Stop && motors.right == WheelDrive::Stop);
+  tick(1);
+  assert(executor.motionRunning());
+  assert(motors.lastPercent == 100);
+  tick(20);
+  stopped();
+  const auto startsAfterFailure = motors.starts;
+  tick(1500);
+  stopped();
+  assert(motors.starts == startsAfterFailure);
+  imu.rate = 0;
 
   // 三种动作使用真实帧：方向正确，时间到自动停止。
   for (auto action : {MotionAction::NudgeForward, MotionAction::ShrinkBack,

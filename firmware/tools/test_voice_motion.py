@@ -33,11 +33,18 @@ struct MotorDriver {
   bool fault=false;
   WheelDrive left=WheelDrive::Stop, right=WheelDrive::Stop;
   unsigned starts=0;
-  void drive(WheelDrive l, WheelDrive r, uint8_t, uint8_t=0) {
+  uint8_t lastDuty=255, lastPercent=0;
+  void drive(WheelDrive l, WheelDrive r, uint8_t duty, uint8_t=0) {
     if(fault) { stop(); return; }
+    lastDuty=duty;
+    lastPercent=0;
     left=l; right=r; ++starts;
   }
   void stop() { left=right=WheelDrive::Stop; }
+  void driveAtPercent(WheelDrive l, WheelDrive r, uint8_t percent) {
+    drive(l,r,0);
+    lastPercent=percent;
+  }
   bool faultActive() const { return fault; }
 };
 }
@@ -89,6 +96,46 @@ struct AudioOutput {
 ''',
 }
 
+MOTOR_STUBS = {
+    "Arduino.h": STUBS["Arduino.h"] + r'''
+using gpio_num_t = int;
+using std::min;
+constexpr int LOW=0, HIGH=1, INPUT_PULLUP=2, OUTPUT=3;
+extern unsigned pwmDuty[4];
+extern int pinLevel[64];
+inline void digitalWrite(int pin, int level) { pinLevel[pin]=level; }
+inline int digitalRead(int) { return HIGH; }
+inline void pinMode(int,int) {}
+inline void ledcSetup(uint8_t,uint32_t,uint8_t) {}
+inline void ledcAttachPin(int,uint8_t) {}
+inline void ledcWrite(uint8_t channel,uint8_t duty) { pwmDuty[channel]=duty; }
+inline void delayMicroseconds(unsigned) {}
+''',
+    "Preferences.h": r'''
+#pragma once
+#include <map>
+#include <string>
+#include <stdint.h>
+extern std::map<std::string,unsigned> savedMotorPreferences;
+class Preferences {
+public:
+  bool begin(const char*,bool) { return true; }
+  bool getBool(const char* key,bool fallback) { return savedMotorPreferences.count(key)?savedMotorPreferences[key]:fallback; }
+  uint8_t getUChar(const char* key,uint8_t fallback) { return savedMotorPreferences.count(key)?savedMotorPreferences[key]:fallback; }
+  void putBool(const char* key,bool value) { savedMotorPreferences[key]=value; }
+  void putUChar(const char* key,uint8_t value) { savedMotorPreferences[key]=value; }
+  void end() {}
+};
+''',
+    "tongdou/Pins.h": r'''
+#pragma once
+namespace tongdou { namespace pins {
+constexpr int MOTOR_FAULT=37, MOTOR_SLEEP=42;
+constexpr int MOTOR_AIN1=1, MOTOR_AIN2=2, MOTOR_BIN1=3, MOTOR_BIN2=4;
+} }
+''',
+}
+
 
 def main():
     firmware = Path(__file__).resolve().parents[1]
@@ -105,13 +152,27 @@ def main():
         executable = work / "test_voice_motion.exe"
         sources = ["scenario/ScenarioExecutor.cpp", "motion/GyroMotionController.cpp",
                    "motion/MotionPack.cpp", "face/FacePack.cpp", "light/LightPack.cpp",
-                   "voice/VoiceLinePack.cpp"]
+                   "voice/VoiceLinePack.cpp", "scenario/ScenarioEngine.cpp",
+                   "scenario/ScenarioLibrary.cpp"]
         subprocess.run([compiler, "-std=c++17", "-Wall", "-Wextra",
                         "-I", str(work), "-I", str(firmware / "src"),
                         str(firmware / "tests/test_voice_motion.cpp"),
                         *[str(firmware / "src" / s) for s in sources],
                         "-o", str(executable)], check=True, env=env)
         subprocess.run([str(executable)], check=True, env=env)
+
+        motor_work = work / "motor_strength"
+        for name, content in MOTOR_STUBS.items():
+            target = motor_work / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(content, encoding="utf-8")
+        motor_executable = motor_work / "test_motor_strength.exe"
+        subprocess.run([compiler, "-std=c++17", "-Wall", "-Wextra",
+                        "-I", str(motor_work), "-I", str(firmware / "src"),
+                        str(firmware / "tests/test_motor_strength.cpp"),
+                        str(firmware / "src/hardware/MotorDriver.cpp"),
+                        "-o", str(motor_executable)], check=True, env=env)
+        subprocess.run([str(motor_executable)], check=True, env=env)
 
 
 if __name__ == "__main__":

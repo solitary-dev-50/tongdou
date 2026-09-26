@@ -25,7 +25,12 @@ void TongDouVoiceWebSocketClient::begin(const TongDouVoiceConnectionConfig& conf
   }
 
   if (config_.useTls) {
-    socket_.beginSSL(config_.host.c_str(), config_.port, config_.path.c_str());
+    if (config_.rootCa != nullptr) {
+      socket_.beginSslWithCA(config_.host.c_str(), config_.port,
+                             config_.path.c_str(), config_.rootCa);
+    } else {
+      socket_.beginSSL(config_.host.c_str(), config_.port, config_.path.c_str());
+    }
   } else {
     socket_.begin(config_.host.c_str(), config_.port, config_.path.c_str());
   }

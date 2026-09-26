@@ -4,7 +4,6 @@ namespace tongdou {
 namespace {
 
 constexpr unsigned long kBiasMs = 180;
-constexpr unsigned long kMaxReturnMs = 900;
 constexpr int32_t kYawDeadbandMdeg = 1400;
 constexpr int32_t kStraightKpDivisor = 180;
 constexpr int32_t kStraightKdDivisor = 900;
@@ -90,7 +89,7 @@ void GyroMotionController::update() {
       finish(F("returned"));
       return;
     }
-    if (now - returnStartedMs_ >= kMaxReturnMs) {
+    if (now - returnStartedMs_ >= sequence_.maxReturnMs) {
       finish(F("return_timeout"));
       return;
     }
@@ -181,7 +180,11 @@ void GyroMotionController::driveCurrentFrame() {
   }
 
   if (!currentFrameNeedsYawHold()) {
-    motors_.drive(frame.left, frame.right, currentDuty_);
+    if (sequence_.calibratedDutyPercent > 0) {
+      motors_.driveAtPercent(frame.left, frame.right, sequence_.calibratedDutyPercent);
+    } else {
+      motors_.drive(frame.left, frame.right, currentDuty_);
+    }
     return;
   }
 
@@ -207,10 +210,12 @@ void GyroMotionController::startReturn(unsigned long now) {
 }
 
 void GyroMotionController::driveReturn() {
-  if (yawMdeg_ > 0) {
-    motors_.drive(WheelDrive::Reverse, WheelDrive::Forward, kReturnDuty);
+  const WheelDrive left = yawMdeg_ > 0 ? WheelDrive::Reverse : WheelDrive::Forward;
+  const WheelDrive right = yawMdeg_ > 0 ? WheelDrive::Forward : WheelDrive::Reverse;
+  if (sequence_.calibratedDutyPercent > 0) {
+    motors_.driveAtPercent(left, right, sequence_.calibratedDutyPercent);
   } else {
-    motors_.drive(WheelDrive::Forward, WheelDrive::Reverse, kReturnDuty);
+    motors_.drive(left, right, kReturnDuty);
   }
 }
 

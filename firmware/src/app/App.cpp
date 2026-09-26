@@ -3,6 +3,7 @@
 #include <WiFi.h>
 
 #include "tongdou/BuildInfo.h"
+#include "tongdou/ServerConfig.h"
 
 namespace tongdou {
 namespace {
@@ -46,10 +47,12 @@ void App::begin() {
   }
 
   realtimeVoiceService_.begin();
+#if !TONGDOU_XIAOZHI_CLOUD
   realtimeVoiceService_.setMcpPayloadHandler(
       [this](const String& payload) {
         return mcpServer_.handleVoicePayloadText(payload);
       });
+#endif
   voiceVisualFeedback_.begin();
   Serial.println("realtime voice ready");
 

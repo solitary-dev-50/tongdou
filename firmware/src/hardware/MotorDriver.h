@@ -12,6 +12,7 @@ class MotorDriver {
   void drive(WheelDrive left, WheelDrive right, uint8_t leftDuty, uint8_t rightDuty);
   void drive(WheelDrive left, WheelDrive right, uint8_t duty, uint8_t leftDuty,
              uint8_t rightDuty);
+  void driveAtPercent(WheelDrive left, WheelDrive right, uint8_t percent);
   void stop();
   bool leftInverted() const;
   bool rightInverted() const;

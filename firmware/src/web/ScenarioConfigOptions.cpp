@@ -57,6 +57,7 @@ constexpr MotionAction kMotions[] = {
     MotionAction::ShrinkBack,
     MotionAction::CheekyDance,
     MotionAction::MicroNod,
+    MotionAction::MicroTwist,
 };
 
 constexpr VoiceLine kVoices[] = {

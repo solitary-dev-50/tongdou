@@ -2,7 +2,10 @@
 
 #include <HTTPClient.h>
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <esp_heap_caps.h>
+
+#include "tongdou/LocaleResourceRootCa.h"
 
 namespace tongdou {
 namespace {
@@ -40,7 +43,8 @@ LocaleResourceUpdateResult LocaleResourceUpdateService::downloadAndInstall(
   if (baseUrl_.length() == 0) {
     return fail("locale_resource_endpoint_missing");
   }
-  if (!baseUrl_.startsWith("http://")) {
+  const bool useHttps = baseUrl_.startsWith("https://");
+  if (!useHttps && !baseUrl_.startsWith("http://")) {
     return fail("locale_resource_endpoint_unsupported");
   }
   if (formatVersion_ != kSupportedFormatVersion) {
@@ -55,10 +59,16 @@ LocaleResourceUpdateResult LocaleResourceUpdateService::downloadAndInstall(
 
   const String url = baseUrl_ + "/" + locale + ".bin";
   WiFiClient client;
+  WiFiClientSecure secureClient;
+  if (useHttps) {
+    secureClient.setCACert(kLocaleResourceRootCa);
+  }
   HTTPClient http;
   http.useHTTP10(true);
   http.setTimeout(kDownloadStallTimeoutMs);
-  if (!http.begin(client, url)) {
+  const bool httpStarted = useHttps ? http.begin(secureClient, url)
+                                   : http.begin(client, url);
+  if (!httpStarted) {
     return fail("locale_resource_http_begin_failed");
   }
 
@@ -69,6 +79,20 @@ LocaleResourceUpdateResult LocaleResourceUpdateService::downloadAndInstall(
 
   const int statusCode = http.GET();
   if (statusCode != HTTP_CODE_OK) {
+    if (statusCode <= 0) {
+      Serial.print(F("locale update transport error="));
+      Serial.println(HTTPClient::errorToString(statusCode));
+      if (useHttps) {
+        char tlsError[160] = {};
+        const int tlsCode = secureClient.lastError(tlsError, sizeof(tlsError));
+        if (tlsCode != 0) {
+          Serial.print(F("locale update TLS error="));
+          Serial.println(tlsError);
+          http.end();
+          return fail(String("locale_resource_tls_failed:") + tlsCode);
+        }
+      }
+    }
     http.end();
     return fail(String("locale_resource_http_status:") + statusCode);
   }

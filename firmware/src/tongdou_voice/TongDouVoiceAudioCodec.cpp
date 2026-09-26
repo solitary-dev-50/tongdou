@@ -81,11 +81,37 @@ bool TongDouVoiceAudioCodec::begin(const TongDouVoiceAudioParams& audio) {
     end();
     return false;
   }
+  decoderSampleRate_ = audio_.sampleRate;
 
   opus_encoder_ctl(encoder_, OPUS_SET_BITRATE(kOpusBitrate));
   opus_encoder_ctl(encoder_, OPUS_SET_COMPLEXITY(kOpusComplexity));
 
   stats_.ready = true;
+  stats_.lastError = "";
+  return true;
+}
+
+bool TongDouVoiceAudioCodec::configureDownlink(
+    const TongDouVoiceAudioParams& audio) {
+  if (!ready() || decoder_ == nullptr || audio.format != "opus" ||
+      audio.channels != 1 || !isSupportedSampleRate(audio.sampleRate)) {
+    stats_.lastError = "unsupported_downlink_audio_params";
+    return false;
+  }
+  if (decoderSampleRate_ == audio.sampleRate) {
+    return true;
+  }
+
+  int error = OPUS_OK;
+  OpusDecoder* replacement = opus_decoder_create(audio.sampleRate, 1, &error);
+  if (error != OPUS_OK || replacement == nullptr) {
+    setNativeError(error);
+    stats_.lastError = "opus_downlink_decoder_create_failed";
+    return false;
+  }
+  opus_decoder_destroy(decoder_);
+  decoder_ = replacement;
+  decoderSampleRate_ = audio.sampleRate;
   stats_.lastError = "";
   return true;
 }
@@ -99,6 +125,7 @@ void TongDouVoiceAudioCodec::end() {
     opus_decoder_destroy(decoder_);
     decoder_ = nullptr;
   }
+  decoderSampleRate_ = 0;
   frameSamples_ = 0;
   stats_.ready = false;
 }

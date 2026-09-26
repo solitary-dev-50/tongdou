@@ -24,6 +24,7 @@ struct TongDouVoiceConnectionConfig {
   uint16_t port = 8100;
   String path = "/xiaozhi/v1/";
   bool useTls = false;
+  const char* rootCa = nullptr;
   String authorization;
   String deviceId;
   String clientId = "tongdou-demo";

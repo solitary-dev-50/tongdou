@@ -37,6 +37,7 @@ class TongDouVoiceAudioCodec {
   ~TongDouVoiceAudioCodec();
 
   bool begin(const TongDouVoiceAudioParams& audio);
+  bool configureDownlink(const TongDouVoiceAudioParams& audio);
   void end();
   TongDouVoiceAudioCodecSelfTestResult runSelfTest();
   bool encodePcm16ToOpus(const int16_t* pcm, size_t sampleCount, uint8_t* opus,
@@ -55,6 +56,7 @@ class TongDouVoiceAudioCodec {
   TongDouVoiceAudioParams audio_;
   OpusEncoder* encoder_ = nullptr;
   OpusDecoder* decoder_ = nullptr;
+  uint16_t decoderSampleRate_ = 0;
   size_t frameSamples_ = 0;
 };
 

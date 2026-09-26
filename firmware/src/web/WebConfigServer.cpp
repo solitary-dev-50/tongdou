@@ -6,6 +6,7 @@
 #include <stdlib.h>
 
 #include "tongdou/BuildInfo.h"
+#include "tongdou/ServerConfig.h"
 
 namespace tongdou {
 namespace {
@@ -480,6 +481,31 @@ I18N['ru-RU']={...I18N['en-GB'],appTitle:'Панель Tong Dou',appSub:'Лок�
 I18N['ru-RU'].serverUrl='Адрес сервера TongDou, например http://192.168.1.20:8102';
 I18N['ru-RU'].serverHelp='Введите адрес сервера TongDou, показанный скриптом запуска.';
 I18N['ru-RU'].missingServer='Сначала введите адрес сервера TongDou.';
+)HTML");
+#if TONGDOU_XIAOZHI_CLOUD
+    body += F(R"HTML(
+I18N['zh-CN'].serverUrl='小智云设备地址：https://api.tenclass.net';
+I18N['zh-CN'].serverHelp='使用预填地址，配对码到 xiaozhi.me 绑定。';
+I18N['zh-CN'].missingServer='请填写小智云设备地址';
+I18N['zh-CN'].languageHelp='小智云版暂不支持切换本机语言；云端对话语言在 xiaozhi.me 设置。';
+I18N['en-GB'].serverUrl='Xiaozhi cloud address: https://api.tenclass.net';
+I18N['en-GB'].serverHelp='Keep the preset address. Pair the code at xiaozhi.me.';
+I18N['en-GB'].missingServer='Enter the Xiaozhi cloud address.';
+I18N['en-GB'].languageHelp='Local language switching is unavailable in this build. Set conversation language at xiaozhi.me.';
+I18N['fr-FR'].serverUrl='Adresse Xiaozhi : https://api.tenclass.net';
+I18N['fr-FR'].serverHelp='Conservez cette adresse. Associez le code sur xiaozhi.me.';
+I18N['fr-FR'].missingServer='Saisissez l’adresse Xiaozhi.';
+I18N['fr-CA']=I18N['fr-FR'];
+I18N['nl-NL'].serverUrl='Xiaozhi-adres: https://api.tenclass.net';
+I18N['nl-NL'].serverHelp='Behoud dit adres. Koppel de code op xiaozhi.me.';
+I18N['nl-NL'].missingServer='Vul het Xiaozhi-adres in.';
+I18N['ru-RU'].serverUrl='Адрес Xiaozhi: https://api.tenclass.net';
+I18N['ru-RU'].serverHelp='Оставьте этот адрес. Привяжите код на xiaozhi.me.';
+I18N['ru-RU'].missingServer='Введите адрес Xiaozhi.';
+document.getElementById('locale').disabled=true;
+)HTML");
+#endif
+    body += F(R"HTML(
 let currentLocale='en-GB';
 function tr(k){let d=I18N[currentLocale]||I18N['en-GB'];return (d&&d[k])||I18N['en-GB'][k]||I18N['zh-CN'][k]||k}
 function applyI18n(){document.documentElement.lang=currentLocale;document.title=tr('appTitle');document.querySelectorAll('[data-i18n]').forEach(e=>e.textContent=tr(e.dataset.i18n));document.querySelectorAll('[data-i18n-placeholder]').forEach(e=>e.placeholder=tr(e.dataset.i18nPlaceholder))}
@@ -691,6 +717,11 @@ void WebConfigServer::handleLocaleGet() {
 }
 
 void WebConfigServer::handleLocaleSave() {
+#if TONGDOU_XIAOZHI_CLOUD
+  sendText(409, "text/plain; charset=utf-8",
+           "小智云版暂不支持切换本机语言");
+  return;
+#endif
   String locale = server_.arg("locale");
   locale.trim();
 
