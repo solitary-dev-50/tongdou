@@ -217,6 +217,10 @@ WebConfigEvent WebConfigServer::consumeEvent() {
   return WebConfigEvent::None;
 }
 
+const char* WebConfigServer::setupSsid() const {
+  return kPortalSsid;
+}
+
 void WebConfigServer::startPortal() {
   stopMdns();
   WiFi.mode(WIFI_AP_STA);

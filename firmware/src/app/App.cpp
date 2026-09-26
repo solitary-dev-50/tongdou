@@ -694,11 +694,22 @@ void App::handleAudioCueEvents() {
     switch (event) {
       case WebConfigEvent::SetupPortalStarted:
         playLocalizedCue(LocalizedAudioCue::WifiConfig, "wifi_config");
+        {
+          const String qrText = "WIFI:S:" + String(webConfigServer_.setupSsid()) + ";;";
+          if (hardware_.faceDisplay().showQrCode(qrText.c_str())) {
+            setupQrRevision_ = hardware_.faceDisplay().revision();
+          }
+        }
         break;
       case WebConfigEvent::LocaleChanged:
         playLocalizedCue(LocalizedAudioCue::WifiConfig, "locale_changed_wifi_config");
         break;
       case WebConfigEvent::WifiConnected:
+        if (setupQrRevision_ != 0 &&
+            hardware_.faceDisplay().revision() == setupQrRevision_) {
+          hardware_.faceDisplay().show(FaceExpression::Sleep);
+        }
+        setupQrRevision_ = 0;
         Serial.print(F("startup timeline wifi_ready elapsed_ms="));
         Serial.print(millis() - bootMs_);
         Serial.println(F(" waiting_voice_backend=1"));

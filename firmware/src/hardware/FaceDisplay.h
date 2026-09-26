@@ -19,6 +19,7 @@ class FaceDisplay {
                            bool voiceConnecting);
   void showActivationCode(const String& code);
   bool showBitmap128x48(const uint8_t* bitmap, size_t length);
+  bool showQrCode(const char* text);
   bool ready() const;
   uint32_t revision() const;
 

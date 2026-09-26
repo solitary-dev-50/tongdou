@@ -39,6 +39,7 @@ class WebConfigServer {
   void update();
   ScenarioConfigApi& scenarioApi();
   WebConfigEvent consumeEvent();
+  const char* setupSsid() const;
 
  private:
   enum class NetworkState : uint8_t {

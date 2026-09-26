@@ -2,11 +2,46 @@
 
 #include <Arduino.h>
 #include <Wire.h>
+#include <qrcode.h>
 #include <string.h>
 
 namespace tongdou {
 
 namespace {
+uint8_t* qrFrame = nullptr;
+bool qrFrameReady = false;
+
+void renderQrCode(esp_qrcode_handle_t code) {
+  const int modules = esp_qrcode_get_size(code);
+  if (qrFrame == nullptr || modules != 25) {
+    return;
+  }
+
+  // 25 格二维码放大两倍，周围留 7 像素亮边，落在 64 像素屏高内。
+  constexpr int kLeft = 32;
+  constexpr int kQuiet = 7;
+  constexpr int kScale = 2;
+  for (int page = 0; page < 8; ++page) {
+    memset(qrFrame + page * 128 + kLeft, 0xFF, 64);
+  }
+  for (int y = 0; y < modules; ++y) {
+    for (int x = 0; x < modules; ++x) {
+      if (!esp_qrcode_get_module(code, x, y)) {
+        continue;
+      }
+      for (int dy = 0; dy < kScale; ++dy) {
+        const int pixelY = kQuiet + y * kScale + dy;
+        for (int dx = 0; dx < kScale; ++dx) {
+          const int pixelX = kLeft + kQuiet + x * kScale + dx;
+          qrFrame[(pixelY / 8) * 128 + pixelX] &=
+              static_cast<uint8_t>(~(1u << (pixelY % 8)));
+        }
+      }
+    }
+  }
+  qrFrameReady = true;
+}
+
 bool batteryBlinkOff(uint8_t percent, bool charging, uint32_t now) {
   // 255 表示电量未知，不参与动画；满电停止充电格跳动。
   const bool blinking = charging ? percent < 100 : percent <= 10;
@@ -98,6 +133,28 @@ bool FaceDisplay::showBitmap128x48(const uint8_t* bitmap, size_t length) {
   clear();
   statusBarEnabled_ = false;
   memcpy(buffer_ + kWidth, bitmap, kBitmapSize);
+  flush();
+  ++revision_;
+  return true;
+}
+
+bool FaceDisplay::showQrCode(const char* text) {
+  if (!available_ || text == nullptr) {
+    return false;
+  }
+
+  uint8_t frame[kBufferSize] = {};
+  qrFrame = frame;
+  qrFrameReady = false;
+  esp_qrcode_config_t config = {renderQrCode, 2, ESP_QRCODE_ECC_MED};
+  const esp_err_t result = esp_qrcode_generate(&config, text);
+  qrFrame = nullptr;
+  if (result != ESP_OK || !qrFrameReady) {
+    return false;
+  }
+
+  memcpy(buffer_, frame, sizeof(buffer_));
+  statusBarEnabled_ = false;
   flush();
   ++revision_;
   return true;

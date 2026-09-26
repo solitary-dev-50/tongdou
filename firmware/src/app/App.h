@@ -133,6 +133,7 @@ class App {
   unsigned long nextLocaleResourceRepairMs_ = 0;
   unsigned long nextFirmwareUpdateAttemptMs_ = 0;
   bool firmwareUpdateWaitingLogged_ = false;
+  uint32_t setupQrRevision_ = 0;
 };
 
 }  // namespace tongdou
