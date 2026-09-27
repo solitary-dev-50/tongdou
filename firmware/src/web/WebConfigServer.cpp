@@ -21,6 +21,7 @@ constexpr unsigned long kConnectTimeoutMs = 12000;
 constexpr unsigned long kOutOfRangeConnectTimeoutMs = 4000;
 constexpr unsigned long kDeferredConnectDelayMs = 400;
 constexpr unsigned long kStationDisconnectSettleMs = 120;
+constexpr unsigned long kSetupPortalHoldMs = 60000;
 constexpr uint32_t kWifiScanFirstPassMsPerChannel = 220;
 constexpr uint32_t kWifiScanRetryMsPerChannel = 300;
 
@@ -176,9 +177,15 @@ void WebConfigServer::update() {
   }
 
   if (state_ == NetworkState::Connecting) {
-    if (WiFi.status() == WL_CONNECTED && WiFi.SSID() == connectingSsid_) {
+    if (WiFi.status() == WL_CONNECTED && WiFi.SSID() == connectingSsid_ &&
+        static_cast<uint32_t>(WiFi.localIP()) != 0) {
       state_ = NetworkState::Connected;
       tryingSavedNetworks_ = false;
+      if (setupResult_ == SetupResult::Connecting) {
+        setupResult_ = SetupResult::Connected;
+        closeSetupPortalAfterSuccess_ = dnsStarted_;
+        setupConnectedAtMs_ = millis();
+      }
       if (activeNetworkIndex_ < wifiStore_.count()) {
         WifiCredentials connected;
         if (wifiStore_.loadAt(activeNetworkIndex_, connected)) {
@@ -197,9 +204,31 @@ void WebConfigServer::update() {
     } else if (millis() - connectStartedMs_ > connectTimeoutMs_) {
       Serial.println("wifi connect timeout");
       if (!tryingSavedNetworks_ || !startNextSavedNetwork()) {
+        if (setupResult_ == SetupResult::Connecting) {
+          setupResult_ = SetupResult::Failed;
+        }
         wifiConnectFailedEvent_ = true;
         startPortal();
       }
+    }
+  }
+
+  if (closeSetupPortalAfterSuccess_ &&
+      state_ == NetworkState::Connected && WiFi.status() != WL_CONNECTED) {
+    closeSetupPortalAfterSuccess_ = false;
+    setupResult_ = SetupResult::Failed;
+    wifiConnectFailedEvent_ = true;
+    startPortal();
+  } else if (closeSetupPortalAfterSuccess_ &&
+             millis() - setupConnectedAtMs_ >= kSetupPortalHoldMs) {
+    closeSetupPortalAfterSuccess_ = false;
+    if (WiFi.softAPdisconnect(true)) {
+      dnsServer_.stop();
+      dnsStarted_ = false;
+    } else {
+      Serial.println("setup portal stop failed");
+      closeSetupPortalAfterSuccess_ = true;
+      setupConnectedAtMs_ = millis();
     }
   }
 
@@ -238,15 +267,19 @@ void WebConfigServer::startPortal() {
   tryingSavedNetworks_ = false;
   activeNetworkIndex_ = WifiConfigStore::kMaxNetworks;
   stopMdns();
-  WiFi.mode(WIFI_AP_STA);
-  WiFi.setSleep(false);
-  WiFi.disconnect(false, false);
-  delay(kStationDisconnectSettleMs);
-  WiFi.softAPConfig(kPortalIp, kPortalGateway, kPortalSubnet);
-  WiFi.softAP(kPortalSsid);
-
-  dnsServer_.start(kDnsPort, "*", kPortalIp);
-  dnsStarted_ = true;
+  if (dnsStarted_ && (WiFi.getMode() & WIFI_AP) != 0) {
+    // 试连失败时保留原热点，手机可在当前页面直接修改重试。
+    WiFi.disconnect(false, false);
+  } else {
+    WiFi.mode(WIFI_AP_STA);
+    WiFi.setSleep(false);
+    WiFi.disconnect(false, false);
+    delay(kStationDisconnectSettleMs);
+    WiFi.softAPConfig(kPortalIp, kPortalGateway, kPortalSubnet);
+    WiFi.softAP(kPortalSsid);
+    dnsServer_.start(kDnsPort, "*", kPortalIp);
+    dnsStarted_ = true;
+  }
   state_ = NetworkState::Portal;
   setupPortalStartedEvent_ = true;
 
@@ -258,9 +291,10 @@ void WebConfigServer::startPortal() {
 
 void WebConfigServer::startStation(const WifiCredentials& credentials) {
   stopMdns();
-  WiFi.mode(state_ == NetworkState::Portal ? WIFI_AP_STA : WIFI_STA);
+  WiFi.mode((WiFi.getMode() & WIFI_AP) != 0 ? WIFI_AP_STA : WIFI_STA);
   WiFi.setSleep(false);
   WiFi.disconnect(false, false);
+  delay(kStationDisconnectSettleMs);
   WiFi.begin(credentials.ssid.c_str(), credentials.password.c_str());
   connectingSsid_ = credentials.ssid;
   connectStartedMs_ = millis();
@@ -432,6 +466,7 @@ pre{white-space:pre-wrap;background:#0b0b0b;padding:12px;border-radius:8px;min-h
 .meter{height:16px;background:#0b0b0b;border:1px solid #2a2a2a;border-radius:999px;overflow:hidden}.bar{height:100%;width:0;background:#e7b45f}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:8px}@media(max-width:560px){.row{grid-template-columns:1fr}}
 small{color:#aaa}
+#msg{margin-top:12px;font-size:16px;font-weight:600;line-height:1.5;word-break:break-word}
 </style></head><body><main>
 <h1 data-i18n="appTitle">铜豆控制台</h1><p class="sub" data-i18n="appSub">本地配置、状态查看和硬件诊断。</p>
 
@@ -464,8 +499,8 @@ small{color:#aaa}
 <input id="password" name="password" type="password" placeholder="WiFi 密码" data-i18n-placeholder="wifiPassword">
 <input id="serverUrl" name="serverUrl" placeholder="铜豆服务器地址，例如 http://192.168.1.20:8102" data-i18n-placeholder="serverUrl" required>
 <small data-i18n="serverHelp">请填写启动脚本显示的 TongDou LAN server 地址。</small>
-<div class="row"><button id="scanBtn" type="button" class="secondary" onclick="scanWifi()" data-i18n="scanWifi">扫描附近 WiFi</button><button type="submit" data-i18n="saveConnect">保存并连接</button></div>
-</form><div id="wifiList" class="grid"></div><h3 data-i18n="savedWifi">已保存的无线网络</h3><div id="savedWifiList" class="grid"></div><button onclick="syncTime()" data-i18n="syncTime">同步当前时间</button><small id="msg"></small></section>
+<div class="row"><button id="scanBtn" type="button" class="secondary" onclick="scanWifi()" data-i18n="scanWifi">扫描附近 WiFi</button><button id="wifiSaveBtn" type="submit" data-i18n="saveConnect">保存并连接</button></div>
+</form><div id="wifiList" class="grid"></div><h3 data-i18n="savedWifi">已保存的无线网络</h3><div id="savedWifiList" class="grid"></div><button onclick="syncTime()" data-i18n="syncTime">同步当前时间</button><div id="msg" role="status" aria-live="polite"></div></section>
 
 <section class="card"><h2 data-i18n="microphone">麦克风</h2>
 <div class="meter"><div class="bar" id="micBar"></div></div>
@@ -593,11 +628,14 @@ document.getElementById('locale').disabled=true;
 let currentLocale='en-GB';
 I18N['zh-CN'].savedWifi='已保存的无线网络';I18N['zh-CN'].removeWifi='删除';I18N['zh-CN'].deleteWifiConfirm='删除这组无线网络？';
 I18N['en-GB'].savedWifi='Saved WiFi networks';I18N['en-GB'].removeWifi='Remove';I18N['en-GB'].deleteWifiConfirm='Remove this WiFi network?';
+I18N['zh-CN'].wifiConnecting='正在连接，请稍候；铜豆会在网页显示结果。';I18N['zh-CN'].wifiSuccess='无线网络已连接。铜豆地址：';I18N['zh-CN'].wifiSuccessHelp='请让手机切回该无线网络后访问此地址。';I18N['zh-CN'].wifiFailed='连接失败，请检查密码、网络名称和信号，然后直接修改重试。';I18N['zh-CN'].wifiUnknown='网页暂时无法确认结果。若手机离开了铜豆热点，请重新连接并打开本页查看状态。';
+I18N['en-GB'].wifiConnecting='Connecting. Please wait for the result on this page.';I18N['en-GB'].wifiSuccess='WiFi connected. Tong Dou address: ';I18N['en-GB'].wifiSuccessHelp='Switch your phone to that WiFi network before opening this address.';I18N['en-GB'].wifiFailed='Connection failed. Check the password, network name and signal, then try again.';I18N['en-GB'].wifiUnknown='The page cannot confirm the result. If your phone left the Tong Dou hotspot, reconnect and check this page.';
 function tr(k){let d=I18N[currentLocale]||I18N['en-GB'];return (d&&d[k])||I18N['en-GB'][k]||I18N['zh-CN'][k]||k}
 function applyI18n(){document.documentElement.lang=currentLocale;document.title=tr('appTitle');document.querySelectorAll('[data-i18n]').forEach(e=>e.textContent=tr(e.dataset.i18n));document.querySelectorAll('[data-i18n-placeholder]').forEach(e=>e.placeholder=tr(e.dataset.i18nPlaceholder))}
 function localeName(v){return {'en-GB':'English UK','en-CA':'English Canada','fr-FR':'Français','fr-CA':'Français Canada','nl-NL':'Nederlands','ru-RU':'Русский','zh-CN':'中文'}[v]||v}
 function capText(c){let a=[];if(c.reminders)a.push(tr('reminders'));if(c.web)a.push(tr('web'));if(c.visual)a.push(tr('visual'));if(c.sound)a.push(tr('sound'));if(c.voiceInput)a.push(tr('voiceInput'));return a.join(' / ')||tr('none')}
-async function loadStatus(){try{let r=await fetch('/api/status');let j=await r.json();currentLocale=j.locale||currentLocale;if($('locale').value!==currentLocale)$('locale').value=currentLocale;if(!$('serverUrl').value&&j.serverOtaUrl)$('serverUrl').value=j.serverOtaUrl.replace(/\/xiaozhi\/ota\/$/,'');applyI18n();$('wifi').textContent=j.wifiConnected?tr('wifiConnected'):(j.portal?tr('portalMode'):tr('connecting'));$('ip').textContent=j.mdns?(j.mdns+' / '+(j.ip||'-')):(j.ip||'-');$('time').textContent=j.timeReady?j.now:tr('timeNotReady');$('localeStatus').textContent=localeName(currentLocale);$('battery').textContent=`${tr('usb')} ${j.battery.usb?tr('yes'):tr('no')} / ${tr('charging')} ${j.battery.charging?tr('yes'):tr('no')} / ADC ${j.battery.rawAdc}`;$('hardware').textContent=j.hardware.degraded?(j.hardware.motorFault?tr('motorFault'):tr('degraded')):tr('normal');$('capability').textContent=capText(j.capabilities)}catch(e){$('wifi').textContent=tr('readFailed')}}
+function showSavedWifiResult(j){let m=$('msg');if(m.textContent)return;if(j.wifiSetupResult==='connected'&&j.wifiConnected&&j.ip&&j.ip!=='0.0.0.0')m.textContent=tr('wifiSuccess')+'http://'+j.ip+'/ '+tr('wifiSuccessHelp');else if(j.wifiSetupResult==='failed')m.textContent=tr('wifiFailed');else if(j.wifiSetupResult==='connecting')m.textContent=tr('wifiConnecting')}
+async function loadStatus(){try{let r=await fetch('/api/status');let j=await r.json();currentLocale=j.locale||currentLocale;if($('locale').value!==currentLocale)$('locale').value=currentLocale;if(!$('serverUrl').value&&j.serverOtaUrl)$('serverUrl').value=j.serverOtaUrl.replace(/\/xiaozhi\/ota\/$/,'');applyI18n();$('wifi').textContent=j.wifiConnected?tr('wifiConnected'):(j.portal?tr('portalMode'):tr('connecting'));$('ip').textContent=j.mdns?(j.mdns+' / '+(j.ip||'-')):(j.ip||'-');$('time').textContent=j.timeReady?j.now:tr('timeNotReady');$('localeStatus').textContent=localeName(currentLocale);$('battery').textContent=`${tr('usb')} ${j.battery.usb?tr('yes'):tr('no')} / ${tr('charging')} ${j.battery.charging?tr('yes'):tr('no')} / ADC ${j.battery.rawAdc}`;$('hardware').textContent=j.hardware.degraded?(j.hardware.motorFault?tr('motorFault'):tr('degraded')):tr('normal');$('capability').textContent=capText(j.capabilities);showSavedWifiResult(j)}catch(e){$('wifi').textContent=tr('readFailed')}}
 async function saveLocale(){let v=$('locale').value;$('localeMsg').textContent=tr('savingLanguage');try{let r=await fetch('/api/locale',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'locale='+encodeURIComponent(v)});$('localeMsg').textContent=await r.text();if(r.ok){currentLocale=v;applyI18n();$('localeStatus').textContent=localeName(v)}else{$('locale').value=currentLocale}}catch(e){$('locale').value=currentLocale;$('localeMsg').textContent=tr('readFailed')}}
 async function syncTime(){let e=Math.floor(Date.now()/1000);let r=await fetch('/api/time/sync',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'epoch='+e});$('msg').textContent=await r.text();loadStatus()}
 async function loadProactiveReminders(){try{let r=await fetch('/api/proactive-reminders'),j=await r.json();$('activityEnabled').checked=!!j.activity.enabled;$('activityMinutes').value=j.activity.intervalMinutes;$('hydrationEnabled').checked=!!j.hydration.enabled;$('hydrationMinutes').value=j.hydration.intervalMinutes}catch(e){$('proactiveMsg').textContent=tr('readFailed')}}
@@ -606,7 +644,8 @@ async function loadMotorConfig(){try{let r=await fetch('/api/motor/config',{cach
 async function saveMotorConfig(){let l=Number($('motorLeftPwm').value),r=Number($('motorRightPwm').value);if(!Number.isInteger(l)||!Number.isInteger(r)||l<1||r<1||l>255||r>255){$('diag').textContent='1-255';return}let b='leftInverted='+($('motorLeftInverted').checked?'1':'0')+'&rightInverted='+($('motorRightInverted').checked?'1':'0')+'&leftPwm='+l+'&rightPwm='+r;try{let response=await fetch('/api/motor/config',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:b});$('diag').textContent=response.ok?tr('saveMotorConfig'):await response.text();if(response.ok)await loadMotorConfig()}catch(e){$('diag').textContent=tr('readFailed')}}
 async function scanWifi(){let m=$('msg'),l=$('wifiList'),d=$('wifiOptions'),btn=$('scanBtn');m.textContent=tr('scanStart');l.innerHTML='';if(btn)btn.disabled=true;try{let r=await fetch('/api/wifi/scan');let a=await r.json();d.innerHTML='';if(!a.length){m.textContent=tr('scanEmpty');return}a.sort((x,y)=>y.rssi-x.rssi);a.slice(0,16).forEach(n=>{let o=document.createElement('option');o.value=n.ssid;d.appendChild(o);let b=document.createElement('button');b.type='button';b.className='secondary';b.textContent=n.ssid+'  '+n.rssi+' dBm';b.onclick=()=>{$('ssid').value=n.ssid;$('password').focus()};l.appendChild(b)});m.textContent=tr('scanDone')}catch(e){m.textContent=tr('scanFailed')}finally{if(btn)btn.disabled=false}}
 async function loadSavedWifi(){try{let r=await fetch('/api/wifi/saved'),a=await r.json(),l=$('savedWifiList');l.innerHTML='';a.forEach(s=>{let d=document.createElement('div'),n=document.createElement('span'),b=document.createElement('button');d.className='row';n.textContent=s;b.type='button';b.className='secondary';b.textContent=tr('removeWifi');b.onclick=async()=>{if(!confirm(tr('deleteWifiConfirm')))return;let q=await fetch('/api/wifi/saved/delete',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'ssid='+encodeURIComponent(s)});$('msg').textContent=await q.text();if(q.ok)loadSavedWifi()};d.append(n,b);l.appendChild(d)})}catch(e){}}
-async function saveWifi(e){e.preventDefault();let s=$('ssid').value.trim(),p=$('password').value,u=$('serverUrl').value.trim();if(!s){$('msg').textContent=tr('missingSsid');return}if(!u){$('msg').textContent=tr('missingServer');return}$('msg').textContent=tr('savingWifi');let r=await fetch('/api/setup/wifi',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'ssid='+encodeURIComponent(s)+'&password='+encodeURIComponent(p)+'&serverUrl='+encodeURIComponent(u)});$('msg').textContent=await r.text();if(r.ok)loadSavedWifi();setTimeout(loadStatus,1200)}
+async function waitWifiResult(){let until=Date.now()+45000;while(Date.now()<until){await new Promise(resolve=>setTimeout(resolve,1200));let controller=new AbortController(),timer=setTimeout(()=>controller.abort(),3000);try{let r=await fetch('/api/status',{cache:'no-store',signal:controller.signal}),j=await r.json();if(j.wifiSetupResult==='connected'&&j.wifiConnected&&j.ip&&j.ip!=='0.0.0.0'){$('msg').textContent=tr('wifiSuccess')+'http://'+j.ip+'/ '+tr('wifiSuccessHelp');loadStatus();return}if(j.wifiSetupResult==='failed'){$('msg').textContent=tr('wifiFailed');loadStatus();return}}catch(e){}finally{clearTimeout(timer)}}$('msg').textContent=tr('wifiUnknown')}
+async function saveWifi(e){e.preventDefault();let s=$('ssid').value.trim(),p=$('password').value,u=$('serverUrl').value.trim();if(!s){$('msg').textContent=tr('missingSsid');return}if(!u){$('msg').textContent=tr('missingServer');return}let btn=$('wifiSaveBtn');btn.disabled=true;$('msg').textContent=tr('wifiConnecting');try{let r=await fetch('/api/setup/wifi',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'ssid='+encodeURIComponent(s)+'&password='+encodeURIComponent(p)+'&serverUrl='+encodeURIComponent(u)});if(!r.ok){$('msg').textContent=await r.text();return}loadSavedWifi();await waitWifiResult()}catch(e){$('msg').textContent=tr('wifiUnknown')}finally{btn.disabled=false}}
 async function diag(c){$('diag').textContent=tr('running')+c;let r=await fetch('/api/diagnostic',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'command='+encodeURIComponent(c)});let t=await r.text();$('diag').textContent=t;return t}
 function val(t,k){let m=t.match(new RegExp(k+'=([^\\n\\r]+)'));return m?m[1].trim():''}
 async function pollMic(){let t=await diag('mic');let avg=Number(val(t,'avg_abs')||0),peak=Number(val(t,'peak')||0);$('micValue').textContent=`avg_abs=${avg} peak=${peak}`;$('micBar').style.width=Math.min(100,Math.round(peak/600))+'%'}
@@ -740,10 +779,12 @@ void WebConfigServer::handleWifiSave() {
   }
   activeNetworkIndex_ = savedIndex;
   tryingSavedNetworks_ = false;
+  setupResult_ = SetupResult::Connecting;
+  closeSetupPortalAfterSuccess_ = false;
   pendingCredentials_ = credentials;
   pendingStationConnect_ = true;
   stationConnectAfterMs_ = millis();
-  sendText(200, "text/plain; charset=utf-8", "已保存，铜豆马上连接 WiFi。");
+  sendText(200, "text/plain; charset=utf-8", "正在连接，请稍候。");
 }
 
 void WebConfigServer::handleWifiList() {
@@ -1239,6 +1280,14 @@ String WebConfigServer::statusJson() const {
 
   body += "{\"wifiConnected\":";
   body += WiFi.status() == WL_CONNECTED ? "true" : "false";
+  body += ",\"wifiSetupResult\":\"";
+  switch (setupResult_) {
+    case SetupResult::Connecting: body += "connecting"; break;
+    case SetupResult::Connected: body += "connected"; break;
+    case SetupResult::Failed: body += "failed"; break;
+    case SetupResult::Idle: body += "idle"; break;
+  }
+  body += '"';
   body += ",\"portal\":";
   body += state_ == NetworkState::Portal ? "true" : "false";
   body += ",\"firmwareVersion\":\"";

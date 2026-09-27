@@ -49,6 +49,8 @@ class WebConfigServer {
     Portal,
   };
 
+  enum class SetupResult : uint8_t { Idle, Connecting, Connected, Failed };
+
   void startPortal();
   void startStation(const WifiCredentials& credentials);
   void prepareSavedNetworks();
@@ -121,9 +123,12 @@ class WebConfigServer {
   uint8_t nextSavedAttempt_ = 0;
   uint8_t activeNetworkIndex_ = WifiConfigStore::kMaxNetworks;
   bool tryingSavedNetworks_ = false;
+  SetupResult setupResult_ = SetupResult::Idle;
+  bool closeSetupPortalAfterSuccess_ = false;
   unsigned long connectStartedMs_ = 0;
   unsigned long connectTimeoutMs_ = 0;
   unsigned long stationConnectAfterMs_ = 0;
+  unsigned long setupConnectedAtMs_ = 0;
 };
 
 }  // namespace tongdou

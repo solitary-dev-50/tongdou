@@ -135,6 +135,8 @@
 ```json
 {
   "wifiConnected": true,
+  "wifiSetupResult": "connected",
+  "ip": "192.168.1.42",
   "portal": false,
   "timeReady": true,
   "now": "2026-06-22 10:00:00",
@@ -166,6 +168,8 @@
 | `portal` | 配网模式 |
 | `connecting` | 正在联网 |
 | `degraded` | 硬件降级 |
+
+`wifiSetupResult` 专门表示最近一次网页提交的配网结果：`idle`（尚未提交）、`connecting`（正在尝试）、`connected`（已连上目标网络并拿到地址）、`failed`（连接失败）。`ip` 在连接成功时是铜豆取得的局域网地址。连接失败不一定是密码错误，也可能是名称或信号问题。
 
 ---
 
@@ -265,15 +269,15 @@ locale=en-GB
 
 用途：
 
-> 保存 WiFi 名称和密码，并让设备开始连接。
+> 保存 WiFi 名称和密码，并让设备开始连接；实际结果通过 `GET /api/status` 的 `wifiSetupResult` 查询。
 
 请求体：
 
 ```text
-ssid=Home%20WiFi&password=12345678
+ssid=Home%20WiFi&password=12345678&serverUrl=http%3A%2F%2F192.168.1.20%3A8102
 ```
 
-返回：纯文本保存结果。
+返回：纯文本“正在连接，请稍候。”，仅表示已开始尝试，不代表连接成功。配网页等待结果；成功后热点继续开放约 60 秒，失败时热点保持开放以便重试。
 
 ---
 
