@@ -51,6 +51,8 @@ class WebConfigServer {
 
   void startPortal();
   void startStation(const WifiCredentials& credentials);
+  void prepareSavedNetworks();
+  bool startNextSavedNetwork();
   void startMdns();
   void stopMdns();
   void ensureHttpServer();
@@ -58,6 +60,8 @@ class WebConfigServer {
   void handleRoot();
   void handleWifiSave();
   void handleWifiScan();
+  void handleWifiList();
+  void handleWifiDelete();
   void handleLocaleGet();
   void handleLocaleSave();
   void handleTimeSync();
@@ -110,7 +114,15 @@ class WebConfigServer {
   bool wifiConnectedEvent_ = false;
   bool wifiConnectFailedEvent_ = false;
   WifiCredentials pendingCredentials_;
+  String connectingSsid_;
+  uint8_t savedOrder_[WifiConfigStore::kMaxNetworks] = {};
+  uint8_t savedOrderCount_ = 0;
+  uint8_t visibleNetworks_ = 0;
+  uint8_t nextSavedAttempt_ = 0;
+  uint8_t activeNetworkIndex_ = WifiConfigStore::kMaxNetworks;
+  bool tryingSavedNetworks_ = false;
   unsigned long connectStartedMs_ = 0;
+  unsigned long connectTimeoutMs_ = 0;
   unsigned long stationConnectAfterMs_ = 0;
 };
 

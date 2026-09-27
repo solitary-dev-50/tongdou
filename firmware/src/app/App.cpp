@@ -66,7 +66,7 @@ void App::begin() {
   firmwareUpdateService_.begin();
   Serial.println("firmware update service ready");
 
-  wifiConfigStore_.begin();
+  wifiConfigStore_.begin(serverEndpointStore_.otaUrl());
   Serial.println("wifi config ready");
 
   deviceLocaleStore_.begin();

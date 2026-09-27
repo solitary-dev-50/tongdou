@@ -18,6 +18,7 @@ const IPAddress kPortalIp(192, 168, 4, 1);
 const IPAddress kPortalGateway(192, 168, 4, 1);
 const IPAddress kPortalSubnet(255, 255, 255, 0);
 constexpr unsigned long kConnectTimeoutMs = 12000;
+constexpr unsigned long kOutOfRangeConnectTimeoutMs = 4000;
 constexpr unsigned long kDeferredConnectDelayMs = 400;
 constexpr unsigned long kStationDisconnectSettleMs = 120;
 constexpr uint32_t kWifiScanFirstPassMsPerChannel = 220;
@@ -146,10 +147,9 @@ WebConfigServer::WebConfigServer(ScenarioConfigApi& scenarioApi, WifiConfigStore
 
 void WebConfigServer::begin() {
   scenarioApi_.begin();
-  WifiCredentials credentials;
-  if (wifiStore_.load(credentials)) {
-    startStation(credentials);
-  } else {
+  prepareSavedNetworks();
+  tryingSavedNetworks_ = true;
+  if (!startNextSavedNetwork()) {
     startPortal();
   }
   ensureHttpServer();
@@ -176,17 +176,30 @@ void WebConfigServer::update() {
   }
 
   if (state_ == NetworkState::Connecting) {
-    if (WiFi.status() == WL_CONNECTED) {
+    if (WiFi.status() == WL_CONNECTED && WiFi.SSID() == connectingSsid_) {
       state_ = NetworkState::Connected;
+      tryingSavedNetworks_ = false;
+      if (activeNetworkIndex_ < wifiStore_.count()) {
+        WifiCredentials connected;
+        if (wifiStore_.loadAt(activeNetworkIndex_, connected)) {
+          wifiStore_.markConnected(activeNetworkIndex_);
+          if (connected.serverUrl.length() > 0 &&
+              !serverEndpointStore_.saveOtaUrl(connected.serverUrl)) {
+            Serial.println("wifi connected, server address save failed");
+          }
+        }
+      }
       wifiConnectedEvent_ = true;
       startMdns();
       timeService_.configureNetworkTime();
       Serial.print("wifi connected ip=");
       Serial.println(WiFi.localIP());
-    } else if (millis() - connectStartedMs_ > kConnectTimeoutMs) {
-      Serial.println("wifi connect timeout, starting setup portal");
-      wifiConnectFailedEvent_ = true;
-      startPortal();
+    } else if (millis() - connectStartedMs_ > connectTimeoutMs_) {
+      Serial.println("wifi connect timeout");
+      if (!tryingSavedNetworks_ || !startNextSavedNetwork()) {
+        wifiConnectFailedEvent_ = true;
+        startPortal();
+      }
     }
   }
 
@@ -222,6 +235,8 @@ const char* WebConfigServer::setupSsid() const {
 }
 
 void WebConfigServer::startPortal() {
+  tryingSavedNetworks_ = false;
+  activeNetworkIndex_ = WifiConfigStore::kMaxNetworks;
   stopMdns();
   WiFi.mode(WIFI_AP_STA);
   WiFi.setSleep(false);
@@ -245,12 +260,75 @@ void WebConfigServer::startStation(const WifiCredentials& credentials) {
   stopMdns();
   WiFi.mode(state_ == NetworkState::Portal ? WIFI_AP_STA : WIFI_STA);
   WiFi.setSleep(false);
+  WiFi.disconnect(false, false);
   WiFi.begin(credentials.ssid.c_str(), credentials.password.c_str());
+  connectingSsid_ = credentials.ssid;
   connectStartedMs_ = millis();
+  if (!tryingSavedNetworks_) {
+    connectTimeoutMs_ = kConnectTimeoutMs;
+  }
   state_ = NetworkState::Connecting;
 
   Serial.print("wifi connecting ssid=");
   Serial.println(credentials.ssid);
+}
+
+void WebConfigServer::prepareSavedNetworks() {
+  savedOrderCount_ = 0;
+  visibleNetworks_ = 0;
+  nextSavedAttempt_ = 0;
+  const uint8_t savedCount = wifiStore_.count();
+  if (savedCount == 0) {
+    return;
+  }
+  WiFi.mode(WIFI_STA);
+  const int nearbyCount =
+      WiFi.scanNetworks(false, false, false, kWifiScanFirstPassMsPerChannel);
+  WifiCredentials credentials;
+  for (uint8_t i = 0; i < savedCount; ++i) {
+    if (!wifiStore_.loadAt(i, credentials)) {
+      continue;
+    }
+    for (int nearby = 0; nearby < nearbyCount; ++nearby) {
+      if (WiFi.SSID(nearby) == credentials.ssid) {
+        visibleNetworks_ |= static_cast<uint8_t>(1u << i);
+        break;
+      }
+    }
+  }
+  WiFi.scanDelete();
+  if (nearbyCount < 0) {
+    visibleNetworks_ = static_cast<uint8_t>((1u << savedCount) - 1u);
+  }
+
+  const uint8_t preferred = wifiStore_.preferredIndex();
+  for (uint8_t pass = 0; pass < 2; ++pass) {
+    for (uint8_t attempt = 0; attempt < savedCount; ++attempt) {
+      const uint8_t index = attempt == 0 ? preferred :
+                            attempt <= preferred ? attempt - 1 : attempt;
+      const bool visible = (visibleNetworks_ & (1u << index)) != 0;
+      if (visible == (pass == 0)) {
+        savedOrder_[savedOrderCount_++] = index;
+      }
+    }
+  }
+}
+
+bool WebConfigServer::startNextSavedNetwork() {
+  WifiCredentials credentials;
+  while (nextSavedAttempt_ < savedOrderCount_) {
+    const uint8_t index = savedOrder_[nextSavedAttempt_++];
+    if (!wifiStore_.loadAt(index, credentials)) {
+      continue;
+    }
+    activeNetworkIndex_ = index;
+    connectTimeoutMs_ = (visibleNetworks_ & (1u << index)) != 0
+                            ? kConnectTimeoutMs : kOutOfRangeConnectTimeoutMs;
+    startStation(credentials);
+    return true;
+  }
+  tryingSavedNetworks_ = false;
+  return false;
 }
 
 void WebConfigServer::startMdns() {
@@ -298,6 +376,8 @@ void WebConfigServer::setupRoutes() {
   server_.on("/connecttest.txt", HTTP_GET, [this]() { handleRoot(); });
   server_.on("/api/status", HTTP_GET, [this]() { sendText(200, "application/json", statusJson()); });
   server_.on("/api/wifi/scan", HTTP_GET, [this]() { handleWifiScan(); });
+  server_.on("/api/wifi/saved", HTTP_GET, [this]() { handleWifiList(); });
+  server_.on("/api/wifi/saved/delete", HTTP_POST, [this]() { handleWifiDelete(); });
   server_.on("/api/setup/wifi", HTTP_POST, [this]() { handleWifiSave(); });
   server_.on("/api/locale", HTTP_GET, [this]() { handleLocaleGet(); });
   server_.on("/api/locale", HTTP_POST, [this]() { handleLocaleSave(); });
@@ -385,7 +465,7 @@ small{color:#aaa}
 <input id="serverUrl" name="serverUrl" placeholder="铜豆服务器地址，例如 http://192.168.1.20:8102" data-i18n-placeholder="serverUrl" required>
 <small data-i18n="serverHelp">请填写启动脚本显示的 TongDou LAN server 地址。</small>
 <div class="row"><button id="scanBtn" type="button" class="secondary" onclick="scanWifi()" data-i18n="scanWifi">扫描附近 WiFi</button><button type="submit" data-i18n="saveConnect">保存并连接</button></div>
-</form><div id="wifiList" class="grid"></div><button onclick="syncTime()" data-i18n="syncTime">同步当前时间</button><small id="msg"></small></section>
+</form><div id="wifiList" class="grid"></div><h3 data-i18n="savedWifi">已保存的无线网络</h3><div id="savedWifiList" class="grid"></div><button onclick="syncTime()" data-i18n="syncTime">同步当前时间</button><small id="msg"></small></section>
 
 <section class="card"><h2 data-i18n="microphone">麦克风</h2>
 <div class="meter"><div class="bar" id="micBar"></div></div>
@@ -511,6 +591,8 @@ document.getElementById('locale').disabled=true;
 #endif
     body += F(R"HTML(
 let currentLocale='en-GB';
+I18N['zh-CN'].savedWifi='已保存的无线网络';I18N['zh-CN'].removeWifi='删除';I18N['zh-CN'].deleteWifiConfirm='删除这组无线网络？';
+I18N['en-GB'].savedWifi='Saved WiFi networks';I18N['en-GB'].removeWifi='Remove';I18N['en-GB'].deleteWifiConfirm='Remove this WiFi network?';
 function tr(k){let d=I18N[currentLocale]||I18N['en-GB'];return (d&&d[k])||I18N['en-GB'][k]||I18N['zh-CN'][k]||k}
 function applyI18n(){document.documentElement.lang=currentLocale;document.title=tr('appTitle');document.querySelectorAll('[data-i18n]').forEach(e=>e.textContent=tr(e.dataset.i18n));document.querySelectorAll('[data-i18n-placeholder]').forEach(e=>e.placeholder=tr(e.dataset.i18nPlaceholder))}
 function localeName(v){return {'en-GB':'English UK','en-CA':'English Canada','fr-FR':'Français','fr-CA':'Français Canada','nl-NL':'Nederlands','ru-RU':'Русский','zh-CN':'中文'}[v]||v}
@@ -523,7 +605,8 @@ async function saveProactiveReminders(){let a=Number($('activityMinutes').value)
 async function loadMotorConfig(){try{let r=await fetch('/api/motor/config',{cache:'no-store'}),j=await r.json();$('motorLeftInverted').checked=!!j.leftInverted;$('motorRightInverted').checked=!!j.rightInverted;$('motorLeftPwm').value=j.leftPwm;$('motorRightPwm').value=j.rightPwm}catch(e){$('diag').textContent=tr('readFailed')}}
 async function saveMotorConfig(){let l=Number($('motorLeftPwm').value),r=Number($('motorRightPwm').value);if(!Number.isInteger(l)||!Number.isInteger(r)||l<1||r<1||l>255||r>255){$('diag').textContent='1-255';return}let b='leftInverted='+($('motorLeftInverted').checked?'1':'0')+'&rightInverted='+($('motorRightInverted').checked?'1':'0')+'&leftPwm='+l+'&rightPwm='+r;try{let response=await fetch('/api/motor/config',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:b});$('diag').textContent=response.ok?tr('saveMotorConfig'):await response.text();if(response.ok)await loadMotorConfig()}catch(e){$('diag').textContent=tr('readFailed')}}
 async function scanWifi(){let m=$('msg'),l=$('wifiList'),d=$('wifiOptions'),btn=$('scanBtn');m.textContent=tr('scanStart');l.innerHTML='';if(btn)btn.disabled=true;try{let r=await fetch('/api/wifi/scan');let a=await r.json();d.innerHTML='';if(!a.length){m.textContent=tr('scanEmpty');return}a.sort((x,y)=>y.rssi-x.rssi);a.slice(0,16).forEach(n=>{let o=document.createElement('option');o.value=n.ssid;d.appendChild(o);let b=document.createElement('button');b.type='button';b.className='secondary';b.textContent=n.ssid+'  '+n.rssi+' dBm';b.onclick=()=>{$('ssid').value=n.ssid;$('password').focus()};l.appendChild(b)});m.textContent=tr('scanDone')}catch(e){m.textContent=tr('scanFailed')}finally{if(btn)btn.disabled=false}}
-async function saveWifi(e){e.preventDefault();let s=$('ssid').value.trim(),p=$('password').value,u=$('serverUrl').value.trim();if(!s){$('msg').textContent=tr('missingSsid');return}if(!u){$('msg').textContent=tr('missingServer');return}$('msg').textContent=tr('savingWifi');let r=await fetch('/api/setup/wifi',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'ssid='+encodeURIComponent(s)+'&password='+encodeURIComponent(p)+'&serverUrl='+encodeURIComponent(u)});$('msg').textContent=await r.text();setTimeout(loadStatus,1200)}
+async function loadSavedWifi(){try{let r=await fetch('/api/wifi/saved'),a=await r.json(),l=$('savedWifiList');l.innerHTML='';a.forEach(s=>{let d=document.createElement('div'),n=document.createElement('span'),b=document.createElement('button');d.className='row';n.textContent=s;b.type='button';b.className='secondary';b.textContent=tr('removeWifi');b.onclick=async()=>{if(!confirm(tr('deleteWifiConfirm')))return;let q=await fetch('/api/wifi/saved/delete',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'ssid='+encodeURIComponent(s)});$('msg').textContent=await q.text();if(q.ok)loadSavedWifi()};d.append(n,b);l.appendChild(d)})}catch(e){}}
+async function saveWifi(e){e.preventDefault();let s=$('ssid').value.trim(),p=$('password').value,u=$('serverUrl').value.trim();if(!s){$('msg').textContent=tr('missingSsid');return}if(!u){$('msg').textContent=tr('missingServer');return}$('msg').textContent=tr('savingWifi');let r=await fetch('/api/setup/wifi',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'ssid='+encodeURIComponent(s)+'&password='+encodeURIComponent(p)+'&serverUrl='+encodeURIComponent(u)});$('msg').textContent=await r.text();if(r.ok)loadSavedWifi();setTimeout(loadStatus,1200)}
 async function diag(c){$('diag').textContent=tr('running')+c;let r=await fetch('/api/diagnostic',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'command='+encodeURIComponent(c)});let t=await r.text();$('diag').textContent=t;return t}
 function val(t,k){let m=t.match(new RegExp(k+'=([^\\n\\r]+)'));return m?m[1].trim():''}
 async function pollMic(){let t=await diag('mic');let avg=Number(val(t,'avg_abs')||0),peak=Number(val(t,'peak')||0);$('micValue').textContent=`avg_abs=${avg} peak=${peak}`;$('micBar').style.width=Math.min(100,Math.round(peak/600))+'%'}
@@ -534,7 +617,7 @@ async function pollRadar(){let t=await diag('radar target');let has=val(t,'has_t
 function startRadarTest(){if(radarTimer)return;pollRadar();radarTimer=setInterval(pollRadar,700)}
 function stopRadarTest(){if(!radarTimer)return;clearInterval(radarTimer);radarTimer=null}
 async function mcpTool(n,a){$('diag').textContent='执行中：'+n;let p={jsonrpc:'2.0',id:Date.now(),method:'tools/call',params:{name:n,arguments:a||{}}};let r=await fetch('/api/mcp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});$('diag').textContent=await r.text()}
-loadStatus();loadProactiveReminders();loadMotorConfig();setInterval(loadStatus,5000);
+loadStatus();loadSavedWifi();loadProactiveReminders();loadMotorConfig();setInterval(loadStatus,5000);
 </script></main></body></html>)HTML");
     sendText(200, "text/html; charset=utf-8", body);
     return;
@@ -648,16 +731,49 @@ void WebConfigServer::handleWifiSave() {
              "铜豆服务器地址无效。请填写启动脚本显示的局域网地址。");
     return;
   }
-  if (!serverEndpointStore_.saveOtaUrl(serverUrl)) {
-    sendText(500, "text/plain; charset=utf-8", "铜豆服务器地址保存失败");
+  credentials.serverUrl = serverUrl;
+  uint8_t savedIndex = WifiConfigStore::kMaxNetworks;
+  if (!wifiStore_.save(credentials, savedIndex)) {
+    sendText(507, "text/plain; charset=utf-8",
+             "无线网络保存失败；若已存满 8 组，请先删除不用的网络。");
     return;
   }
-
-  wifiStore_.save(credentials);
+  activeNetworkIndex_ = savedIndex;
+  tryingSavedNetworks_ = false;
   pendingCredentials_ = credentials;
   pendingStationConnect_ = true;
   stationConnectAfterMs_ = millis();
   sendText(200, "text/plain; charset=utf-8", "已保存，铜豆马上连接 WiFi。");
+}
+
+void WebConfigServer::handleWifiList() {
+  String body = "[";
+  WifiCredentials credentials;
+  for (uint8_t i = 0; i < wifiStore_.count(); ++i) {
+    if (!wifiStore_.loadAt(i, credentials)) {
+      continue;
+    }
+    if (body.length() > 1) {
+      body += ',';
+    }
+    body += '"';
+    body += jsonEscape(credentials.ssid);
+    body += '"';
+  }
+  body += ']';
+  sendText(200, "application/json", body);
+}
+
+void WebConfigServer::handleWifiDelete() {
+  if (state_ == NetworkState::Connecting) {
+    sendText(409, "text/plain; charset=utf-8", "正在连接，请稍后再删除。");
+    return;
+  }
+  if (!wifiStore_.remove(server_.arg("ssid"))) {
+    sendText(404, "text/plain; charset=utf-8", "未找到这组无线网络。");
+    return;
+  }
+  sendText(200, "text/plain; charset=utf-8", "已删除保存的无线网络。");
 }
 
 void WebConfigServer::handleWifiScan() {
