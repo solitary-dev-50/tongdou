@@ -12,3 +12,5 @@
 .gitattributes text eol=lf
 .gitignore text eol=lf
 LICENSE text eol=lf
+tools/release_templates/server_runtime/*.sh text eol=lf
+tools/release_templates/server_runtime/scripts/*.py text eol=lf

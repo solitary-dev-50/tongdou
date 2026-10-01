@@ -2,6 +2,18 @@
 
 [![TongDou demo keyframes](media/images/tongdou-demo-keyframes.gif)](media/videos/tongdou-demo-devil-descends.mp4)
 
+## Candidate server runtime — v0.1.3-rc.1
+
+This separate server release candidate uses three prebuilt images at
+`ghcr.io/solitary-dev-50`: `server`, `manager`, and `voiceprint`.
+Users pull images and start services; no local image builds are required.
+See the [quick start](tools/release_templates/server_runtime/QUICK_START_EN.md)
+and [validation scope](tools/release_templates/server_runtime/RELEASE_NOTES_EN.md).
+Windows Docker Desktop builds and isolated service-start checks passed.
+Fresh Ubuntu installation, existing-volume upgrades, low-memory hosts, and
+complete physical-device voice conversations still require external testing.
+Existing firmware releases and their archives remain unchanged.
+
 ## Latest Release — v0.1.3 Early Tester
 
 **The complete TongDou application firmware and matching server are available
