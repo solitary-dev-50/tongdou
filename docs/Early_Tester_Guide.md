@@ -1,5 +1,9 @@
 # TongDou v0.1.2 Early Tester Guide
 
+This guide describes the already delivered v0.1.2 source package. The candidate
+prebuilt-image runtime package has separate instructions in
+`tools/release_templates/server_runtime/`; it has not been published yet.
+
 Thank you for helping test TongDou.
 
 This guide is for people who have received a physical TongDou unit. It explains what you can try, how to complete the first setup, and what information is useful when something goes wrong.

@@ -1,0 +1,135 @@
+name: ${COMPOSE_PROJECT_NAME:-tongdou-v010}
+services:
+  tongdou-voice:
+    image: ${TONGDOU_IMAGE_NAMESPACE:-tongdou}/server:${TONGDOU_VERSION:?Set TONGDOU_VERSION}
+    restart: unless-stopped
+    depends_on:
+      tongdou-manager:
+        condition: service_healthy
+      voiceprint-api:
+        condition: service_healthy
+    ports:
+    - ${TONGDOU_WS_PORT:-8100}:8000
+    - ${TONGDOU_HTTP_PORT:-8103}:8003
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+    security_opt:
+    - seccomp:unconfined
+    volumes:
+    - ./data:/opt/xiaozhi-esp32-server/data
+  tongdou-manager:
+    image: ${TONGDOU_IMAGE_NAMESPACE:-tongdou}/manager:${TONGDOU_VERSION:?Set TONGDOU_VERSION}
+    restart: unless-stopped
+    depends_on:
+      tongdou-db:
+        condition: service_healthy
+      tongdou-redis:
+        condition: service_healthy
+    ports:
+    - ${TONGDOU_DASHBOARD_PORT:-8102}:8002
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      SPRING_DATASOURCE_DRUID_URL: jdbc:mysql://tongdou-db:3306/${MYSQL_DATABASE:-xiaozhi_esp32_server}?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&nullCatalogMeansCurrent=true&connectTimeout=30000&socketTimeout=30000&autoReconnect=true&failOverReadOnly=false&maxReconnects=10
+      SPRING_DATASOURCE_DRUID_USERNAME: root
+      SPRING_DATASOURCE_DRUID_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Run the platform startup
+        script to initialize .env}
+      SPRING_DATA_REDIS_HOST: tongdou-redis
+      SPRING_DATA_REDIS_PASSWORD: ''
+      SPRING_DATA_REDIS_PORT: 6379
+      VOICEPRINT_API_ENDPOINT: http://voiceprint-api:8005/voiceprint/health?key=${VOICEPRINT_API_TOKEN:?Run
+        the platform startup script to initialize .env}
+    volumes:
+    - ./uploadfile:/uploadfile
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - wget -q -O /dev/null http://127.0.0.1:8002/ || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 60
+      start_period: 10m
+  tongdou-db:
+    image: mysql:8.0
+    restart: unless-stopped
+    expose:
+    - '3306'
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Run the platform startup script
+        to initialize .env}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-xiaozhi_esp32_server}
+      MYSQL_INITDB_ARGS: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+      MYSQL_ROOT_HOST: '%'
+    volumes:
+    - tongdou-mysql-data:/var/lib/mysql
+    - ./main/xiaozhi-server/mysql-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - MYSQL_PWD=$$MYSQL_ROOT_PASSWORD mysqladmin ping -h 127.0.0.1 -uroot --silent
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 10m
+  tongdou-redis:
+    image: redis:8.0
+    restart: unless-stopped
+    expose:
+    - '6379'
+    command:
+    - redis-server
+    - --appendonly
+    - 'yes'
+    volumes:
+    - tongdou-redis-data:/data
+    healthcheck:
+      test:
+      - CMD
+      - redis-cli
+      - ping
+      interval: 10s
+      timeout: 5s
+      retries: 20
+  voiceprint-api:
+    image: ${TONGDOU_IMAGE_NAMESPACE:-tongdou}/voiceprint:${TONGDOU_VERSION:?Set TONGDOU_VERSION}
+    restart: always
+    depends_on:
+      tongdou-db:
+        condition: service_healthy
+    ports:
+    - 127.0.0.1:${TONGDOU_VOICEPRINT_PORT:-8105}:8005
+    security_opt:
+    - seccomp:unconfined
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      VOICEPRINT_API_TOKEN: ${VOICEPRINT_API_TOKEN:?Run the platform startup script
+        to initialize .env}
+      VOICEPRINT_MYSQL_HOST: tongdou-db
+      VOICEPRINT_MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Run the platform startup script
+        to initialize .env}
+    volumes:
+    - voiceprint-data:/app/data
+    - voiceprint-model-cache:/root/.cache/modelscope
+    command:
+    - python
+    - /opt/tongdou/start_voiceprint.py
+    healthcheck:
+      test:
+      - CMD
+      - python
+      - -c
+      - import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:8005/voiceprint/health?key='
+        + os.environ['VOICEPRINT_API_TOKEN'], timeout=5)
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 120s
+volumes:
+  tongdou-mysql-data:
+    name: ${COMPOSE_PROJECT_NAME:-tongdou-v010}-mysql-data
+  tongdou-redis-data:
+    name: ${COMPOSE_PROJECT_NAME:-tongdou-v010}-redis-data
+  voiceprint-data:
+    name: ${COMPOSE_PROJECT_NAME:-tongdou-v010}-voiceprint-data
+  voiceprint-model-cache:
+    name: ${COMPOSE_PROJECT_NAME:-tongdou-v010}-voiceprint-model-cache

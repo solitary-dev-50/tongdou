@@ -1,5 +1,9 @@
 # TongDou v0.1.2 Early Tester – Quick Start
 
+This guide describes the already delivered v0.1.2 source package. A smaller
+prebuilt-image runtime package is under review; when it is published, use its
+included `QUICK_START_EN.md` and `LINUX_FIRST_START_EN.md` instead.
+
 ## 1. Before you start
 
 You will need:

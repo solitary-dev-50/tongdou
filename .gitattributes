@@ -3,6 +3,8 @@ LICENSE text eol=lf
 NOTICE.md text eol=lf
 *.csv text eol=lf
 tools/release_templates/server/START_TONGDOU_SERVER.sh text eol=lf
+tools/release_templates/server_runtime/*.sh text eol=lf
+tools/release_templates/server_runtime/scripts/*.py text eol=lf
 
 *.pdf binary
 *.zip binary

@@ -1,0 +1,8 @@
+FROM ghcr.nju.edu.cn/xinnan-tech/voiceprint-api@sha256:92b0ee9a9cbc125fcae11cc6361ff6fe88cd5985c234b02d5384fdba476fcaff
+
+# Keep the two compatibility and credential-log fixes from the current service.
+RUN python -c "from pathlib import Path; path = Path('/usr/local/lib/python3.10/site-packages/modelscope/hub/file_download.py'); source = path.read_text(); old = 'if total != downloaded_length:'; new = 'if total is not None and total != downloaded_length:'; assert source.count(old) == 1; path.write_text(source.replace(old, new))"
+RUN python -c "from pathlib import Path; path = Path('/app/start_server.py'); source = path.read_text(); old = '+ settings.api_token'; new = \"+ '***'\"; assert source.count(old) == 1; path.write_text(source.replace(old, new))"
+
+# The runtime package no longer carries Python source for a bind mount.
+COPY main/xiaozhi-server/docker/voiceprint/start_voiceprint.py /opt/tongdou/start_voiceprint.py

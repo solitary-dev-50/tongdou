@@ -85,6 +85,13 @@ For delivered units running the formal application firmware, see the
 Download the HTML file and open it in a browser. It includes all images and
 defaults to English, with a language switcher for Chinese and Russian.
 
+The next TongDou Server runtime package is being prepared around three
+versioned, prebuilt container images. Its [Linux first-start guide](tools/release_templates/server_runtime/LINUX_FIRST_START_EN.md)
+and [quick start](tools/release_templates/server_runtime/QUICK_START_EN.md) describe
+the planned pull-and-start flow. These files are a candidate, not a published
+download; the images must be uploaded and tested before distribution. Existing
+v0.1.2 server archives retain their original source-build instructions.
+
 The separate V9.4 build for `xiaozhi.me` is documented in the
 [V9.4 Xiaozhi cloud firmware guide](docs/V9.4小智云版固件.md). Its cloud pairing
 and voice flow still require V9.4 hardware validation.
